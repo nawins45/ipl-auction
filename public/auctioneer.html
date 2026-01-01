@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auctioneer - IPL Auction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Poppins', sans-serif; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .bid-log-item {
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .bid-log-item.new {
+            border-left-color: #F59E0B;
+            background: rgba(245, 158, 11, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                Welcome to N4WIN5's IPL Auction
+            </h1>
+            <p class="text-gray-300">Auctioneer Control Panel</p>
+            <div id="connectionStatus" class="inline-flex items-center px-3 py-1 rounded-full mt-2 text-sm bg-green-500/20">
+                <div class="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                <span>Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column -->
+            <div class="space-y-8">
+                <!-- Room Creation -->
+                <div class="glass-panel rounded-2xl p-6 slide-in">
+                    <h2 class="text-2xl font-bold mb-4 text-yellow-400">Create Auction Room</h2>
+                    <div class="space-y-4">
+                        <button id="createRoomBtn" 
+                                class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02]">
+                            🏆 Create New Auction Room
+                        </button>
+                        
+                        <div id="roomInfo" class="hidden">
+                            <div class="bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-xl p-6 text-center border-2 border-blue-500/30">
+                                <h3 class="text-xl font-bold mb-2">Room Created Successfully!</h3>
+                                <div class="text-4xl font-black tracking-wider mb-4 bg-gradient-to-r from-yellow-300 to-orange-400 bg-clip-text text-transparent" id="roomCodeDisplay"></div>
+                                <p class="text-gray-300 mb-4">Share this code with participants</p>
+                                <div class="text-sm text-gray-400">
+                                    <p>Users should go to: <span class="text-yellow-300">http://localhost:3000/user.html</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rules Configuration -->
+                <div class="glass-panel rounded-2xl p-6 slide-in">
+                    <h2 class="text-2xl font-bold mb-4 text-yellow-400">Set Auction Rules</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block mb-2 text-gray-300">Total Purse (in Cr)</label>
+                            <input type="number" id="totalPurse" min="50" max="100" value="100" 
+                                   class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block mb-2 text-gray-300">Max Indian Players (Retention)</label>
+                                <input type="number" id="maxIndian" min="1" max="10" value="4" 
+                                       class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3">
+                            </div>
+                            <div>
+                                <label class="block mb-2 text-gray-300">Max Overseas Players (Retention)</label>
+                                <input type="number" id="maxOverseas" min="1" max="8" value="3" 
+                                       class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block mb-2 text-gray-300">Squad Size (Auction Limit)</label>
+                                <input type="number" id="squadSize" min="15" max="25" value="25" 
+                                       class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block mb-2 text-gray-300">RTM Cards</label>
+                                    <input type="number" id="rtmCards" min="0" max="3" value="2" 
+                                           class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3">
+                                </div>
+                                <div>
+                                    <label class="block mb-2 text-gray-300">Impact Players</label>
+                                    <input type="number" id="impactPlayers" min="0" max="2" value="1" 
+                                           class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3">
+                                </div>
+                            </div>
+                            
+                            <button id="lockRulesBtn" 
+                                    class="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-xl font-semibold text-lg transition-all duration-300 mt-4">
+                                🔒 Lock Rules
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Auction Pool Controls -->
+                    <div class="glass-panel rounded-2xl p-6 slide-in mt-8">
+                        <h2 class="text-2xl font-bold mb-4 text-yellow-400">Auction Pool Phase</h2>
+                        <div class="space-y-4">
+                            <button id="startAuctionPoolBtn" 
+                                    class="w-full py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 rounded-xl font-semibold text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled>
+                                🚀 Start Auction Pool
+                            </button>
+                            
+                            <div id="auctionPoolControls" class="hidden space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <button id="skipPlayerBtn" 
+                                            class="py-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 rounded-lg font-semibold">
+                                        ⏭️ Skip Player
+                                    </button>
+                                    <button id="endAuctionBtn" 
+                                            class="py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-lg font-semibold">
+                                        🏁 End Auction
+                                    </button>
+                                </div>
+                                
+                                <div class="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-4">
+                                    <h3 class="font-semibold text-gray-300 mb-2">Auction Status</h3>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <span class="text-gray-400">Category:</span>
+                                            <span id="auctioneerCategory" class="ml-2 font-bold">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400">Current Bid:</span>
+                                            <span id="auctioneerCurrentBid" class="ml-2 font-bold text-yellow-400">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400">Players Left:</span>
+                                            <span id="auctioneerPlayersLeft" class="ml-2 font-bold">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400">Unsold:</span>
+                                            <span id="auctioneerUnsold" class="ml-2 font-bold">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rating & Results Controls -->
+<div class="glass-panel rounded-2xl p-6 slide-in mt-8">
+    <h2 class="text-2xl font-bold mb-4 text-yellow-400">Team Rating & Results</h2>
+    <div class="space-y-4">
+        <!-- Submitted Teams List -->
+        <div id="submittedTeams" class="hidden space-y-3">
+            <h3 class="font-semibold text-gray-300">Teams to Rate:</h3>
+            <div id="teamsToRate" class="space-y-2"></div>
+        </div>
+        
+        <!-- Rating Interface -->
+        <div id="ratingInterface" class="hidden space-y-4">
+            <div class="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-4">
+                <h3 class="font-semibold text-gray-300 mb-2">Rate Team: <span id="currentTeamRating" class="text-yellow-400"></span></h3>
+                
+                <div class="mb-4">
+                    <label class="block mb-2 text-gray-300">Rating (1-10)</label>
+                    <div class="flex space-x-2 mb-2">
+                        <!-- Rating stars/numbers -->
+                        <div id="ratingStars" class="flex space-x-1">
+                            <!-- Will generate 1-10 rating buttons -->
+                        </div>
+                    </div>
+                    <input type="range" id="ratingSlider" min="1" max="10" value="5" 
+                           class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    <div class="flex justify-between text-xs text-gray-400">
+                        <span>1 (Poor)</span>
+                        <span id="ratingValue" class="text-yellow-400 font-bold">5</span>
+                        <span>10 (Excellent)</span>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block mb-2 text-gray-300">Comments</label>
+                    <textarea id="ratingComments" 
+                              class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 h-24"
+                              placeholder="Comments on team balance, strategy, captain choice..."></textarea>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button id="skipRatingBtn" 
+                            class="px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg font-semibold">
+                        Skip
+                    </button>
+                    <button id="submitRatingBtn" 
+                            class="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-semibold flex-1">
+                        Submit Rating
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Final Results Button -->
+        <button id="finalizeResultsBtn" 
+                class="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-xl font-semibold text-lg hidden">
+            🏆 Finalize Results & Declare Winner
+        </button>
+    </div>
+</div>
+                
+                </div>
+
+            <!-- Right Column -->
+            <div class="space-y-8">
+                <!-- Connected Users -->
+                <div class="glass-panel rounded-2xl p-6 slide-in">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-yellow-400">Connected Teams</h2>
+                        <span class="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full" id="userCount">0</span>
+                    </div>
+                    <div id="userList" class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                        <p class="text-gray-500 text-center py-4">Waiting for teams to join...</p>
+                    </div>
+                    <div class="mt-4 hidden" id="forceShuffleSection">
+                        <div class="flex space-x-2">
+                            <select id="forceShuffleUser" class="flex-1 bg-gray-800/50 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+                                <option value="">Select user to shuffle</option>
+                            </select>
+                            <button id="forceShuffleBtn" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg font-semibold text-sm">
+                                🔀 Force Shuffle
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Team Assignment -->
+                <div class="glass-panel rounded-2xl p-6 slide-in">
+                    <h2 class="text-2xl font-bold mb-4 text-yellow-400">Team Assignment</h2>
+                    <div class="space-y-4">
+                        <button id="assignTeamsBtn" 
+                                class="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl font-semibold text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled>
+                            🎯 Assign Random Teams
+                        </button>
+                        
+                        <div id="teamMapping" class="hidden space-y-3">
+                            <h3 class="font-semibold text-gray-300">Team Assignments:</h3>
+                            <div id="teamList" class="space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Auction Controls -->
+                <div class="glass-panel rounded-2xl p-6 slide-in">
+                    <h2 class="text-2xl font-bold mb-4 text-yellow-400">Auction Controls</h2>
+                    <div class="space-y-4">
+                        <button id="startRetentionBtn" 
+                                class="w-full py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 rounded-xl font-semibold text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled>
+                            ⏳ Start Retention Phase (90s)
+                        </button>
+                        
+                        <div id="retentionProgress" class="hidden">
+                            <h3 class="font-semibold text-gray-300 mb-2">Retention Submissions:</h3>
+                            <div id="submissionList" class="space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Live Bid Log -->
+                <div class="glass-panel rounded-2xl p-6 slide-in">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-yellow-400">Live Bid Log</h2>
+                        <button id="clearBidLogBtn" class="text-xs text-gray-400 hover:text-gray-300">Clear</button>
+                    </div>
+                    <div id="bidLog" class="space-y-2 max-h-64 overflow-y-auto pr-2">
+                        <div class="text-center text-gray-500 py-4">No bids yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="absolute inset-0 bg-black/70"></div>
+        <div class="glass-panel rounded-2xl p-6 max-w-md mx-4 z-10">
+            <div class="text-center">
+                <div class="text-4xl mb-4" id="modalIcon">⚠️</div>
+                <h3 class="text-2xl font-bold mb-2" id="modalTitle">Alert</h3>
+                <p class="text-gray-300 mb-6" id="modalMessage">This is a modal message</p>
+                <button onclick="closeModal()" 
+                        class="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-semibold">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Socket connection
+        const socket = io();
+        let currentRoomCode = null;
+        
+        // DOM Elements
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const roomInfo = document.getElementById('roomInfo');
+        const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+        const lockRulesBtn = document.getElementById('lockRulesBtn');
+        const assignTeamsBtn = document.getElementById('assignTeamsBtn');
+        const startRetentionBtn = document.getElementById('startRetentionBtn');
+        const startAuctionPoolBtn = document.getElementById('startAuctionPoolBtn');
+        const auctionPoolControls = document.getElementById('auctionPoolControls');
+        const skipPlayerBtn = document.getElementById('skipPlayerBtn');
+        const endAuctionBtn = document.getElementById('endAuctionBtn');
+        const userList = document.getElementById('userList');
+        const userCount = document.getElementById('userCount');
+        const teamMapping = document.getElementById('teamMapping');
+        const teamList = document.getElementById('teamList');
+        const retentionProgress = document.getElementById('retentionProgress');
+        const submissionList = document.getElementById('submissionList');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const bidLog = document.getElementById('bidLog');
+        const clearBidLogBtn = document.getElementById('clearBidLogBtn');
+        const auctioneerCategory = document.getElementById('auctioneerCategory');
+        const auctioneerCurrentBid = document.getElementById('auctioneerCurrentBid');
+        const auctioneerPlayersLeft = document.getElementById('auctioneerPlayersLeft');
+        const auctioneerUnsold = document.getElementById('auctioneerUnsold');
+        const forceShuffleSection = document.getElementById('forceShuffleSection');
+        const forceShuffleUser = document.getElementById('forceShuffleUser');
+        const forceShuffleBtn = document.getElementById('forceShuffleBtn');
+
+        // Update connection status
+        socket.on('connect', () => {
+            connectionStatus.innerHTML = `
+                <div class="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                <span>Connected</span>
+            `;
+            console.log('✅ Connected to server');
+        });
+        
+        socket.on('disconnect', () => {
+            connectionStatus.innerHTML = `
+                <div class="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                <span>Disconnected</span>
+            `;
+            console.log('❌ Disconnected from server');
+        });
+        
+        socket.on('connect_error', (error) => {
+            connectionStatus.innerHTML = `
+                <div class="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                <span>Connection Error</span>
+            `;
+            console.error('❌ Connection error:', error);
+            showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
+        });
+
+        // Create Room
+        createRoomBtn.addEventListener('click', () => {
+            createRoomBtn.disabled = true;
+            createRoomBtn.innerHTML = 'Creating...';
+            socket.emit('createRoom');
+        });
+
+        // Lock Rules
+        lockRulesBtn.addEventListener('click', () => {
+            const rules = {
+                totalPurse: parseInt(document.getElementById('totalPurse').value) || 100,
+                maxIndian: parseInt(document.getElementById('maxIndian').value) || 4,
+                maxOverseas: parseInt(document.getElementById('maxOverseas').value) || 3,
+                squadSize: parseInt(document.getElementById('squadSize').value) || 25,
+                rtmCards: parseInt(document.getElementById('rtmCards').value) || 2,
+                impactPlayers: parseInt(document.getElementById('impactPlayers').value) || 1
+            };
+
+            if (currentRoomCode) {
+                socket.emit('setRules', { roomCode: currentRoomCode, rules });
+                lockRulesBtn.innerHTML = '✅ Rules Locked';
+                lockRulesBtn.disabled = true;
+                lockRulesBtn.classList.remove('from-yellow-500', 'to-orange-500');
+                lockRulesBtn.classList.add('from-green-500', 'to-emerald-500');
+                
+                // Enable team assignment
+                assignTeamsBtn.disabled = false;
+            }
+        });
+
+        // Assign Teams
+        assignTeamsBtn.addEventListener('click', () => {
+            if (currentRoomCode) {
+                socket.emit('assignTeams', { roomCode: currentRoomCode });
+                assignTeamsBtn.innerHTML = '✅ Teams Assigned';
+                assignTeamsBtn.disabled = true;
+                assignTeamsBtn.classList.remove('from-purple-500', 'to-pink-500');
+                assignTeamsBtn.classList.add('from-green-500', 'to-emerald-500');
+                
+                // Enable retention start
+                startRetentionBtn.disabled = false;
+            }
+        });
+
+        // Start Retention
+        startRetentionBtn.addEventListener('click', () => {
+            if (currentRoomCode) {
+                if (confirm('Start retention phase? All users will be redirected to retention page with 90 seconds timer.')) {
+                    socket.emit('startRetention', { roomCode: currentRoomCode });
+                    startRetentionBtn.innerHTML = '⏳ Starting...';
+                    startRetentionBtn.disabled = true;
+                    startRetentionBtn.classList.remove('from-red-500', 'to-rose-600');
+                    startRetentionBtn.classList.add('from-yellow-500', 'to-orange-500');
+                    
+                    showAlert('Retention Started', 'All users are being redirected to retention page.', '🚀');
+                }
+            }
+        });
+
+        // Start Auction Pool
+        startAuctionPoolBtn.addEventListener('click', () => {
+            if (currentRoomCode) {
+                if (confirm('Start auction pool phase? All non-retained players will go into auction.')) {
+                    socket.emit('startAuctionPool', { roomCode: currentRoomCode });
+                    startAuctionPoolBtn.disabled = true;
+                    startAuctionPoolBtn.innerHTML = '✅ Auction Started';
+                    startAuctionPoolBtn.classList.remove('from-red-500', 'to-rose-600');
+                    startAuctionPoolBtn.classList.add('from-green-500', 'to-emerald-500');
+                    auctionPoolControls.classList.remove('hidden');
+                    
+                    // Store room code for auctioneer-auction page
+                    localStorage.setItem('auctioneerRoomCode', currentRoomCode);
+                    
+                    // Redirect after short delay
+                    setTimeout(() => {
+                        window.location.href = `auctioneer-auction.html?roomCode=${currentRoomCode}`;
+                    }, 1500);
+                }
+            }
+        });
+
+        // Skip Player
+        skipPlayerBtn.addEventListener('click', () => {
+            if (currentRoomCode) {
+                if (confirm('Skip current player? Player will go to unsold pool.')) {
+                    socket.emit('skipPlayer', { roomCode: currentRoomCode });
+                }
+            }
+        });
+
+        // End Auction
+        endAuctionBtn.addEventListener('click', () => {
+            if (currentRoomCode && confirm('End auction pool phase? This will complete the auction.')) {
+                socket.emit('endAuction', { roomCode: currentRoomCode });
+                endAuctionBtn.disabled = true;
+                endAuctionBtn.innerHTML = '🏁 Ending...';
+            }
+        });
+
+        // Clear Bid Log
+        clearBidLogBtn.addEventListener('click', () => {
+            bidLog.innerHTML = '<div class="text-center text-gray-500 py-4">No bids yet</div>';
+        });
+
+        forceShuffleBtn.addEventListener('click', () => {
+            const username = forceShuffleUser.value;
+            if (!username || !currentRoomCode) return;
+            
+            if (confirm(`Force shuffle team for ${username}?`)) {
+                socket.emit('forceShuffle', { 
+                    roomCode: currentRoomCode,
+                    username: username 
+                });
+                forceShuffleBtn.disabled = true;
+                forceShuffleBtn.innerHTML = 'Shuffling...';
+                
+                setTimeout(() => {
+                    forceShuffleBtn.disabled = false;
+                    forceShuffleBtn.innerHTML = '🔀 Force Shuffle';
+                }, 2000);
+            }
+        });
+
+        // Click on individual shuffle button
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('force-shuffle-btn')) {
+                const username = e.target.dataset.username;
+                if (confirm(`Force shuffle team for ${username}?`)) {
+                    socket.emit('forceShuffle', { 
+                        roomCode: currentRoomCode,
+                        username: username 
+                    });
+                    e.target.innerHTML = '⏳';
+                    e.target.disabled = true;
+                    
+                    setTimeout(() => {
+                        e.target.innerHTML = '🔀';
+                        e.target.disabled = false;
+                    }, 2000);
+                }
+            }
+        });
+
+        // Socket Events
+        socket.on('roomCreated', (data) => {
+            currentRoomCode = data.roomCode;
+            roomCodeDisplay.textContent = data.roomCode;
+            roomInfo.classList.remove('hidden');
+            
+            createRoomBtn.innerHTML = '✅ Room Created';
+            createRoomBtn.disabled = true;
+            createRoomBtn.classList.remove('from-green-500', 'to-emerald-600');
+            createRoomBtn.classList.add('from-blue-500', 'to-cyan-500');
+            
+            lockRulesBtn.disabled = false;
+            
+            showAlert('Room Created', `Room code: ${data.roomCode}\n\nShare this code with users to join.`, '✅');
+            
+            // Store in localStorage
+            localStorage.setItem('auctioneerRoomCode', currentRoomCode);
+        });
+
+        socket.on('userJoined', (data) => {
+            userCount.textContent = data.totalUsers;
+
+            // Remove "waiting" text once
+            if (userList.firstChild?.textContent?.includes('Waiting')) {
+                userList.innerHTML = '';
+            }
+
+            const userItem = document.createElement('div');
+            userItem.className = 'flex items-center justify-between bg-gray-800/50 p-3 rounded-lg';
+            userItem.setAttribute('data-username', data.username);
+
+            userItem.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="font-medium">${data.username}</span>
+                </div>
+                <button class="force-shuffle-btn text-xs text-gray-400 hover:text-yellow-400" data-username="${data.username}">
+                    🔀
+                </button>
+            `;
+
+            userList.appendChild(userItem);
+            
+            // Add to force shuffle dropdown
+            const option = document.createElement('option');
+            option.value = data.username;
+            option.textContent = data.username;
+            forceShuffleUser.appendChild(option);
+            
+            // Show force shuffle section if users exist
+            if (data.totalUsers > 0) {
+                forceShuffleSection.classList.remove('hidden');
+            }
+        });
+
+        socket.on('userReconnected', (data) => {
+            console.log('🔁 User reconnected:', data.username);
+            // Update user status in UI if needed
+        });
+
+        socket.on('teamMapping', (data) => {
+            teamMapping.classList.remove('hidden');
+            teamList.innerHTML = '';
+            
+            data.mapping.forEach(item => {
+                const teamItem = document.createElement('div');
+                teamItem.className = 'flex items-center justify-between bg-gray-800/50 p-3 rounded-lg';
+                teamItem.innerHTML = `
+                    <span class="font-medium">${item.username}</span>
+                    <span class="bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent font-bold">
+                        ${item.team}
+                    </span>
+                `;
+                teamList.appendChild(teamItem);
+            });
+            
+            startRetentionBtn.disabled = false;
+            startAuctionPoolBtn.disabled = false;
+        });
+
+        socket.on('teamShuffled', (data) => {
+            // Update team mapping display
+            const items = teamList.children;
+            for (let item of items) {
+                if (item.textContent.includes(data.username)) {
+                    item.innerHTML = `
+                        <span class="font-medium">${data.username}</span>
+                        <span class="bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent font-bold">${data.team}</span>
+                    `;
+                    break;
+                }
+            }
+            
+            // Show notification
+            showAlert('Team Shuffled', `${data.username} shuffled to ${data.team}`, '🔄');
+        });
+
+        socket.on('retentionSubmitted', (data) => {
+            retentionProgress.classList.remove('hidden');
+            
+            // Check if already added
+            const existingItems = Array.from(submissionList.children);
+            const alreadyExists = existingItems.some(item => 
+                item.textContent.includes(data.username)
+            );
+            
+            if (!alreadyExists) {
+                const subItem = document.createElement('div');
+                subItem.className = 'flex items-center justify-between bg-gray-800/50 p-3 rounded-lg';
+                subItem.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span>${data.username}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-300">${data.team}</span>
+                        <span class="ml-3 px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-sm">
+                            ${data.count} players
+                        </span>
+                    </div>
+                `;
+                submissionList.appendChild(subItem);
+            }
+            
+            // Enable auction pool button if all users submitted
+            const totalUsers = parseInt(userCount.textContent);
+            const submittedCount = submissionList.children.length;
+            
+            if (totalUsers > 0 && submittedCount >= totalUsers) {
+                startAuctionPoolBtn.disabled = false;
+                showAlert('All Submissions Received', 'All users have submitted retention. Ready to start auction pool.', '✅');
+            }
+        });
+
+        // Auction Pool Events
+        socket.on('auctionStarted', (data) => {
+            console.log('🚀 Auction pool started:', data);
+            showAlert('Auction Pool Started', data.message, '🚀');
+        });
+
+        socket.on('auctionUpdate', (data) => {
+            console.log('📊 Auction update:', data);
+            auctioneerCategory.textContent = data.category || '-';
+            auctioneerCurrentBid.textContent = data.currentBid ? `₹${data.currentBid} Cr` : '-';
+            auctioneerPlayersLeft.textContent = data.playersLeft || '-';
+            auctioneerUnsold.textContent = data.unsoldCount || '0';
+        });
+
+        socket.on('bidUpdate', (data) => {
+            console.log('💰 Bid update:', data);
+            addBidToLog(data.team, data.bid, 'BID');
+        });
+
+        socket.on('playerSold', (data) => {
+            console.log('✅ Player sold:', data);
+            addBidToLog('SOLD', `${data.player} → ${data.team} for ₹${data.price} Cr`, 'SOLD');
+        });
+
+        socket.on('playerUnsold', (data) => {
+            console.log('❌ Player unsold:', data);
+            addBidToLog('UNSOLD', `${data.player} unsold`, 'UNSOLD');
+        });
+
+        socket.on('rtmResult', (data) => {
+            console.log('🔄 RTM result:', data);
+            const message = data.success ? 
+                `RTM: ${data.player} retained by ${data.originalTeam} for ₹${data.rtmAmount} Cr` :
+                `RTM: ${data.player} goes to ${data.winningTeam}`;
+            addBidToLog('RTM', message, 'RTM');
+        });
+
+        socket.on('auctionComplete', (data) => {
+            console.log('🏆 Auction complete:', data);
+            showAlert('Auction Complete', 'All players have been auctioned!', '🏆');
+            addBidToLog('SYSTEM', 'Auction pool completed!', 'COMPLETE');
+            
+            // Disable auction controls
+            skipPlayerBtn.disabled = true;
+            endAuctionBtn.disabled = true;
+        });
+
+        socket.on('error', (data) => {
+            showAlert('Error', data.message, '❌');
+        });
+
+        socket.on('roomClosed', () => {
+            showAlert('Room Closed', 'Auctioneer disconnected', '🚪');
+            setTimeout(() => {
+                localStorage.removeItem('auctioneerRoomCode');
+                location.reload();
+            }, 3000);
+        });
+
+        socket.on('forceShuffleResult', (data) => {
+            console.log('Force shuffle result:', data);
+            showAlert('Team Shuffled', `${data.username} now has team: ${data.team}`, '✅');
+        });
+
+        // Helper functions
+        function showAlert(title, message, icon = 'ℹ️') {
+            const modal = document.getElementById('alertModal');
+            document.getElementById('modalIcon').textContent = icon;
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            modal.classList.remove('hidden');
+        }
+        
+        function closeModal() {
+            document.getElementById('alertModal').classList.add('hidden');
+        }
+        
+        window.closeModal = closeModal;
+
+        function addBidToLog(team, bid, type = 'BID') {
+            const bidItem = document.createElement('div');
+            bidItem.className = `bid-log-item new p-3 rounded-lg bg-gray-800/30`;
+            
+            // Get color based on type
+            let color = '#FFFFFF';
+            let textColor = '';
+            
+            switch(type) {
+                case 'SOLD':
+                    color = '#10B981';
+                    textColor = 'text-green-400';
+                    break;
+                case 'UNSOLD':
+                    color = '#EF4444';
+                    textColor = 'text-red-400';
+                    break;
+                case 'RTM':
+                    color = '#F59E0B';
+                    textColor = 'text-yellow-400';
+                    break;
+                case 'COMPLETE':
+                    color = '#8B5CF6';
+                    textColor = 'text-purple-400';
+                    break;
+                default:
+                    color = '#3B82F6';
+                    textColor = 'text-blue-400';
+            }
+            
+            bidItem.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 rounded-full" style="background: ${color}"></div>
+                        <span class="font-semibold ${textColor}">${team.toUpperCase()}</span>
+                    </div>
+                    <span class="font-bold ${textColor}">${bid}</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString()}</div>
+            `;
+            
+            bidLog.prepend(bidItem);
+            
+            // Remove "new" class after animation
+            setTimeout(() => {
+                bidItem.classList.remove('new');
+            }, 1000);
+            
+            // Limit log to 20 items
+            if (bidLog.children.length > 20) {
+                bidLog.removeChild(bidLog.lastChild);
+            }
+        }
+
+        // Check for existing room code
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedRoomCode = localStorage.getItem('auctioneerRoomCode');
+            if (savedRoomCode) {
+                currentRoomCode = savedRoomCode;
+                roomCodeDisplay.textContent = savedRoomCode;
+                roomInfo.classList.remove('hidden');
+                createRoomBtn.disabled = true;
+                createRoomBtn.innerHTML = '✅ Room Active';
+                lockRulesBtn.disabled = false;
+                assignTeamsBtn.disabled = false;
+                startRetentionBtn.disabled = false;
+                startAuctionPoolBtn.disabled = false;
+                
+                showAlert('Room Restored', `Reconnected to room: ${savedRoomCode}`, '🔗');
+            }
+        });
+
+        console.log('✅ Auctioneer page loaded');
+    </script>
+</body>
+</html>

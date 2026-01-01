@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retention Phase - IPL Auction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Poppins', sans-serif; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .player-card {
+            transition: all 0.3s ease;
+        }
+        
+        .player-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .player-card.selected {
+            border-color: #F59E0B;
+            box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.3);
+            position: relative;
+        }
+        
+        .player-card.selected::after {
+            content: '✓';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: #F59E0B;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .pulse-timer {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                    Retention Phase
+                </h1>
+                <div id="teamHeader" class="flex items-center justify-center md:justify-start space-x-3">
+                    <!-- Team logo and name will be inserted here -->
+                </div>
+            </div>
+            
+            <!-- Timer -->
+            <div class="bg-gradient-to-r from-red-900/30 to-rose-900/30 rounded-xl p-4 md:p-6 text-center">
+                <div class="text-sm text-gray-300 mb-1">TIME REMAINING</div>
+                <div id="timer" class="text-3xl md:text-4xl font-bold pulse-timer">01:30</div>
+                <div class="text-xs text-gray-400 mt-1">Select players to retain</div>
+            </div>
+        </header>
+
+        <!-- Selection Stats -->
+        <div class="glass-panel rounded-2xl p-6 mb-8 slide-in">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 rounded-lg bg-blue-900/20">
+                    <div class="text-2xl font-bold text-blue-400" id="selectedCount">0</div>
+                    <div class="text-sm text-gray-400">Selected Players</div>
+                </div>
+                <div class="text-center p-4 rounded-lg bg-green-900/20">
+                    <div class="text-2xl font-bold text-green-400" id="indianCount">0</div>
+                    <div class="text-sm text-gray-400">Indian Players</div>
+                </div>
+                <div class="text-center p-4 rounded-lg bg-purple-900/20">
+                    <div class="text-2xl font-bold text-purple-400" id="overseasCount">0</div>
+                    <div class="text-sm text-gray-400">Overseas Players</div>
+                </div>
+                <div class="text-center p-4 rounded-lg bg-yellow-900/20">
+                    <div class="text-2xl font-bold text-yellow-400" id="remainingTime">90s</div>
+                    <div class="text-sm text-gray-400">Time Left</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Players Grid -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-4 text-yellow-400">Select Players to Retain</h2>
+            <div id="playersGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <!-- Players will be loaded here -->
+            </div>
+        </div>
+       
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-16">
+            <div class="text-6xl mb-4">⏳</div>
+            <h3 class="text-2xl font-bold text-gray-300 mb-2">Waiting for Retention Data</h3>
+            <p class="text-gray-500">Please wait while the auctioneer starts the retention phase...</p>
+            <div class="mt-4 flex items-center justify-center space-x-2">
+                <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="glass-panel rounded-2xl p-6 fixed bottom-6 left-1/2 transform -translate-x-1/2 w-11/12 max-w-2xl z-10 hidden" id="controlsPanel">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="text-center md:text-left">
+                    <h3 class="font-semibold text-gray-300">Selection Rules</h3>
+                    <p class="text-sm text-gray-400">
+                        Max <span id="maxIndianRule" class="text-green-400 font-bold">4</span> Indian • 
+                        Max <span id="maxOverseasRule" class="text-purple-400 font-bold">3</span> Overseas
+                    </p>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button id="clearSelectionBtn" 
+                            class="px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 rounded-xl font-semibold transition-all duration-300">
+                        Clear All
+                    </button>
+                    <button id="submitBtn" 
+                            class="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        ✅ Submit Retention
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="absolute inset-0 bg-black/70"></div>
+        <div class="glass-panel rounded-2xl p-6 max-w-md mx-4 z-10">
+            <div class="text-center">
+                <div class="text-4xl mb-4" id="modalIcon">⚠️</div>
+                <h3 class="text-2xl font-bold mb-2" id="modalTitle">Alert</h3>
+                <p class="text-gray-300 mb-6" id="modalMessage">This is a modal message</p>
+                <button onclick="closeModal()" 
+                        class="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-semibold">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== GLOBAL VARIABLES ==========
+        let socket = null;
+        let retentionData = null;
+        let selectedPlayers = new Set();
+        let countdownInterval = null;
+        let timeLeft = 90;
+        let submitted = false;
+        let currentRoomCode = null;
+        let currentUsername = null;
+
+        // ========== DOM ELEMENTS ==========
+        const teamHeader = document.getElementById('teamHeader');
+        const timer = document.getElementById('timer');
+        const playersGrid = document.getElementById('playersGrid');
+        const emptyState = document.getElementById('emptyState');
+        const controlsPanel = document.getElementById('controlsPanel');
+        const selectedCount = document.getElementById('selectedCount');
+        const indianCount = document.getElementById('indianCount');
+        const overseasCount = document.getElementById('overseasCount');
+        const remainingTime = document.getElementById('remainingTime');
+        const maxIndianRule = document.getElementById('maxIndianRule');
+        const maxOverseasRule = document.getElementById('maxOverseasRule');
+        const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // ========== INITIALIZATION ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔄 Retention page loading...');
+            
+            // Get user info from localStorage
+            const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
+            currentRoomCode = auctionUser.roomCode;
+            currentUsername = auctionUser.username;
+            
+            console.log('📊 User data:', { 
+                roomCode: currentRoomCode, 
+                username: currentUsername 
+            });
+            
+            if (!currentRoomCode || !currentUsername) {
+                showAlert('Session Error', 'No session found. Please rejoin from user page.', '❌');
+                setTimeout(() => {
+                    window.location.href = 'user.html';
+                }, 3000);
+                return;
+            }
+            
+            // Initialize socket connection
+            initializeSocket();
+        });
+
+        // ========== SOCKET FUNCTIONS ==========
+        function initializeSocket() {
+            console.log('🔌 Connecting to socket server...');
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('✅ Connected to server');
+                
+                // Join retention with credentials
+                socket.emit('joinRetention', {
+                    roomCode: currentRoomCode,
+                    username: currentUsername
+                });
+                
+                showAlert('Connected', 'Waiting for retention data from auctioneer...', '⏳');
+            });
+            
+            socket.on('connect_error', (error) => {
+                console.error('❌ Connection error:', error);
+                showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
+            });
+            
+            socket.on('retentionData', (data) => {
+                console.log('🎯 Received retention data:', data);
+                retentionData = data;
+                initializePage();
+            });
+            
+            socket.on('redirectToAuctionPool', (data) => {
+                console.log('🚀 Redirecting to auction pool:', data);
+                showAlert('Auction Pool Starting', 'Retention phase complete. Moving to auction pool...', '💰');
+                
+                // Update localStorage with current data
+                localStorage.setItem('auctionUser', JSON.stringify({
+                    username: currentUsername,
+                    roomCode: currentRoomCode,
+                    team: retentionData?.team
+                }));
+                
+                setTimeout(() => {
+                    window.location.href = 'auctionpool.html';
+                }, 2000);
+            });
+            
+            socket.on('roomClosed', () => {
+                showAlert('Room Closed', 'Auctioneer has disconnected.', '🚪');
+                setTimeout(() => {
+                    window.location.href = 'user.html';
+                }, 3000);
+            });
+            
+            socket.on('error', (data) => {
+                showAlert('Error', data.message, '❌');
+            });
+        }
+
+        // ========== PAGE FUNCTIONS ==========
+        function initializePage() {
+            console.log('🔄 Initializing page with retention data...');
+            
+            if (!retentionData) {
+                console.error('❌ No retention data available');
+                showErrorState('No retention data received');
+                return;
+            }
+            
+            if (!retentionData.team) {
+                console.error('❌ No team data in retention data');
+                showErrorState('No team assigned');
+                return;
+            }
+            
+            console.log(`🏆 User team: ${retentionData.team.name}`);
+            console.log(`📊 Players received: ${retentionData.players?.length || 0}`);
+            
+            // Hide loading state
+            emptyState.classList.add('hidden');
+            
+            // Display team info
+            displayTeamInfo();
+            
+            // Set rules
+            if (retentionData.rules) {
+                maxIndianRule.textContent = retentionData.rules.maxIndian || 4;
+                maxOverseasRule.textContent = retentionData.rules.maxOverseas || 3;
+            }
+            
+            // Load players
+            loadPlayers();
+            
+            // Show controls
+            controlsPanel.classList.remove('hidden');
+            
+            // Start timer
+            startTimer();
+            
+            // Update counts
+            updateCounts();
+            
+            console.log('✅ Page initialized successfully');
+        }
+        
+        function displayTeamInfo() {
+            if (!retentionData.team) return;
+            
+            teamHeader.innerHTML = `
+                <div class="flex items-center space-x-4">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center relative" 
+                         style="background: ${retentionData.team.color}20; border: 2px solid ${retentionData.team.color}">
+                        <div class="w-12 h-12 rounded-full bg-gray-900/80 flex items-center justify-center overflow-hidden">
+                            <img src="${retentionData.team.logo || 'default-player.svg'}" 
+                                 alt="${retentionData.team.name}" 
+                                 class="w-full h-full object-contain p-1"
+                                 onerror="this.onerror=null; this.src='default-player.svg';">
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold" style="color: ${retentionData.team.color}">${retentionData.team.name}</h2>
+                        <p class="text-gray-400 text-sm">Retention Phase</p>
+                        <p class="text-gray-500 text-xs">${currentUsername}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showErrorState(message) {
+            emptyState.classList.remove('hidden');
+            emptyState.innerHTML = `
+                <div class="text-6xl mb-4">❌</div>
+                <h3 class="text-2xl font-bold text-gray-300 mb-2">Error</h3>
+                <p class="text-gray-500 mb-4">${message}</p>
+                <button onclick="window.location.href='rules.html'" 
+                        class="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-semibold">
+                    Return to Rules
+                </button>
+            `;
+        }
+
+        // ========== PLAYERS MANAGEMENT ==========
+        function loadPlayers() {
+            const players = retentionData.players || [];
+            
+            console.log(`🔄 Loading ${players.length} players...`);
+            
+            if (players.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.innerHTML = `
+                    <div class="text-6xl mb-4">🏏</div>
+                    <h3 class="text-2xl font-bold text-gray-300 mb-2">No Players Available</h3>
+                    <p class="text-gray-500">There are no players in ${retentionData.team?.name || 'your team'} for retention.</p>
+                `;
+                return;
+            }
+            
+            playersGrid.innerHTML = '';
+            
+            players.forEach((player, index) => {
+                createPlayerCard(player, index);
+            });
+            
+            console.log(`✅ Created ${players.length} player cards`);
+        }
+        
+        function createPlayerCard(player, index) {
+            const playerCard = document.createElement('div');
+            playerCard.className = 'player-card glass-panel rounded-xl p-4 cursor-pointer hover:transform hover:-translate-y-1 transition-all duration-300';
+            playerCard.dataset.id = player.id || `player_${index}`;
+            
+            // Determine if overseas
+            let isOverseas = player.isOverseas || false;
+            if (!player.isOverseas && player.nationality) {
+                const natLower = player.nationality.toString().toLowerCase().trim();
+                isOverseas = !(
+                    natLower === 'indian' ||
+                    natLower === 'india' ||
+                    natLower === 'ind' ||
+                    natLower.includes('indian')
+                );
+            }
+            playerCard.dataset.isOverseas = isOverseas;
+            
+            // Determine role color
+            const role = player.role || 'Player';
+            let roleColor = 'blue';
+            if (role.toLowerCase().includes('bat')) roleColor = 'green';
+            else if (role.toLowerCase().includes('bowl') || role.toLowerCase().includes('pace') || role.toLowerCase().includes('spin')) roleColor = 'red';
+            else if (role.toLowerCase().includes('all')) roleColor = 'purple';
+            else if (role.toLowerCase().includes('wk') || role.toLowerCase().includes('keep')) roleColor = 'yellow';
+            
+            playerCard.innerHTML = `
+                <div class="flex items-start space-x-4">
+                    <div class="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                        <img src="default-player.svg" 
+                             alt="${player.name}" 
+                             class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-lg mb-2">${player.name || 'Unknown Player'}</h3>
+                        <div class="flex items-center space-x-2 mb-3">
+                            <span class="px-2 py-1 bg-${roleColor}-900/30 text-${roleColor}-300 rounded text-xs">
+                                ${role}
+                            </span>
+                            ${isOverseas ? '<span class="text-xs px-2 py-1 bg-purple-900/30 text-purple-300 rounded">✈️ Overseas</span>' : ''}
+                        </div>
+                        <div class="text-sm text-gray-400">
+                            <div class="mb-1">${player.nationality || 'Indian'}</div>
+                            <div>Base Price: ₹${player.basePrice || '2.00'} Cr</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            playerCard.addEventListener('click', () => {
+                if (submitted) return;
+                togglePlayerSelection(player.id || `player_${index}`, isOverseas);
+            });
+            
+            playersGrid.appendChild(playerCard);
+        }
+        
+        function togglePlayerSelection(playerId, isOverseas) {
+            const maxIndian = retentionData.rules?.maxIndian || 4;
+            const maxOverseas = retentionData.rules?.maxOverseas || 3;
+            
+            let currentIndian = 0;
+            let currentOverseas = 0;
+            
+            selectedPlayers.forEach(id => {
+                const card = document.querySelector(`[data-id="${id}"]`);
+                if (card) {
+                    if (card.dataset.isOverseas === 'true') {
+                        currentOverseas++;
+                    } else {
+                        currentIndian++;
+                    }
+                }
+            });
+            
+            if (selectedPlayers.has(playerId)) {
+                selectedPlayers.delete(playerId);
+            } else {
+                if (isOverseas && currentOverseas >= maxOverseas) {
+                    showAlert('Limit Reached', `Maximum ${maxOverseas} overseas players allowed`, '✈️');
+                    return;
+                }
+                if (!isOverseas && currentIndian >= maxIndian) {
+                    showAlert('Limit Reached', `Maximum ${maxIndian} Indian players allowed`, '🇮🇳');
+                    return;
+                }
+                selectedPlayers.add(playerId);
+            }
+            
+            updatePlayerCards();
+            updateCounts();
+        }
+        
+        function updatePlayerCards() {
+            document.querySelectorAll('.player-card').forEach(card => {
+                const playerId = card.dataset.id;
+                if (selectedPlayers.has(playerId)) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+        }
+        
+        function updateCounts() {
+            let indian = 0;
+            let overseas = 0;
+            
+            selectedPlayers.forEach(id => {
+                const card = document.querySelector(`[data-id="${id}"]`);
+                if (card) {
+                    if (card.dataset.isOverseas === 'true') {
+                        overseas++;
+                    } else {
+                        indian++;
+                    }
+                }
+            });
+            
+            selectedCount.textContent = selectedPlayers.size;
+            indianCount.textContent = indian;
+            overseasCount.textContent = overseas;
+            
+            const maxIndian = retentionData.rules?.maxIndian || 4;
+            const maxOverseas = retentionData.rules?.maxOverseas || 3;
+            
+            indianCount.className = `text-2xl font-bold ${indian > maxIndian ? 'text-red-400' : 'text-green-400'}`;
+            overseasCount.className = `text-2xl font-bold ${overseas > maxOverseas ? 'text-red-400' : 'text-purple-400'}`;
+        }
+
+        // ========== TIMER FUNCTIONS ==========
+        function startTimer() {
+            if (timeLeft < 0) timeLeft = 0;
+            updateTimerDisplay();
+            
+            countdownInterval = setInterval(() => {
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    timeLeft = 0;
+                    updateTimerDisplay();
+                    autoSubmit();
+                    return;
+                }
+                timeLeft--;
+                updateTimerDisplay();
+            }, 1000);
+        }
+        
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            
+            timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            remainingTime.textContent = `${timeLeft}s`;
+            
+            timer.classList.remove('text-red-400', 'text-yellow-400', 'text-white', 'pulse-timer');
+            
+            if (timeLeft <= 30) {
+                timer.classList.add('text-red-400', 'pulse-timer');
+            } else if (timeLeft <= 60) {
+                timer.classList.add('text-yellow-400');
+            } else {
+                timer.classList.add('text-white');
+            }
+        }
+        
+        function autoSubmit() {
+            if (!submitted) {
+                submitRetention();
+            }
+        }
+
+        // ========== SUBMISSION FUNCTIONS ==========
+        function submitRetention() {
+            if (submitted) {
+                console.log('Already submitted');
+                return;
+            }
+            
+            submitted = true;
+            clearInterval(countdownInterval);
+            
+            const selectedPlayersData = Array.from(selectedPlayers).map(id => {
+                const card = document.querySelector(`[data-id="${id}"]`);
+                if (!card) return null;
+                
+                const playerName = card.querySelector('h3')?.textContent || 'Unknown';
+                const isOverseas = card.dataset.isOverseas === 'true';
+                const role = card.querySelector('.bg-\\w+-900\\/30')?.textContent || 'Player';
+                
+                return {
+                    id: id,
+                    name: playerName,
+                    role: role,
+                    nationality: isOverseas ? 'Overseas' : 'Indian',
+                    isOverseas: isOverseas
+                };
+            }).filter(player => player !== null);
+            
+            console.log('📤 Submitting retention:', {
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                count: selectedPlayersData.length,
+                players: selectedPlayersData
+            });
+            
+            // Send to server
+            socket.emit('submitRetention', {
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                selectedPlayers: selectedPlayersData
+            });
+            
+            // UI feedback
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '✅ Submitted';
+            clearSelectionBtn.disabled = true;
+            
+            // Disable all player cards
+            document.querySelectorAll('.player-card').forEach(card => {
+                card.style.pointerEvents = 'none';
+                card.style.opacity = '0.5';
+            });
+            
+            showAlert('Success', 'Retention submitted successfully!', '✅');
+            
+            // Store retention data in localStorage
+            localStorage.setItem('retentionSubmitted', 'true');
+        }
+        
+        // ========== EVENT LISTENERS ==========
+        clearSelectionBtn.addEventListener('click', () => {
+            if (submitted) return;
+            selectedPlayers.clear();
+            updatePlayerCards();
+            updateCounts();
+        });
+        
+        submitBtn.addEventListener('click', submitRetention);
+
+        // ========== HELPER FUNCTIONS ==========
+        function showAlert(title, message, icon = 'ℹ️') {
+            const modal = document.getElementById('alertModal');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            
+            modalIcon.textContent = icon;
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            
+            modal.classList.remove('hidden');
+        }
+        
+        function closeModal() {
+            document.getElementById('alertModal').classList.add('hidden');
+        }
+        
+        window.closeModal = closeModal;
+    </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Auction - IPL Auction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Poppins', sans-serif; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+        <!-- Header -->
+        <div class="text-center mb-8 fade-in">
+            <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                Welcome to N4WIN5's IPL AUCTION GAME 
+            </h1>
+            <p class="text-gray-300">Join as Team Owner</p>
+        </div>
+
+        <!-- Join Form -->
+        <div class="glass-panel rounded-2xl p-8 fade-in">
+            <h2 class="text-2xl font-bold mb-6 text-center text-yellow-400">Enter Auction Room</h2>
+            
+            <form id="joinForm" class="space-y-6">
+                <div>
+                    <label class="block mb-2 text-gray-300">Your Username</label>
+                    <input type="text" id="username" 
+                           class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                           placeholder="Enter your name" required>
+                </div>
+                
+                <div>
+                    <label class="block mb-2 text-gray-300">Room Code</label>
+                    <input type="text" id="roomCode" 
+                           class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 focus:border-transparent uppercase"
+                           placeholder="e.g., IPL123" required>
+                </div>
+                
+                <div id="errorMessage" class="hidden bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-300"></div>
+                
+                <button type="submit" id="joinBtn" 
+                        class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold text-lg transition-all duration-300">
+                    🎯 Join Auction
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <p class="text-gray-400">Don't have a room code?</p>
+                <p class="text-sm text-gray-500 mt-1">Ask the auctioneer to create a room</p>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="hidden mt-4 text-center">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+            <p class="text-gray-300 mt-2">Connecting to auction room...</p>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        // Check for existing session
+        document.addEventListener('DOMContentLoaded', function() {
+            const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
+            
+            if (auctionUser.username && auctionUser.roomCode) {
+                // Auto-fill form
+                document.getElementById('username').value = auctionUser.username;
+                document.getElementById('roomCode').value = auctionUser.roomCode;
+                
+                // Auto-join after 1 second
+                setTimeout(() => {
+                    joinRoom(auctionUser.username, auctionUser.roomCode);
+                }, 1000);
+            }
+        });
+
+        const joinForm = document.getElementById('joinForm');
+        const usernameInput = document.getElementById('username');
+        const roomCodeInput = document.getElementById('roomCode');
+        const joinBtn = document.getElementById('joinBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const loading = document.getElementById('loading');
+
+        // Format room code input
+        roomCodeInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        });
+
+        // Handle form submission
+        joinForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const username = usernameInput.value.trim();
+            const roomCode = roomCodeInput.value.trim();
+            
+            if (!username || !roomCode) {
+                showError('Please fill in all fields');
+                return;
+            }
+            
+            if (roomCode.length < 6) {
+                showError('Invalid room code format');
+                return;
+            }
+            
+            joinRoom(username, roomCode);
+        });
+
+        function joinRoom(username, roomCode) {
+            // Show loading
+            joinBtn.disabled = true;
+            loading.classList.remove('hidden');
+            
+            // Join room
+            socket.emit('joinRoom', { username, roomCode });
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+            setTimeout(() => {
+                errorMessage.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Socket Events
+        socket.on('connect', () => {
+            console.log('✅ Connected to server');
+        });
+
+        socket.on('connect_error', (error) => {
+            loading.classList.add('hidden');
+            joinBtn.disabled = false;
+            showError('Connection failed. Please try again.');
+            console.error('Connection error:', error);
+        });
+
+        socket.on('joinSuccess', (data) => {
+            // Store user info with timestamp
+            localStorage.setItem('auctionUser', JSON.stringify({
+                username: data.username,
+                roomCode: data.roomCode,
+                socketId: socket.id,
+                joinedAt: new Date().toISOString()
+            }));
+            
+            console.log('✅ Join successful:', data);
+            
+            // Redirect to rules page
+            window.location.href = 'rules.html';
+        });
+
+        socket.on('joinError', (data) => {
+            loading.classList.add('hidden');
+            joinBtn.disabled = false;
+            showError(data.message);
+            
+            // Clear invalid session
+            if (data.message.includes('not found') || data.message.includes('failed')) {
+                localStorage.removeItem('auctionUser');
+            }
+        });
+
+        socket.on('error', (data) => {
+            loading.classList.add('hidden');
+            joinBtn.disabled = false;
+            showError(data.message);
+        });
+
+        socket.on('roomClosed', (data) => {
+            showError('Room has been closed by auctioneer');
+            localStorage.removeItem('auctionUser');
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

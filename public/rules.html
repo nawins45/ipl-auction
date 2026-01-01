@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auction Rules - IPL Auction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Poppins', sans-serif; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .pop-in {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        @keyframes popIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        .slide-up {
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .pulse-border {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { border-color: rgba(245, 158, 11, 0.5); }
+            50% { border-color: rgba(245, 158, 11, 1); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                IPL Auction Rules
+            </h1>
+            <div class="flex items-center justify-center space-x-4">
+                <div id="connectionStatus" class="flex items-center space-x-2">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-sm text-gray-300">Connected</span>
+                </div>
+                <span id="userInfo" class="text-sm text-gray-400"></span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left: Rules Display -->
+            <div class="lg:col-span-2">
+                <div class="glass-panel rounded-2xl p-6 slide-up">
+                    <h2 class="text-2xl font-bold mb-6 text-yellow-400">Auction Rules</h2>
+                    
+                    <div id="rulesContainer" class="space-y-6">
+                        <div class="text-center py-12" id="waitingRules">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500 mb-4"></div>
+                            <p class="text-gray-400">Waiting for auctioneer to set rules...</p>
+                            <p class="text-gray-500 text-sm mt-2">Rules will appear here automatically</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Retention Info -->
+                <div id="retentionInfo" class="glass-panel rounded-2xl p-6 mt-6 slide-up hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-yellow-400">Retention Phase</h2>
+                    <div class="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-6">
+                        <p class="text-gray-300 mb-4">The retention phase will begin shortly. You'll have <span class="text-yellow-400 font-bold">90 seconds</span> to select players from your team.</p>
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-gray-800/50 p-4 rounded-lg">
+                                <div class="text-2xl font-bold text-yellow-400" id="maxIndianDisplay">4</div>
+                                <div class="text-sm text-gray-400">Max Indian Players</div>
+                            </div>
+                            <div class="bg-gray-800/50 p-4 rounded-lg">
+                                <div class="text-2xl font-bold text-yellow-400" id="maxOverseasDisplay">3</div>
+                                <div class="text-sm text-gray-400">Max Overseas Players</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Team Assignment -->
+            <div>
+                <div class="glass-panel rounded-2xl p-6 slide-up">
+                    <h2 class="text-2xl font-bold mb-6 text-yellow-400">Your Team</h2>
+                    
+                    <div id="teamContainer" class="text-center py-8">
+                        <div class="mb-4">
+                            <div class="w-32 h-32 mx-auto bg-gray-800/50 rounded-full flex items-center justify-center">
+                                <span class="text-4xl">🏏</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-400" id="teamWaitingText">Waiting for team assignment...</p>
+                    </div>
+                    
+                    <!-- Shuffle Button -->
+                    <button id="shuffleBtn" 
+                            class="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl font-semibold mt-4 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hidden"
+                            disabled>
+                        🔀 Shuffle Team (Once)
+                    </button>
+                    
+                    <!-- Team Info -->
+                    <div id="teamInfo" class="mt-6 space-y-4 hidden">
+                        <div class="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-4">
+                            <h3 class="font-semibold text-gray-300 mb-2">Team Details</h3>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Assigned To:</span>
+                                    <span id="assignedUsername" class="font-medium"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Team Code:</span>
+                                    <span id="teamCode" class="font-mono"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Shuffle Used:</span>
+                                    <span id="shuffleStatus" class="font-medium text-yellow-400">Available</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Waiting Message -->
+                <div id="waitingMessage" class="glass-panel rounded-2xl p-6 mt-6 slide-up">
+                    <div class="text-center">
+                        <div class="inline-block animate-pulse mb-4">
+                            <span class="text-4xl">⏳</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-300 mb-2">Waiting for Auctioneer</h3>
+                        <p class="text-gray-500 text-sm">The auction will proceed once the auctioneer starts the retention phase.</p>
+                        <div class="mt-4 text-xs" id="phaseStatus">
+                            Status: Connected
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="alertModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="absolute inset-0 bg-black/70"></div>
+        <div class="glass-panel rounded-2xl p-6 max-w-md mx-4 z-10 transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
+            <div class="text-center">
+                <div class="text-4xl mb-4" id="modalIcon">🎯</div>
+                <h3 class="text-2xl font-bold mb-2" id="modalTitle">Alert</h3>
+                <p class="text-gray-300 mb-6" id="modalMessage">This is a modal message</p>
+                <button onclick="closeModal()" 
+                        class="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-semibold">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const userData = JSON.parse(localStorage.getItem('auctionUser') || '{}');
+
+        if (!userData.username || !userData.roomCode) {
+            showAlert('Session Error', 'No session found. Please rejoin the auction.', '❌');
+            setTimeout(() => {
+                window.location.href = 'user.html';
+            }, 3000);
+        }
+
+        // Initialize connection
+        socket.on('connect', () => {
+            console.log('✅ Connected:', socket.id);
+            updatePhaseStatus('Connected', 'text-green-400');
+            
+            // Rejoin room
+            socket.emit('joinRoom', {
+                username: userData.username,
+                roomCode: userData.roomCode
+            });
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            updatePhaseStatus('Connection Error', 'text-red-400');
+            showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
+        });
+
+        socket.on('joinSuccess', (data) => {
+            console.log("✅ Joined room successfully");
+            updatePhaseStatus('Joined Room', 'text-green-400');
+            
+            // Update user info display
+            document.getElementById('userInfo').textContent = `${userData.username} | Room: ${userData.roomCode}`;
+            
+            // Update localStorage with new socket ID
+            localStorage.setItem('auctionUser', JSON.stringify({
+                ...userData,
+                socketId: socket.id
+            }));
+        });
+
+        socket.on('rulesUpdated', (data) => {
+            console.log('📜 Rules updated received:', data);
+            roomRules = data.rules;
+            displayRules(data.rules);
+            retentionInfo.classList.remove('hidden');
+            
+            if (roomRules) {
+                maxIndianDisplay.textContent = roomRules.maxIndian || 4;
+                maxOverseasDisplay.textContent = roomRules.maxOverseas || 3;
+            }
+            
+            updatePhaseStatus('Rules Received', 'text-yellow-400');
+        });
+        
+        socket.on('teamAssigned', (data) => {
+            console.log('🏆 Team assigned received:', data);
+            assignedTeam = data.team;
+            hasShuffled = false;
+            
+            // Update user data
+            const updatedUserData = {
+                ...userData,
+                team: data.team,
+                socketId: socket.id
+            };
+            localStorage.setItem('auctionUser', JSON.stringify(updatedUserData));
+            
+            displayTeam(assignedTeam);
+            shuffleBtn.classList.remove('hidden');
+            shuffleBtn.disabled = false;
+            shuffleBtn.innerHTML = '🔀 Shuffle Team (Once)';
+            teamInfo.classList.remove('hidden');
+            
+            document.getElementById('assignedUsername').textContent = userData.username;
+            document.getElementById('teamCode').textContent = assignedTeam.id.toUpperCase();
+            document.getElementById('shuffleStatus').textContent = 'Available';
+            document.getElementById('shuffleStatus').className = 'font-medium text-green-400';
+            
+            updatePhaseStatus('Team Assigned', 'text-green-400');
+            
+            // Show success message
+            showAlert('Team Assigned', `You have been assigned to ${assignedTeam.name}!`, '✅');
+        });
+        
+        socket.on('teamShuffled', (data) => {
+            console.log('🔄 Team shuffled event:', data);
+            assignedTeam = data.team;
+            hasShuffled = true;
+            
+            // Update localStorage
+            const updatedUserData = {
+                ...userData,
+                team: data.team,
+                hasShuffled: true
+            };
+            localStorage.setItem('auctionUser', JSON.stringify(updatedUserData));
+            
+            displayTeam(assignedTeam);
+            shuffleBtn.innerHTML = '✅ Team Shuffled';
+            shuffleBtn.disabled = true;
+            document.getElementById('shuffleStatus').textContent = 'Used';
+            document.getElementById('shuffleStatus').className = 'font-medium text-red-400';
+            
+            showAlert('Team Shuffled', 'Your team has been shuffled successfully!', '✅');
+        });
+
+        socket.on('shuffleError', (data) => {
+            console.log('❌ Shuffle error:', data);
+            shuffleBtn.disabled = false;
+            shuffleBtn.innerHTML = '🔀 Shuffle Team (Once)';
+            showAlert('Cannot Shuffle', data.message || 'Shuffle failed', '❌');
+        });
+        
+        socket.on('redirectToRetention', (data) => {
+            console.log('🚀 Redirect command received:', data);
+            
+            // Update localStorage
+            localStorage.setItem('auctionUser', JSON.stringify({
+                ...userData,
+                roomCode: data.roomCode
+            }));
+
+            updatePhaseStatus('Redirecting to Retention...', 'text-yellow-400');
+
+            // Show redirect message
+            showAlert('Retention Phase Starting', 'You will be redirected to the retention page in 2 seconds...', '⏳');
+            
+            // Redirect after short delay
+            setTimeout(() => {
+                window.location.href = 'retention.html';
+            }, 2000);
+        });
+        
+        socket.on('redirectToAuctionPool', (data) => {
+            console.log('💰 Redirecting to auction pool:', data);
+            
+            // Update localStorage
+            localStorage.setItem('auctionUser', JSON.stringify({
+                ...userData,
+                roomCode: data.roomCode
+            }));
+
+            showAlert('Auction Pool Starting', 'Moving to live auction phase...', '💰');
+            
+            // Redirect after short delay
+            setTimeout(() => {
+                window.location.href = 'auctionpool.html';
+            }, 2000);
+        });
+        
+        socket.on('roomClosed', () => {
+            showAlert('Room Closed', 'The auctioneer has disconnected. Returning to join page.', '🚪');
+            setTimeout(() => {
+                localStorage.removeItem('auctionUser');
+                window.location.href = 'user.html';
+            }, 3000);
+        });
+
+        socket.on('error', (data) => {
+            showAlert('Error', data.message, '❌');
+        });
+
+        let assignedTeam = null;
+        let hasShuffled = false;
+        let roomRules = null;
+
+        // DOM Elements
+        const userInfo = document.getElementById('userInfo');
+        const rulesContainer = document.getElementById('rulesContainer');
+        const waitingRules = document.getElementById('waitingRules');
+        const teamContainer = document.getElementById('teamContainer');
+        const teamWaitingText = document.getElementById('teamWaitingText');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const teamInfo = document.getElementById('teamInfo');
+        const waitingMessage = document.getElementById('waitingMessage');
+        const retentionInfo = document.getElementById('retentionInfo');
+        const maxIndianDisplay = document.getElementById('maxIndianDisplay');
+        const maxOverseasDisplay = document.getElementById('maxOverseasDisplay');
+        const phaseStatus = document.getElementById('phaseStatus');
+
+        // Modal elements
+        const alertModal = document.getElementById('alertModal');
+        const modalContent = document.getElementById('modalContent');
+        const modalIcon = document.getElementById('modalIcon');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+
+        // Initialize
+        if (!userData.username || !userData.roomCode) {
+            window.location.href = 'user.html';
+        } else {
+            userInfo.textContent = `${userData.username} | Room: ${userData.roomCode}`;
+            
+            // Debug logging
+            console.log('🔗 Rejoined room:', userData.roomCode);
+            console.log('👤 Username:', userData.username);
+            
+            // Check if we already have team data
+            if (userData.team) {
+                assignedTeam = userData.team;
+                hasShuffled = userData.hasShuffled || false;
+                displayTeam(assignedTeam);
+                shuffleBtn.classList.remove('hidden');
+                shuffleBtn.disabled = hasShuffled;
+                shuffleBtn.innerHTML = hasShuffled ? '✅ Team Shuffled' : '🔀 Shuffle Team (Once)';
+                teamInfo.classList.remove('hidden');
+                
+                document.getElementById('assignedUsername').textContent = userData.username;
+                document.getElementById('teamCode').textContent = assignedTeam.id.toUpperCase();
+                document.getElementById('shuffleStatus').textContent = hasShuffled ? 'Used' : 'Available';
+                document.getElementById('shuffleStatus').className = `font-medium ${hasShuffled ? 'text-red-400' : 'text-green-400'}`;
+                
+                updatePhaseStatus('Reconnected - Team Restored', 'text-green-400');
+            }
+        }
+
+        // Shuffle team
+        shuffleBtn.addEventListener('click', () => {
+            console.log('🔄 Shuffle button clicked');
+            
+            if (!userData.roomCode) {
+                showAlert('Error', 'Not in a room', '❌');
+                return;
+            }
+            
+            if (hasShuffled) {
+                showAlert('Cannot Shuffle', 'You have already used your shuffle chance!', '⚠️');
+                return;
+            }
+            
+            if (!assignedTeam) {
+                showAlert('Error', 'No team assigned yet', '❌');
+                return;
+            }
+            
+            // Disable button immediately
+            shuffleBtn.disabled = true;
+            shuffleBtn.innerHTML = '⏳ Shuffling...';
+            
+            // Emit shuffle request
+            socket.emit('requestShuffle', { 
+                roomCode: userData.roomCode 
+            });
+            console.log('📤 Emitted requestShuffle event');
+        });
+
+        // Helper Functions
+        function displayRules(rules) {
+            console.log('Displaying rules:', rules);
+            
+            if (!rules) {
+                rulesContainer.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-4xl mb-4">⚠️</div>
+                        <h3 class="text-xl font-bold text-gray-300 mb-2">No Rules Received</h3>
+                        <p class="text-gray-400">Waiting for auctioneer to set rules...</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const rulesHtml = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pop-in">
+                    <div class="bg-gradient-to-r from-blue-900/30 to-purple-900/30 p-5 rounded-xl border-2 border-blue-500/30">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                                <span class="text-xl">💰</span>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-300">Total Purse</h3>
+                                <p class="text-2xl font-bold text-yellow-400">₹${rules.totalPurse || 100} Cr</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 p-5 rounded-xl border-2 border-green-500/30">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                                <span class="text-xl">👨‍👨‍👦</span>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-300">Squad Size</h3>
+                                <p class="text-2xl font-bold text-green-400">${rules.squadSize || 25} Players</p>
+                                <p class="text-xs text-gray-400">(Auction Pool Limit)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-red-900/30 to-rose-900/30 p-5 rounded-xl border-2 border-red-500/30">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                                <span class="text-xl">🇮🇳</span>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-300">Indian Players</h3>
+                                <p class="text-2xl font-bold text-red-400">Max ${rules.maxIndian || 4}</p>
+                                <p class="text-xs text-gray-400">(Retention Phase Only)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-purple-900/30 to-pink-900/30 p-5 rounded-xl border-2 border-purple-500/30">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                                <span class="text-xl">✈️</span>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-300">Overseas Players</h3>
+                                <p class="text-2xl font-bold text-purple-400">Max ${rules.maxOverseas || 3}</p>
+                                <p class="text-xs text-gray-400">(Retention Phase Only)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-orange-900/30 to-amber-900/30 p-5 rounded-xl border-2 border-orange-500/30">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
+                                <span class="text-xl">🃏</span>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-300">RTM Cards</h3>
+                                <p class="text-2xl font-bold text-orange-400">${rules.rtmCards || 2}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 p-5 rounded-xl border-2 border-cyan-500/30">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                                <span class="text-xl">⭐</span>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-300">Impact Players</h3>
+                                <p class="text-2xl font-bold text-cyan-400">${rules.impactPlayers || 1}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 p-4 bg-gradient-to-r from-gray-800/30 to-gray-900/30 rounded-xl border border-yellow-500/30">
+                    <h4 class="font-bold text-yellow-400 mb-2">📋 Rules Summary:</h4>
+                    <ul class="text-sm text-gray-300 space-y-1">
+                        <li>• <span class="text-yellow-300">Retention Phase:</span> Max ${rules.maxIndian || 4} Indian + Max ${rules.maxOverseas || 3} Overseas players</li>
+                        <li>• <span class="text-yellow-300">Auction Pool Phase:</span> Total squad size cannot exceed ${rules.squadSize || 25} players (any Indian/Overseas combination)</li>
+                        <li>• Each team starts with ₹${rules.totalPurse || 100} Cr purse</li>
+                        <li>• Each team gets ${rules.rtmCards || 2} RTM cards</li>
+                    </ul>
+                </div>
+            `;
+            
+            rulesContainer.innerHTML = rulesHtml;
+            waitingRules.style.display = 'none';
+        }
+
+        function displayTeam(team) {
+            console.log('Displaying team:', team);
+            
+            if (!team) {
+                teamContainer.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="w-32 h-32 mx-auto bg-gray-800/50 rounded-full flex items-center justify-center mb-4">
+                            <span class="text-4xl">❓</span>
+                        </div>
+                        <p class="text-gray-400">No team assigned yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const teamHtml = `
+                <div class="pop-in">
+                    <div class="mb-4">
+                        <div class="w-32 h-32 mx-auto rounded-full flex items-center justify-center" 
+                             style="background: ${team.color}20; border: 3px solid ${team.color}">
+                            <div class="w-24 h-24 rounded-full bg-gray-900/80 flex items-center justify-center overflow-hidden">
+                                <img src="${team.logo || 'default-player.svg'}" 
+                                     alt="${team.name}" 
+                                     class="w-full h-full object-contain p-2"
+                                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span class=\\'text-4xl\\'>🏏</span>'">
+                            </div>
+                        </div>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2" style="color: ${team.color}">${team.name}</h3>
+                    <p class="text-gray-400">Your IPL Team</p>
+                </div>
+            `;
+            
+            teamContainer.innerHTML = teamHtml;
+            teamWaitingText.style.display = 'none';
+        }
+
+        function updatePhaseStatus(text, colorClass) {
+            phaseStatus.textContent = `Status: ${text}`;
+            phaseStatus.className = `mt-4 text-xs ${colorClass}`;
+        }
+
+        function showAlert(title, message, icon = 'ℹ️') {
+            console.log(`Alert: ${title} - ${message}`);
+            modalIcon.textContent = icon;
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            alertModal.classList.remove('hidden');
+            
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                alertModal.classList.add('hidden');
+            }, 300);
+        }
+
+        window.closeModal = closeModal;
+
+        // Debug: Log socket connection
+        console.log('🔌 Socket ID:', socket.id);
+        console.log('📡 Connected to server');
+    </script>
+</body>
+</html>

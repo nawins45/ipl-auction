@@ -1,0 +1,221 @@
+/* Tailwind base styles */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+* {
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Custom styles */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+.glass-panel-dark {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Animation classes */
+.fade-in {
+    animation: fadeIn 0.6s ease-out;
+}
+
+.slide-in {
+    animation: slideIn 0.5s ease-out;
+}
+
+.pop-in {
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+.float {
+    animation: float 3s ease-in-out infinite;
+}
+
+.bounce {
+    animation: bounce 1s infinite;
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.5);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(245, 158, 11, 0.8);
+}
+
+/* Player card hover effects */
+.player-card {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.player-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.player-card.selected {
+    border-color: #F59E0B;
+    background: rgba(245, 158, 11, 0.1);
+    box-shadow: 0 10px 30px rgba(245, 158, 11, 0.2);
+}
+
+/* Timer animation */
+.timer-pulse {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* Loading animation */
+.loading-shimmer {
+    background: linear-gradient(90deg, 
+        rgba(255,255,255,0.1) 25%, 
+        rgba(255,255,255,0.2) 50%, 
+        rgba(255,255,255,0.1) 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(45deg, #F59E0B, #EF4444, #8B5CF6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Button animations */
+.btn-hover {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.btn-hover:active {
+    transform: translateY(0);
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+/* Team colors */
+.team-csk { border-left: 4px solid #FFCC00; }
+.team-mi { border-left: 4px solid #004BA0; }
+.team-rcb { border-left: 4px solid #D5152C; }
+.team-kkr { border-left: 4px solid #3A225D; }
+.team-dc { border-left: 4px solid #004C93; }
+.team-pbks { border-left: 4px solid #ED1B24; }
+.team-rr { border-left: 4px solid #FF4C93; }
+.team-srh { border-left: 4px solid #FF6F3D; }
+.team-gt { border-left: 4px solid #1E2D4A; }
+.team-lsg { border-left: 4px solid #A5E1F4; }
+
+/* Role badges */
+.role-batsman { background: rgba(34, 197, 94, 0.2); color: #22C55E; }
+.role-bowler { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
+.role-allrounder { background: rgba(168, 85, 247, 0.2); color: #A855F7; }
+.role-wk { background: rgba(245, 158, 11, 0.2); color: #F59E0B; }
+
+/* Responsive fixes */
+@media (max-width: 768px) {
+    .glass-panel {
+        backdrop-filter: blur(5px);
+    }
+    
+    .player-card {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Selection glow */
+.selection-glow {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
+}
+
+/* Progress bar */
+.progress-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #F59E0B, #EF4444);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
