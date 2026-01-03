@@ -10,6 +10,12 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+        
         .drag-area {
             min-height: 200px;
             border: 2px dashed rgba(255, 255, 255, 0.2);
@@ -68,23 +74,89 @@
         .role-bowler { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
         .role-allrounder { background: rgba(168, 85, 247, 0.2); color: #A855F7; }
         .role-wk { background: rgba(245, 158, 11, 0.2); color: #F59E0B; }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .team-name-gradient {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .player-card {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }
+        
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            padding: 6px;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #F59E0B, #D97706);
+            border-radius: 3px;
+        }
+        
+        /* Animated gradients */
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+        
+        .shimmer-text {
+            background: linear-gradient(90deg, #FFD700 0%, #FFA500 25%, #FFD700 50%, #FFA500 75%, #FFD700 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s linear infinite;
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
+<body class="text-white">
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
         <header class="glass-panel rounded-2xl p-6 mb-8">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="text-center md:text-left">
-                    <h1 class="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                        Playing 11 Selection
+                    <h1 class="text-3xl md:text-4xl font-bold mb-2 shimmer-text">
+                        🏏 Playing 11 Selection
                     </h1>
                     <div id="teamHeader" class="flex items-center justify-center md:justify-start space-x-3">
                         <!-- Team info will be loaded here -->
                     </div>
                 </div>
                 
-                <div class="flex items-center space-x-4">
+                <div class="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-4">
+                    <!-- Session Info -->
+                    <div class="text-center md:text-right">
+                        <div class="text-sm text-gray-400">Room: <span id="roomCodeDisplay" class="font-bold text-yellow-400"></span></div>
+                        <div class="text-sm text-gray-400">User: <span id="usernameDisplay" class="font-bold text-cyan-400"></span></div>
+                    </div>
+                    
                     <!-- Validation Status -->
                     <div id="validationStatus" class="hidden">
                         <div class="flex items-center space-x-2 px-4 py-2 rounded-lg" id="statusBadge">
@@ -95,7 +167,7 @@
                     
                     <!-- Submit Button -->
                     <button id="submitPlaying11Btn" 
-                            class="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                             disabled>
                         ✅ Submit Playing 11
                     </button>
@@ -112,10 +184,10 @@
                         <span>Your Squad</span>
                         <span id="squadCount" class="text-sm font-normal text-gray-400">0 players</span>
                     </h2>
-                    <div id="availablePlayers" class="drag-area p-4 min-h-[300px]">
+                    <div id="availablePlayers" class="drag-area p-4 min-h-[300px] max-h-[400px] overflow-y-auto">
                         <!-- Players will be loaded here -->
                         <div class="text-center text-gray-500 py-12">
-                            <div class="text-4xl mb-4">⏳</div>
+                            <div class="text-4xl mb-4 animate-pulse">⏳</div>
                             <p>Loading your squad...</p>
                         </div>
                     </div>
@@ -125,19 +197,19 @@
                 <div class="glass-panel rounded-2xl p-6">
                     <h2 class="text-xl font-bold text-blue-400 mb-4">Squad Statistics</h2>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                        <div class="text-center p-3 player-card rounded-lg">
                             <div class="text-2xl font-bold text-green-400" id="totalPlayers">0</div>
                             <div class="text-xs text-gray-400">Total Players</div>
                         </div>
-                        <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                        <div class="text-center p-3 player-card rounded-lg">
                             <div class="text-2xl font-bold text-yellow-400" id="totalSpent">₹0</div>
                             <div class="text-xs text-gray-400">Total Spent</div>
                         </div>
-                        <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                        <div class="text-center p-3 player-card rounded-lg">
                             <div class="text-2xl font-bold text-purple-400" id="rtmCards">2</div>
                             <div class="text-xs text-gray-400">RTM Cards Left</div>
                         </div>
-                        <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                        <div class="text-center p-3 player-card rounded-lg">
                             <div class="text-2xl font-bold text-cyan-400" id="remainingBudget">₹100</div>
                             <div class="text-xs text-gray-400">Purse Left</div>
                         </div>
@@ -152,7 +224,6 @@
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-xl font-bold text-yellow-400">Playing 11</h2>
                         <span id="playing11Count" class="text-sm font-normal text-gray-400">0/11 selected</span>
-                    </h2>
                     </div>
                     <div id="playing11Slots" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-4">
                         <!-- 11 slots will be created dynamically -->
@@ -175,7 +246,10 @@
                     </div>
                     
                     <div class="text-xs text-gray-500 mt-3">
-                        Note: Impact players cannot be in both Playing 11 and Impact Players list
+                        <div class="flex items-center space-x-2">
+                            <span>📌</span>
+                            <span>Impact players cannot be in both Playing 11 and Impact Players list</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -184,19 +258,31 @@
                     <h2 class="text-xl font-bold text-cyan-400 mb-4">Role Distribution</h2>
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">
-                            <span class="text-gray-300">Batsmen</span>
+                            <span class="text-gray-300 flex items-center space-x-2">
+                                <span>🏏</span>
+                                <span>Batsmen</span>
+                            </span>
                             <span id="batsmenCount" class="font-bold text-green-400">0</span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-gray-300">Bowlers</span>
+                            <span class="text-gray-300 flex items-center space-x-2">
+                                <span>🎯</span>
+                                <span>Bowlers</span>
+                            </span>
                             <span id="bowlersCount" class="font-bold text-red-400">0</span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-gray-300">All-Rounders</span>
+                            <span class="text-gray-300 flex items-center space-x-2">
+                                <span>⚡</span>
+                                <span>All-Rounders</span>
+                            </span>
                             <span id="allroundersCount" class="font-bold text-purple-400">0</span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-gray-300">Wicket Keepers</span>
+                            <span class="text-gray-300 flex items-center space-x-2">
+                                <span>🧤</span>
+                                <span>Wicket Keepers</span>
+                            </span>
                             <span id="keepersCount" class="font-bold text-yellow-400">0</span>
                         </div>
                     </div>
@@ -206,24 +292,27 @@
         
         <!-- Instructions -->
         <div class="mt-8 glass-panel rounded-2xl p-6">
-            <h3 class="text-lg font-bold text-gray-300 mb-3">📋 Instructions</h3>
+            <h3 class="text-lg font-bold text-gray-300 mb-3 flex items-center space-x-2">
+                <span>📋</span>
+                <span>Instructions</span>
+            </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="flex items-start space-x-3">
-                    <div class="text-2xl">👥</div>
+                <div class="flex items-start space-x-3 p-3 player-card rounded-lg">
+                    <div class="text-2xl text-yellow-400">👥</div>
                     <div>
                         <h4 class="font-semibold text-yellow-400">Select Playing 11</h4>
                         <p class="text-sm text-gray-400">Drag exactly 11 players from your squad to the Playing 11 area</p>
                     </div>
                 </div>
-                <div class="flex items-start space-x-3">
-                    <div class="text-2xl">⭐</div>
+                <div class="flex items-start space-x-3 p-3 player-card rounded-lg">
+                    <div class="text-2xl text-purple-400">⭐</div>
                     <div>
                         <h4 class="font-semibold text-purple-400">Choose Impact Players</h4>
                         <p class="text-sm text-gray-400">Select impact players from remaining squad (cannot be in Playing 11)</p>
                     </div>
                 </div>
-                <div class="flex items-start space-x-3">
-                    <div class="text-2xl">✅</div>
+                <div class="flex items-start space-x-3 p-3 player-card rounded-lg">
+                    <div class="text-2xl text-green-400">✅</div>
                     <div>
                         <h4 class="font-semibold text-green-400">Submit Team</h4>
                         <p class="text-sm text-gray-400">Submit your final team for auctioneer review and rating</p>
@@ -235,13 +324,14 @@
 
     <!-- Success Modal -->
     <div id="successModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-        <div class="absolute inset-0 bg-black/80"></div>
-        <div class="glass-panel rounded-2xl p-8 max-w-md w-11/12 z-10 text-center">
-            <div class="text-6xl mb-4">🎉</div>
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+        <div class="glass-panel rounded-2xl p-8 max-w-md w-11/12 z-10 text-center transform transition-all duration-300 scale-95 animate-fadeIn">
+            <div class="text-6xl mb-4 animate-bounce">🎉</div>
             <h3 class="text-2xl font-bold text-green-400 mb-2">Team Submitted Successfully!</h3>
             <p class="text-gray-300 mb-6">Your playing 11 has been submitted to the auctioneer for review.</p>
+            <p class="text-yellow-400 text-sm mb-6">Wait for auctioneer to rate your team</p>
             <button onclick="closeSuccessModal()" 
-                    class="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-semibold">
+                    class="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-lg">
                 OK
             </button>
         </div>
@@ -249,19 +339,59 @@
 
     <!-- Alert Modal -->
     <div id="alertModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-        <div class="absolute inset-0 bg-black/80"></div>
-        <div class="glass-panel rounded-2xl p-6 max-w-md w-11/12 z-10">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+        <div class="glass-panel rounded-2xl p-6 max-w-md w-11/12 z-10 transform transition-all duration-300 scale-95 animate-fadeIn">
             <div class="text-center">
-                <div class="text-4xl mb-4" id="modalIcon">⚠️</div>
+                <div class="text-4xl mb-4 animate-pulse" id="modalIcon">⚠️</div>
                 <h3 class="text-2xl font-bold mb-2" id="modalTitle">Alert</h3>
                 <p class="text-gray-300 mb-6" id="modalMessage">This is a modal message</p>
                 <button onclick="closeAlertModal()" 
-                        class="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-semibold">
+                        class="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-semibold hover:scale-105 transition-all duration-300">
                     OK
                 </button>
             </div>
         </div>
     </div>
+
+    <!-- Animation styles -->
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .animate-bounce {
+            animation: bounce 1s infinite;
+        }
+        
+        .highlight {
+            animation: highlight 0.5s ease-out;
+        }
+        
+        @keyframes highlight {
+            0% { background-color: rgba(245, 158, 11, 0); }
+            50% { background-color: rgba(245, 158, 11, 0.3); }
+            100% { background-color: rgba(245, 158, 11, 0); }
+        }
+    </style>
 
     <script>
         // ========== GLOBAL VARIABLES ==========
@@ -275,9 +405,12 @@
         let impactPlayers = [];
         let draggedPlayer = null;
         let maxImpactPlayers = 1;
+        let userSessionId = null;
 
         // ========== DOM ELEMENTS ==========
         const teamHeader = document.getElementById('teamHeader');
+        const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+        const usernameDisplay = document.getElementById('usernameDisplay');
         const validationStatus = document.getElementById('validationStatus');
         const statusBadge = document.getElementById('statusBadge');
         const submitPlaying11Btn = document.getElementById('submitPlaying11Btn');
@@ -307,6 +440,7 @@
             currentRoomCode = auctionUser.roomCode;
             currentUsername = auctionUser.username;
             userTeam = auctionUser.team;
+            userSessionId = auctionUser.sessionId;
             
             console.log('📊 User data:', { 
                 roomCode: currentRoomCode, 
@@ -314,13 +448,17 @@
                 team: userTeam
             });
             
-            if (!currentRoomCode || !currentUsername || !userTeam) {
+            if (!currentRoomCode || !currentUsername || !userTeam || !userSessionId) {
                 showAlert('Session Error', 'No session found. Returning to auction.', '❌');
                 setTimeout(() => {
                     window.location.href = 'auctionpool.html';
                 }, 3000);
                 return;
             }
+            
+            // Display room and username
+            roomCodeDisplay.textContent = currentRoomCode;
+            usernameDisplay.textContent = currentUsername;
             
             // Initialize socket connection
             initializeSocket();
@@ -343,16 +481,28 @@
             socket.on('connect', () => {
                 console.log('✅ Connected to server');
                 
-                // Request squad data
-                socket.emit('requestSquad', {
+                // Join the playing11 room
+                socket.emit('joinPlaying11', {
                     roomCode: currentRoomCode,
-                    username: currentUsername
+                    username: currentUsername,
+                    sessionId: userSessionId
                 });
             });
             
             socket.on('connect_error', (error) => {
                 console.error('❌ Connection error:', error);
                 showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
+            });
+            
+            socket.on('playing11Joined', (data) => {
+                console.log('✅ Joined playing11 room:', data);
+                
+                // Request squad data
+                socket.emit('requestSquad', {
+                    roomCode: currentRoomCode,
+                    username: currentUsername,
+                    sessionId: userSessionId
+                });
             });
             
             socket.on('squadUpdate', (data) => {
@@ -369,18 +519,124 @@
                 
                 // Update statistics
                 updateStatistics();
+                
+                // Update impact player slots based on rules
+                updateImpactPlayerSlots();
             });
             
             socket.on('playing11SubmittedSuccess', (data) => {
                 console.log('✅ Playing 11 submitted successfully:', data);
                 showSuccessModal();
+                submitPlaying11Btn.innerHTML = '✅ Submitted!';
             });
             
-            socket.on('teamRated', (data) => {
-                console.log('⭐ Team rated:', data);
-                showAlert('Team Rated', `Your team has been rated ${data.rating}/10 by the auctioneer!`, '⭐');
-            });
             
+            
+            // Find your socket event handlers - usually they're grouped together
+// Look for handlers like socket.on('submitPlaying11Success', ...)
+
+// Add these handlers AFTER your existing socket.on handlers:
+
+// Handler for when auctioneer rates your team
+socket.on('teamRated', (data) => {
+    console.log('Team rated by auctioneer:', data);
+    
+    // Show notification
+    if (window.showNotification) {
+        showNotification(`Your team has been rated: ${data.rating}/10`, 'info');
+    } else {
+        alert(`Your team has been rated: ${data.rating}/10\n${data.comments ? 'Comments: ' + data.comments : ''}`);
+    }
+    
+    // Store rating in localStorage
+    localStorage.setItem('teamRating', data.rating);
+    localStorage.setItem('teamComments', data.comments || '');
+    
+    // Display rating on page if you have a section for it
+    const ratingDisplay = document.getElementById('ratingDisplay');
+    if (ratingDisplay) {
+        ratingDisplay.innerHTML = `
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
+                <h3 style="color: #1a2980; margin-bottom: 10px;">🎯 Auctioneer's Rating</h3>
+                <div style="font-size: 3rem; font-weight: bold; color: #26d0ce; margin: 10px 0;">
+                    ${data.rating}/10
+                </div>
+                ${data.comments ? `
+                    <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px;">
+                        <strong style="color: #666;">Comments:</strong>
+                        <p style="color: #333; margin-top: 5px;">${data.comments}</p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        ratingDisplay.style.display = 'block';
+    }
+    
+    // Optionally disable form if already rated
+    const submitBtn = document.getElementById('submitPlaying11Btn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-check"></i> Submitted & Rated';
+    }
+});
+
+// Handler for final results
+socket.on('finalResults', (data) => {
+    console.log('Final results received in playing11:', data);
+    
+    // Store results in localStorage
+    localStorage.setItem('finalResults', JSON.stringify(data));
+    
+    // Find user's rank
+    const username = localStorage.getItem('playing11Username') || 
+                     new URLSearchParams(window.location.search).get('username');
+    
+    if (username && data.results) {
+        const userResult = data.results.find(r => r.username === username);
+        if (userResult) {
+            const rank = data.results.indexOf(userResult) + 1;
+            localStorage.setItem('userRank', rank);
+            localStorage.setItem('userRating', userResult.rating);
+            localStorage.setItem('userTeam', userResult.team);
+            
+            console.log(`User ${username} ranked ${rank} with rating ${userResult.rating}`);
+        }
+    }
+    
+    // Show notification and redirect
+    if (window.showNotification) {
+        showNotification('Final results published! Redirecting to results page...', 'success');
+    } else {
+        alert('Final results published! Redirecting to results page...');
+    }
+    
+    setTimeout(() => {
+        window.location.href = 'results.html' + 
+            '?sessionId=' + encodeURIComponent(localStorage.getItem('playing11SessionId') || '') +
+            '&roomCode=' + encodeURIComponent(localStorage.getItem('playing11RoomCode') || '') +
+            '&username=' + encodeURIComponent(username || '') +
+            '&from=playing11';
+    }, 2000);
+});
+
+// Handler for when results are being calculated
+socket.on('newResultsPublished', (data) => {
+    console.log('New results published:', data);
+    
+    // Same logic as above
+    socket.emit('finalResults', data);
+});
+
+// Also add a handler to periodically check if results are ready
+socket.on('resultsReady', (data) => {
+    console.log('Results are ready:', data);
+    
+    // Trigger the finalResults handler
+    socket.emit('getFinalResults', {
+        roomCode: localStorage.getItem('playing11RoomCode'),
+        username: localStorage.getItem('playing11Username')
+    });
+});
             socket.on('redirectToResults', (data) => {
                 console.log('🏆 Redirecting to results:', data);
                 showAlert('Auction Complete', 'Moving to results page...', '🏆');
@@ -389,18 +645,14 @@
                 }, 2000);
             });
             
-            socket.on('finalResults', (data) => {
-                console.log('🏆 Final results:', data);
-                localStorage.setItem('auctionResults', JSON.stringify(data));
-                showAlert('Results Available', 'Final results are ready!', '🏆');
-                setTimeout(() => {
-                    window.location.href = 'results.html';
-                }, 2000);
-            });
-            
             socket.on('error', (data) => {
                 console.error('❌ Error:', data);
                 showAlert('Error', data.message, '❌');
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('🔌 Disconnected from server');
+                showAlert('Disconnected', 'Lost connection to server. Attempting to reconnect...', '⚠️');
             });
         }
 
@@ -436,8 +688,8 @@
             // Display available players
             displayAvailablePlayers();
             
-            // Update impact player slots count
-            updateImpactPlayerSlots();
+            // Highlight if this is initial load
+            highlightAvailablePlayers();
         }
         
         function displayAvailablePlayers() {
@@ -461,36 +713,40 @@
         
         function createPlayerElement(player) {
             const playerEl = document.createElement('div');
-            playerEl.className = 'player-drag-item glass-panel rounded-xl p-3 mb-3';
+            playerEl.className = 'player-drag-item player-card rounded-xl p-3 mb-3 hover:scale-[1.02] transition-transform duration-200';
             playerEl.setAttribute('data-player-id', player.id);
             playerEl.setAttribute('draggable', 'true');
             
-            // Determine role class
+            // Determine role class and icon
             let roleClass = 'role-batsman';
             let roleDisplay = player.role || 'Player';
+            let roleIcon = '🏏';
             
             if (player.role) {
                 const roleLower = player.role.toLowerCase();
                 if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin')) {
                     roleClass = 'role-bowler';
+                    roleIcon = '🎯';
                 } else if (roleLower.includes('all') || roleLower.includes('ar')) {
                     roleClass = 'role-allrounder';
+                    roleIcon = '⚡';
                 } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
                     roleClass = 'role-wk';
+                    roleIcon = '🧤';
                 }
             }
             
             playerEl.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-                            <span class="text-lg">👤</span>
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-lg">
+                            <span class="text-lg">${roleIcon}</span>
                         </div>
-                        <div>
-                            <div class="font-medium">${player.name}</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-medium truncate">${player.name}</div>
                             <div class="flex items-center space-x-2 mt-1">
                                 <span class="${roleClass} role-badge">${roleDisplay}</span>
-                                ${player.isOverseas ? '<span class="text-xs px-2 py-1 bg-purple-900/30 text-purple-300 rounded">✈️ Overseas</span>' : ''}
+                                ${player.isOverseas ? '<span class="text-xs px-2 py-1 bg-gradient-to-r from-purple-900/30 to-pink-900/30 text-purple-300 rounded">✈️ Overseas</span>' : ''}
                             </div>
                         </div>
                     </div>
@@ -505,21 +761,54 @@
             playerEl.addEventListener('dragstart', handleDragStart);
             playerEl.addEventListener('dragend', handleDragEnd);
             
+            // Add click event to show stats
+            playerEl.addEventListener('click', (e) => {
+                if (!e.target.closest('.player-drag-item')) return;
+                showPlayerStats(player);
+            });
+            
             return playerEl;
+        }
+        
+        function showPlayerStats(player) {
+            const modal = document.getElementById('alertModal');
+            document.getElementById('modalIcon').textContent = '📊';
+            document.getElementById('modalTitle').textContent = player.name;
+            document.getElementById('modalMessage').innerHTML = `
+                <div class="text-left space-y-2">
+                    <div><span class="text-gray-400">Role:</span> <span class="font-semibold">${player.role || 'Player'}</span></div>
+                    ${player.nationality ? `<div><span class="text-gray-400">Nationality:</span> <span class="font-semibold">${player.nationality}</span></div>` : ''}
+                    ${player.stats ? `
+                        <div class="mt-4">
+                            <div class="font-semibold text-yellow-400 mb-2">Stats:</div>
+                            <div class="stats-grid">
+                                ${player.stats.totalRuns ? `<div class="stat-box"><div class="text-xs text-gray-400">Runs</div><div class="font-bold">${player.stats.totalRuns}</div></div>` : ''}
+                                ${player.stats.wickets ? `<div class="stat-box"><div class="text-xs text-gray-400">Wickets</div><div class="font-bold">${player.stats.wickets}</div></div>` : ''}
+                                ${player.stats.strikeRate ? `<div class="stat-box"><div class="text-xs text-gray-400">Strike Rate</div><div class="font-bold">${player.stats.strikeRate}</div></div>` : ''}
+                                ${player.stats.economyRate ? `<div class="stat-box"><div class="text-xs text-gray-400">Economy</div><div class="font-bold">${player.stats.economyRate}</div></div>` : ''}
+                                ${player.stats.highestScore ? `<div class="stat-box"><div class="text-xs text-gray-400">Highest</div><div class="font-bold">${player.stats.highestScore}</div></div>` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${player.price > 0 ? `<div class="mt-4 text-center"><span class="text-2xl font-bold text-yellow-400">₹${player.price} Cr</span></div>` : ''}
+                </div>
+            `;
+            modal.classList.remove('hidden');
         }
 
         // ========== SLOT CREATION ==========
         function createPlaying11Slots() {
             playing11Slots.innerHTML = '';
+            playing11 = new Array(11).fill(null);
             
             for (let i = 1; i <= 11; i++) {
                 const slot = document.createElement('div');
-                slot.className = 'slot-item';
+                slot.className = 'slot-item hover:border-yellow-400/50 transition-all duration-200';
                 slot.setAttribute('data-slot-type', 'playing11');
                 slot.setAttribute('data-slot-index', i - 1);
                 slot.innerHTML = `
                     <div class="text-center">
-                        <div class="text-2xl mb-1">${i}</div>
+                        <div class="text-2xl mb-1 text-yellow-400/50">${i}</div>
                         <div class="text-xs text-gray-500">Slot ${i}</div>
                     </div>
                 `;
@@ -536,16 +825,17 @@
         
         function createImpactPlayerSlots() {
             impactPlayerSlots.innerHTML = '';
+            impactPlayers = new Array(maxImpactPlayers).fill(null);
             
             // Create slots based on max impact players (default 1, can be up to 3)
             for (let i = 1; i <= maxImpactPlayers; i++) {
                 const slot = document.createElement('div');
-                slot.className = 'slot-item';
+                slot.className = 'slot-item hover:border-purple-400/50 transition-all duration-200';
                 slot.setAttribute('data-slot-type', 'impact');
                 slot.setAttribute('data-slot-index', i - 1);
                 slot.innerHTML = `
                     <div class="text-center">
-                        <div class="text-xl mb-1">⭐</div>
+                        <div class="text-xl mb-1 text-purple-400/50">⭐</div>
                         <div class="text-xs text-gray-500">Impact ${i}</div>
                     </div>
                 `;
@@ -558,10 +848,12 @@
                 
                 impactPlayerSlots.appendChild(slot);
             }
+            
+            updateImpactPlayerSlots();
         }
         
         function updateImpactPlayerSlots() {
-            impactPlayersCount.textContent = `${impactPlayers.length}/${maxImpactPlayers} selected`;
+            impactPlayersCount.textContent = `${impactPlayers.filter(p => p !== null).length}/${maxImpactPlayers} selected`;
         }
 
         // ========== DRAG AND DROP FUNCTIONS ==========
@@ -582,37 +874,31 @@
                 availablePlayers.classList.remove('drag-over');
                 
                 if (draggedPlayer) {
-                    // Remove from playing11 or impact players
                     const playerId = draggedPlayer.getAttribute('data-player-id');
-                    removeFromPlaying11(playerId);
-                    removeFromImpactPlayers(playerId);
-                    
-                    // Return to available players
-                    const playerData = getPlayerById(playerId);
-                    if (playerData) {
-                        const playerEl = createPlayerElement(playerData);
-                        availablePlayers.appendChild(playerEl);
-                    }
-                    
+                    removePlayerFromAllSlots(playerId);
                     updateAllCounts();
                 }
             });
         }
         
         function handleDragStart(e) {
-            draggedPlayer = e.target;
-            e.dataTransfer.setData('text/plain', e.target.getAttribute('data-player-id'));
-            e.target.classList.add('dragging');
+            draggedPlayer = e.target.closest('.player-drag-item');
+            if (!draggedPlayer) return;
+            
+            e.dataTransfer.setData('text/plain', draggedPlayer.getAttribute('data-player-id'));
+            draggedPlayer.classList.add('dragging');
             
             // Add clone for drag image
             setTimeout(() => {
-                e.target.classList.add('opacity-0');
+                draggedPlayer.classList.add('opacity-0');
             }, 0);
         }
         
         function handleDragEnd(e) {
-            e.target.classList.remove('dragging', 'opacity-0');
-            draggedPlayer = null;
+            if (draggedPlayer) {
+                draggedPlayer.classList.remove('dragging', 'opacity-0');
+                draggedPlayer = null;
+            }
             
             // Remove drag-over class from all slots
             document.querySelectorAll('.drag-over').forEach(el => {
@@ -627,7 +913,7 @@
         
         function handleDragEnter(e) {
             e.preventDefault();
-            e.target.classList.add('drag-over');
+            e.target.closest('.slot-item')?.classList.add('drag-over');
         }
         
         function handleDragLeave(e) {
@@ -641,10 +927,12 @@
             e.target.classList.remove('drag-over');
             
             const playerId = e.dataTransfer.getData('text/plain');
-            const slotType = e.target.getAttribute('data-slot-type');
-            const slotIndex = parseInt(e.target.getAttribute('data-slot-index'));
+            const slot = e.target.closest('.slot-item');
             
-            if (!playerId) return;
+            if (!playerId || !slot) return;
+            
+            const slotType = slot.getAttribute('data-slot-type');
+            const slotIndex = parseInt(slot.getAttribute('data-slot-index'));
             
             const playerData = getPlayerById(playerId);
             if (!playerData) return;
@@ -679,18 +967,18 @@
         }
         
         function isPlayerInPlaying11(playerId) {
-            return playing11.some(player => player.id === playerId);
+            return playing11.some(player => player && player.id === playerId);
         }
         
         function isPlayerInImpactPlayers(playerId) {
-            return impactPlayers.some(player => player.id === playerId);
+            return impactPlayers.some(player => player && player.id === playerId);
         }
         
         function addToPlaying11(playerData, slotIndex) {
             // If slot already has a player, remove it first
             if (playing11[slotIndex]) {
                 const oldPlayerId = playing11[slotIndex].id;
-                removeFromPlaying11(oldPlayerId);
+                returnToAvailablePlayers(oldPlayerId);
             }
             
             // Add to playing11 array
@@ -698,6 +986,9 @@
             
             // Update slot display
             updateSlotDisplay('playing11', slotIndex, playerData);
+            
+            // Highlight the slot
+            highlightSlot('playing11', slotIndex);
         }
         
         function addToImpactPlayers(playerData, slotIndex) {
@@ -708,7 +999,7 @@
             }
             
             // Check impact player limit
-            if (impactPlayers.length >= maxImpactPlayers && !impactPlayers[slotIndex]) {
+            if (impactPlayers.filter(p => p !== null).length >= maxImpactPlayers && !impactPlayers[slotIndex]) {
                 showAlert('Limit Reached', `Maximum ${maxImpactPlayers} impact players allowed`, '❌');
                 return;
             }
@@ -716,7 +1007,7 @@
             // If slot already has a player, remove it first
             if (impactPlayers[slotIndex]) {
                 const oldPlayerId = impactPlayers[slotIndex].id;
-                removeFromImpactPlayers(oldPlayerId);
+                returnToAvailablePlayers(oldPlayerId);
             }
             
             // Add to impactPlayers array
@@ -724,21 +1015,36 @@
             
             // Update slot display
             updateSlotDisplay('impact', slotIndex, playerData);
+            
+            // Highlight the slot
+            highlightSlot('impact', slotIndex);
         }
         
-        function removeFromPlaying11(playerId) {
-            const slotIndex = playing11.findIndex(player => player?.id === playerId);
-            if (slotIndex !== -1) {
-                playing11[slotIndex] = null;
-                clearSlotDisplay('playing11', slotIndex);
+        function removePlayerFromAllSlots(playerId) {
+            // Remove from playing11
+            const playing11Index = playing11.findIndex(player => player && player.id === playerId);
+            if (playing11Index !== -1) {
+                playing11[playing11Index] = null;
+                clearSlotDisplay('playing11', playing11Index);
             }
+            
+            // Remove from impact players
+            const impactIndex = impactPlayers.findIndex(player => player && player.id === playerId);
+            if (impactIndex !== -1) {
+                impactPlayers[impactIndex] = null;
+                clearSlotDisplay('impact', impactIndex);
+            }
+            
+            // Return to available players
+            returnToAvailablePlayers(playerId);
         }
         
-        function removeFromImpactPlayers(playerId) {
-            const slotIndex = impactPlayers.findIndex(player => player?.id === playerId);
-            if (slotIndex !== -1) {
-                impactPlayers[slotIndex] = null;
-                clearSlotDisplay('impact', slotIndex);
+        function returnToAvailablePlayers(playerId) {
+            const playerData = getPlayerById(playerId);
+            if (playerData) {
+                const playerEl = createPlayerElement(playerData);
+                availablePlayers.appendChild(playerEl);
+                highlightPlayer(playerEl);
             }
         }
         
@@ -753,23 +1059,31 @@
             const slots = slotType === 'playing11' ? playing11Slots : impactPlayerSlots;
             const slot = slots.children[slotIndex];
             
-            // Determine role class
+            // Determine role class and icon
             let roleClass = 'role-batsman';
+            let roleIcon = '🏏';
+            
             if (playerData.role) {
                 const roleLower = playerData.role.toLowerCase();
                 if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin')) {
                     roleClass = 'role-bowler';
+                    roleIcon = '🎯';
                 } else if (roleLower.includes('all') || roleLower.includes('ar')) {
                     roleClass = 'role-allrounder';
+                    roleIcon = '⚡';
                 } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
                     roleClass = 'role-wk';
+                    roleIcon = '🧤';
                 }
             }
             
             slot.innerHTML = `
-                <div class="text-center w-full">
+                <div class="text-center w-full p-2">
                     <div class="font-medium text-sm truncate mb-1">${playerData.name}</div>
-                    <div class="${roleClass} role-badge text-xs">${playerData.role || 'Player'}</div>
+                    <div class="flex items-center justify-center space-x-2 mb-2">
+                        <span class="text-xs">${roleIcon}</span>
+                        <span class="${roleClass} role-badge text-xs">${playerData.role || 'Player'}</span>
+                    </div>
                     ${playerData.isOverseas ? '<div class="text-xs text-purple-300 mt-1">✈️ Overseas</div>' : ''}
                     <div class="text-xs text-gray-400 mt-2">${slotType === 'playing11' ? `Slot ${slotIndex + 1}` : 'Impact'}</div>
                 </div>
@@ -783,11 +1097,39 @@
             
             slot.innerHTML = `
                 <div class="text-center">
-                    <div class="text-2xl mb-1">${slotType === 'playing11' ? slotIndex + 1 : '⭐'}</div>
+                    <div class="text-2xl mb-1 ${slotType === 'playing11' ? 'text-yellow-400/50' : 'text-purple-400/50'}">${slotType === 'playing11' ? slotIndex + 1 : '⭐'}</div>
                     <div class="text-xs text-gray-500">${slotType === 'playing11' ? `Slot ${slotIndex + 1}` : 'Impact'}</div>
                 </div>
             `;
             slot.classList.remove('has-player');
+        }
+        
+        function highlightSlot(slotType, slotIndex) {
+            const slots = slotType === 'playing11' ? playing11Slots : impactPlayerSlots;
+            const slot = slots.children[slotIndex];
+            slot.classList.add('highlight');
+            setTimeout(() => {
+                slot.classList.remove('highlight');
+            }, 500);
+        }
+        
+        function highlightPlayer(playerEl) {
+            playerEl.classList.add('highlight');
+            setTimeout(() => {
+                playerEl.classList.remove('highlight');
+            }, 500);
+        }
+        
+        function highlightAvailablePlayers() {
+            const players = availablePlayers.querySelectorAll('.player-drag-item');
+            players.forEach((player, index) => {
+                setTimeout(() => {
+                    player.classList.add('highlight');
+                    setTimeout(() => {
+                        player.classList.remove('highlight');
+                    }, 300);
+                }, index * 100);
+            });
         }
 
         // ========== VALIDATION & UPDATES ==========
@@ -797,7 +1139,7 @@
             const impactPlayersCountValue = impactPlayers.filter(player => player !== null).length;
             
             playing11Count.textContent = `${playing11CountValue}/11 selected`;
-            impactPlayersCount.textContent = `${impactPlayersCountValue}/${maxImpactPlayers} selected`;
+            updateImpactPlayerSlots();
             
             // Update role distribution
             updateRoleDistribution();
@@ -818,7 +1160,7 @@
                     const role = player.role?.toLowerCase() || '';
                     if (role.includes('bat')) batsmen++;
                     else if (role.includes('bowl') || role.includes('pace') || role.includes('spin')) bowlers++;
-                    else if (role.includes('all') || role.includes('ar')) allrounders++;
+                    else if (role.includes('all') || roleIncludes('ar')) allrounders++;
                     else if (role.includes('wk') || role.includes('keep')) keepers++;
                     else batsmen++; // Default to batsman
                 }
@@ -828,6 +1170,10 @@
             bowlersCount.textContent = bowlers;
             allroundersCount.textContent = allrounders;
             keepersCount.textContent = keepers;
+        }
+        
+        function roleIncludes(role, search) {
+            return role.includes(search);
         }
         
         function validateSelection() {
@@ -881,7 +1227,10 @@
                 // Show validation messages
                 playing11Validation.classList.remove('hidden');
                 playing11Validation.innerHTML = messages.map(msg => 
-                    `<div class="text-red-400 text-sm">• ${msg}</div>`
+                    `<div class="text-red-400 text-sm flex items-center space-x-2">
+                        <span>❌</span>
+                        <span>${msg}</span>
+                    </div>`
                 ).join('');
             }
             
@@ -900,7 +1249,16 @@
             const impactPlayersFinal = impactPlayers.filter(player => player !== null);
             
             // Show confirmation
-            if (confirm(`Submit your Playing 11 with ${impactPlayersFinal.length} impact player(s)? This cannot be changed.`)) {
+            const confirmationMessage = `
+                Confirm submission of your Playing 11?
+                
+                Playing 11: ${playing11Final.length} players
+                Impact Players: ${impactPlayersFinal.length} player(s)
+                
+                This action cannot be undone.
+            `;
+            
+            if (confirm(confirmationMessage.replace(/\n\s*/g, '\n'))) {
                 submitPlaying11(playing11Final, impactPlayersFinal);
             }
         });
@@ -910,11 +1268,17 @@
                 roomCode: currentRoomCode,
                 username: currentUsername,
                 playing11: playing11Data,
-                impactPlayers: impactPlayersData
+                impactPlayers: impactPlayersData,
+                sessionId: userSessionId
             });
             
             submitPlaying11Btn.disabled = true;
-            submitPlaying11Btn.innerHTML = '⏳ Submitting...';
+            submitPlaying11Btn.innerHTML = `
+                <div class="flex items-center justify-center space-x-2">
+                    <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>Submitting...</span>
+                </div>
+            `;
         }
 
         // ========== DISPLAY FUNCTIONS ==========
@@ -923,19 +1287,24 @@
             
             teamHeader.innerHTML = `
                 <div class="flex items-center space-x-4">
-                    <div class="w-14 h-14 rounded-full flex items-center justify-center relative" 
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center relative shadow-xl" 
                          style="background: ${userTeam.color}20; border: 2px solid ${userTeam.color}">
-                        <div class="w-10 h-10 rounded-full bg-gray-900/80 flex items-center justify-center overflow-hidden">
-                            <img src="${userTeam.logo || 'default-player.png'}" 
-                                 alt="${userTeam.name}" 
-                                 class="w-full h-full object-contain p-1"
-                                 onerror="this.onerror=null; this.src='default-player.png';">
+                        <div class="w-12 h-12 rounded-full bg-gray-900/80 flex items-center justify-center overflow-hidden p-1">
+                            ${userTeam.logo ? 
+                                `<img src="${userTeam.logo}" 
+                                      alt="${userTeam.name}" 
+                                      class="w-full h-full object-contain"
+                                      onerror="this.onerror=null; this.src='https://via.placeholder.com/48/1e293b/ffffff?text=${userTeam.name.charAt(0)}';">` :
+                                `<div class="w-full h-full flex items-center justify-center font-bold text-lg" style="color: ${userTeam.color}">
+                                    ${userTeam.name.charAt(0)}
+                                </div>`
+                            }
                         </div>
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold" style="color: ${userTeam.color}">${userTeam.name}</h2>
-                        <p class="text-gray-400 text-sm">Playing 11 Selection</p>
-                        <p class="text-gray-500 text-xs">${currentUsername}</p>
+                        <h2 class="text-2xl font-bold team-name-gradient">${userTeam.name}</h2>
+                        <p class="text-gray-400 text-sm">Playing 11 Selection Phase</p>
+                        <p class="text-gray-500 text-xs mt-1">Player: ${currentUsername}</p>
                     </div>
                 </div>
             `;
@@ -950,9 +1319,9 @@
             const remainingBudgetValue = squadData.budget || 100;
             
             totalPlayers.textContent = totalPlayersValue;
-            totalSpent.textContent = `₹${totalSpentValue.toFixed(2)}`;
+            totalSpent.textContent = `₹${totalSpentValue.toFixed(2)} Cr`;
             rtmCards.textContent = rtmCardsValue;
-            remainingBudget.textContent = `₹${remainingBudgetValue.toFixed(2)}`;
+            remainingBudget.textContent = `₹${remainingBudgetValue.toFixed(2)} Cr`;
         }
 
         // ========== MODAL FUNCTIONS ==========
@@ -976,6 +1345,12 @@
             document.getElementById('alertModal').classList.add('hidden');
         }
         
+        // ========== SOCKET EVENT LISTENER FOR joinPlaying11 ==========
+        // Add this handler in the socket initialization section
+        socket.on('joinPlaying11', (data) => {
+            console.log('Joined playing11:', data);
+        });
+
         // Expose functions to global scope
         window.closeSuccessModal = closeSuccessModal;
         window.closeAlertModal = closeAlertModal;

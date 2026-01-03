@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Auction - Final Results</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            margin-bottom: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        h1 {
+            color: #1a2980;
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .trophy-icon {
+            color: #FFD700;
+            font-size: 3.5rem;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+        }
+
+        .room-info {
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            display: inline-block;
+            margin: 10px 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .room-info span {
+            margin: 0 15px;
+            font-size: 1.1rem;
+        }
+
+        .role-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #1a2980;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            z-index: 3;
+        }
+
+        .content-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .podium-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .team-details-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            max-height: 800px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            color: #1a2980;
+            font-size: 2rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 4px solid #26d0ce;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .podium-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            height: 400px;
+            margin: 40px 0;
+            gap: 20px;
+        }
+
+        .podium-place {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.3s;
+        }
+
+        .podium-place:hover {
+            transform: translateY(-10px);
+        }
+
+        .podium-stand {
+            width: 150px;
+            border-radius: 10px 10px 0 0;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 20px;
+        }
+
+        .first-place {
+            height: 300px;
+            background: linear-gradient(135deg, #FFD700, #FFEC8B);
+            order: 2;
+        }
+
+        .second-place {
+            height: 240px;
+            background: linear-gradient(135deg, #C0C0C0, #E0E0E0);
+            order: 1;
+        }
+
+        .third-place {
+            height: 200px;
+            background: linear-gradient(135deg, #CD7F32, #E6B87F);
+            order: 3;
+        }
+
+        .place-number {
+            font-size: 4rem;
+            font-weight: bold;
+            color: rgba(0, 0, 0, 0.2);
+            position: absolute;
+            top: 20px;
+        }
+
+        .team-info {
+            text-align: center;
+            color: white;
+            z-index: 2;
+        }
+
+        .team-name {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .team-owner {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        .team-rating {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        .team-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 10px;
+        }
+
+        .team-cards-container {
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .team-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 6px solid #1a2980;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .team-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .team-card.active {
+            border-left: 6px solid #26d0ce;
+            background: #e3f2fd;
+        }
+
+        .team-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .team-rank {
+            background: #1a2980;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .team-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .team-main-info h3 {
+            color: #1a2980;
+            font-size: 1.6rem;
+            margin-bottom: 10px;
+        }
+
+        .team-owner-info {
+            color: #666;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rating-display {
+            text-align: center;
+        }
+
+        .rating-big {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #1a2980;
+            line-height: 1;
+        }
+
+        .rating-label {
+            color: #666;
+            font-size: 1rem;
+            margin-top: 5px;
+        }
+
+        .team-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .team-stat-item {
+            text-align: center;
+        }
+
+        .team-stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .team-stat-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #1a2980;
+        }
+
+        .team-comments {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            border-left: 4px solid #26d0ce;
+        }
+
+        .comments-label {
+            color: #1a2980;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .comments-text {
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            margin-top: 40px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(26, 41, 128, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1a2980;
+            border: 2px solid #1a2980;
+        }
+
+        .btn-secondary:hover {
+            background: #1a2980;
+            color: white;
+            transform: translateY(-3px);
+        }
+
+        .share-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            margin-top: 40px;
+            text-align: center;
+        }
+
+        .share-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .share-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .share-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .whatsapp { background: #25D366; }
+        .twitter { background: #1DA1F2; }
+        .copy { background: #6c757d; }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .no-results i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 100px 20px;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #26d0ce;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .confetti {
+            position: fixed;
+            width: 15px;
+            height: 15px;
+            background: #f0f;
+            opacity: 0;
+            z-index: 1000;
+            animation: confetti-fall 5s linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(1000px) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .content-area {
+                grid-template-columns: 1fr;
+            }
+            
+            .podium-container {
+                height: 300px;
+            }
+            
+            .podium-stand {
+                width: 120px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .room-info {
+                display: block;
+                text-align: center;
+            }
+            
+            .room-info span {
+                display: block;
+                margin: 10px 0;
+            }
+            
+            .podium-container {
+                flex-direction: column;
+                align-items: center;
+                height: auto;
+                gap: 40px;
+            }
+            
+            .podium-place {
+                width: 100%;
+            }
+            
+            .podium-stand {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .team-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .team-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="role-badge" id="roleBadge">
+                <i class="fas fa-user"></i> <span id="userRole">User</span>
+            </div>
+            <div class="header-content">
+                <h1>
+                    <i class="fas fa-trophy trophy-icon"></i>
+                    FINAL RESULTS
+                    <i class="fas fa-trophy trophy-icon"></i>
+                </h1>
+                <p class="subtitle">IPL Auction 2024 - Team Rankings</p>
+                <div class="room-info">
+                    <span id="roomCodeDisplay">Room: <strong>Loading...</strong></span>
+                    <span id="userInfo" style="margin-left: 20px;">Username: <strong>Loading...</strong></span>
+                    <span id="userTeam" style="margin-left: 20px;">Team: <strong>Loading...</strong></span>
+                </div>
+            </div>
+        </header>
+
+        <div id="loadingScreen" class="loading">
+            <div class="loader"></div>
+            <p>Loading final results...</p>
+        </div>
+
+        <div id="resultsContent" style="display: none;">
+            <div class="content-area">
+                <div class="podium-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-medal"></i> Winners Podium
+                    </h2>
+                    <div class="podium-container" id="podiumContainer">
+                        <!-- Podium will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="team-details-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-list-ol"></i> Team Rankings
+                    </h2>
+                    <div class="team-cards-container" id="teamCardsContainer">
+                        <!-- Team cards will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="share-section">
+                <h2 class="section-title">
+                    <i class="fas fa-share-alt"></i> Share Results
+                </h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Share the final results with your friends!
+                </p>
+                <div class="share-buttons">
+                    <div class="share-btn whatsapp" onclick="shareResults('whatsapp')">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <div class="share-btn twitter" onclick="shareResults('twitter')">
+                        <i class="fab fa-twitter"></i>
+                    </div>
+                    <div class="share-btn copy" onclick="copyResults()">
+                        <i class="fas fa-copy"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="viewSquadDetails()">
+                    <i class="fas fa-users"></i> View My Squad Details
+                </button>
+                <button class="btn btn-primary" onclick="newAuction()">
+                    <i class="fas fa-plus-circle"></i> Start New Auction
+                </button>
+            </div>
+        </div>
+
+        <div id="noResults" class="no-results" style="display: none;">
+            <i class="fas fa-inbox"></i>
+            <h3>No Results Available</h3>
+            <p>Final results have not been published yet.</p>
+            <button class="btn btn-primary" onclick="checkResults()" style="margin-top: 20px;">
+                <i class="fas fa-sync-alt"></i> Check Again
+            </button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket;
+        let sessionId;
+        let roomCode;
+        let username;
+        let userRole;
+        let userTeam;
+        let finalResults = null;
+        let userRank = null;
+
+        // Initialize connection
+        function init() {
+            // Get data from URL or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            sessionId = urlParams.get('sessionId') || localStorage.getItem('resultsSessionId');
+            roomCode = urlParams.get('roomCode') || localStorage.getItem('resultsRoomCode');
+            username = urlParams.get('username') || localStorage.getItem('resultsUsername');
+            userRole = urlParams.get('role') || localStorage.getItem('resultsRole') || 'user';
+
+            if (!sessionId || !roomCode) {
+                showError('Missing session information. Redirecting...');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+                return;
+            }
+
+            // Store for later use
+            localStorage.setItem('resultsSessionId', sessionId);
+            localStorage.setItem('resultsRoomCode', roomCode);
+            localStorage.setItem('resultsUsername', username);
+            localStorage.setItem('resultsRole', userRole);
+
+            // Update display
+            document.getElementById('roomCodeDisplay').innerHTML = `Room: <strong>${roomCode}</strong>`;
+            document.getElementById('userInfo').innerHTML = `Username: <strong>${username || 'Unknown'}</strong>`;
+            document.getElementById('userRole').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+
+            // Connect to socket
+            socket = io();
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                loadResults();
+            });
+
+            socket.on('disconnect', () => {
+                showError('Disconnected from server');
+            });
+
+            socket.on('error', (data) => {
+                showError(data.message);
+            });
+
+            // Listen for final results
+            socket.on('finalResults', (data) => {
+                console.log('Final results received:', data);
+                handleResults(data);
+            });
+
+            // Listen for new results if already on page
+            socket.on('newResultsPublished', (data) => {
+                console.log('New results published:', data);
+                showNotification('New results have been published!', 'success');
+                handleResults(data);
+            });
+
+            // Setup periodic check for results (every 10 seconds)
+            setInterval(checkForResults, 10000);
+        }
+
+        function loadResults() {
+            // Try to get results from localStorage first
+            const storedResults = localStorage.getItem(`results_${roomCode}`);
+            
+            if (storedResults) {
+                try {
+                    const results = JSON.parse(storedResults);
+                    handleResults(results);
+                    return;
+                } catch (e) {
+                    console.error('Error parsing stored results:', e);
+                }
+            }
+
+            // Request results from server
+            socket.emit('getFinalResults', {
+                roomCode: roomCode,
+                sessionId: sessionId,
+                username: username
+            });
+
+            // Listen for results response
+            socket.once('finalResultsResponse', (data) => {
+                if (data.results) {
+                    handleResults(data);
+                } else {
+                    showNoResults();
+                }
+            });
+        }
+
+        function handleResults(data) {
+            finalResults = data.results || [];
+            const winner = data.winner || null;
+            
+            if (finalResults.length === 0) {
+                showNoResults();
+                return;
+            }
+
+            // Store in localStorage
+            localStorage.setItem(`results_${roomCode}`, JSON.stringify(data));
+
+            // Find user's team and rank
+            if (username) {
+                const userResult = finalResults.find(result => result.username === username);
+                if (userResult) {
+                    userTeam = userResult.team;
+                    userRank = finalResults.indexOf(userResult) + 1;
+                    
+                    document.getElementById('userTeam').innerHTML = `Team: <strong>${userTeam}</strong>`;
+                    
+                    // If user is winner, show celebration
+                    if (userRank === 1) {
+                        celebrateWinner();
+                    }
+                }
+            }
+
+            // Hide loading, show results
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('resultsContent').style.display = 'block';
+            document.getElementById('noResults').style.display = 'none';
+
+            // Render podium and rankings
+            renderPodium();
+            renderTeamRankings();
+        }
+
+        function renderPodium() {
+            const container = document.getElementById('podiumContainer');
+            container.innerHTML = '';
+
+            // Only show top 3
+            const top3 = finalResults.slice(0, 3);
+            
+            // Ensure we have at least 3 positions
+            const positions = [
+                { place: 2, class: 'second-place', icon: '🥈' },
+                { place: 1, class: 'first-place', icon: '🥇' },
+                { place: 3, class: 'third-place', icon: '🥉' }
+            ];
+
+            positions.forEach((pos, index) => {
+                const team = top3[pos.place - 1];
+                if (!team) return;
+
+                const html = `
+                    <div class="podium-place">
+                        <div class="podium-stand ${pos.class}">
+                            <div class="place-number">${pos.place}</div>
+                            <div class="team-info">
+                                <div style="font-size: 2rem; margin-bottom: 10px;">${pos.icon}</div>
+                                <div class="team-name">${team.team || 'Unknown'}</div>
+                                <div class="team-owner">${team.username}</div>
+                                <div class="team-rating">${team.rating}/10</div>
+                                <div class="team-stats">
+                                    <div class="stat-item">₹${team.budget || 0}Cr</div>
+                                    <div class="stat-item">${team.totalPlayers || 0} players</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML += html;
+            });
+        }
+
+        function renderTeamRankings() {
+            const container = document.getElementById('teamCardsContainer');
+            container.innerHTML = '';
+
+            finalResults.forEach((team, index) => {
+                const rank = index + 1;
+                const isUserTeam = team.username === username;
+                
+                const html = `
+                    <div class="team-card ${isUserTeam ? 'active' : ''}" 
+                         onclick="showTeamDetails('${team.username}')">
+                        <div class="team-header">
+                            <div class="team-rank">${rank}</div>
+                            <div class="rating-display">
+                                <div class="rating-big">${team.rating}</div>
+                                <div class="rating-label">/10</div>
+                            </div>
+                        </div>
+                        <div class="team-content">
+                            <div class="team-main-info">
+                                <h3>${team.team || 'Unknown Team'}</h3>
+                                <div class="team-owner-info">
+                                    <i class="fas fa-user"></i>
+                                    ${team.username}
+                                    ${isUserTeam ? '<span style="color: #26d0ce; margin-left: 10px;">(You)</span>' : ''}
+                                </div>
+                                <div class="team-stats-grid">
+                                    <div class="team-stat-item">
+                                        <div class="team-stat-label">Budget Left</div>
+                                        <div class="team-stat-value">₹${team.budget || 0}Cr</div>
+                                    </div>
+                                    <div class="team-stat-item">
+                                        <div class="team-stat-label">Retained</div>
+                                        <div class="team-stat-value">${team.retainedPlayers || 0}</div>
+                                    </div>
+                                    <div class="team-stat-item">
+                                        <div class="team-stat-label">Auctioned</div>
+                                        <div class="team-stat-value">${team.auctionPlayers || 0}</div>
+                                    </div>
+                                    <div class="team-stat-item">
+                                        <div class="team-stat-label">Total Squad</div>
+                                        <div class="team-stat-value">${team.totalPlayers || 0}</div>
+                                    </div>
+                                </div>
+                                ${team.comments ? `
+                                    <div class="team-comments">
+                                        <div class="comments-label">
+                                            <i class="fas fa-comment"></i> Auctioneer's Comments
+                                        </div>
+                                        <div class="comments-text">${team.comments}</div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML += html;
+            });
+        }
+
+        function showTeamDetails(username) {
+            // Could be expanded to show more detailed modal
+            console.log('Show details for:', username);
+        }
+
+        function celebrateWinner() {
+            // Create confetti effect
+            for (let i = 0; i < 150; i++) {
+                createConfetti();
+            }
+            
+            // Play celebration sound (optional)
+            try {
+                const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
+                audio.volume = 0.5;
+                audio.play();
+            } catch (e) {
+                console.log('Could not play celebration sound');
+            }
+        }
+
+        function createConfetti() {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.backgroundColor = getRandomColor();
+            confetti.style.width = Math.random() * 15 + 5 + 'px';
+            confetti.style.height = Math.random() * 15 + 5 + 'px';
+            document.body.appendChild(confetti);
+            
+            // Remove after animation
+            setTimeout(() => {
+                confetti.remove();
+            }, 5000);
+        }
+
+        function getRandomColor() {
+            const colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#1a2980', '#26d0ce', '#FF6B6B', '#4ECDC4', '#FFE66D'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function shareResults(platform) {
+            const shareText = `🏆 IPL Auction Results - Room ${roomCode}\n\n`;
+            const top3 = finalResults.slice(0, 3).map((team, index) => {
+                return `${['🥇', '🥈', '🥉'][index]} ${team.team}: ${team.username} (${team.rating}/10)`;
+            }).join('\n');
+            
+            const fullText = shareText + top3 + '\n\n' + window.location.href;
+            
+            if (platform === 'whatsapp') {
+                window.open(`https://wa.me/?text=${encodeURIComponent(fullText)}`, '_blank');
+            } else if (platform === 'twitter') {
+                window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(fullText)}`, '_blank');
+            }
+        }
+
+        function copyResults() {
+            const shareText = `🏆 IPL Auction Results - Room ${roomCode}\n\n`;
+            const rankings = finalResults.map((team, index) => {
+                return `${index + 1}. ${team.team}: ${team.username} (${team.rating}/10)`;
+            }).join('\n');
+            
+            const fullText = shareText + rankings + '\n\n' + window.location.href;
+            
+            navigator.clipboard.writeText(fullText).then(() => {
+                showNotification('Results copied to clipboard!', 'success');
+            }).catch(err => {
+                showError('Failed to copy results');
+            });
+        }
+
+        function viewSquadDetails() {
+            // Redirect to a squad details page or show modal
+            if (userRole === 'auctioneer') {
+                window.location.href = `validation.html?sessionId=${sessionId}&roomCode=${roomCode}`;
+            } else {
+                // For users, we could show their squad in a modal
+                alert('Squad details feature coming soon!');
+            }
+        }
+
+        function newAuction() {
+            if (confirm('Are you sure you want to start a new auction? This will end the current session.')) {
+                // Clear localStorage
+                localStorage.removeItem('resultsSessionId');
+                localStorage.removeItem('resultsRoomCode');
+                localStorage.removeItem('resultsUsername');
+                localStorage.removeItem('resultsRole');
+                localStorage.removeItem(`results_${roomCode}`);
+                
+                // Redirect to login
+                window.location.href = 'login.html';
+            }
+        }
+
+        function checkResults() {
+            document.getElementById('loadingScreen').style.display = 'block';
+            document.getElementById('noResults').style.display = 'none';
+            document.getElementById('resultsContent').style.display = 'none';
+            
+            loadResults();
+        }
+
+        function checkForResults() {
+            if (!finalResults || finalResults.length === 0) {
+                socket.emit('getFinalResults', {
+                    roomCode: roomCode,
+                    sessionId: sessionId,
+                    username: username
+                });
+            }
+        }
+
+        function showNoResults() {
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('noResults').style.display = 'block';
+            document.getElementById('resultsContent').style.display = 'none';
+        }
+
+        function showNotification(message, type = 'info') {
+            // Simple notification (could be replaced with a nicer one)
+            alert(message);
+        }
+
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

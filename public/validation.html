@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Auction - Team Validation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #1a2980;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.2rem;
+        }
+
+        .room-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .content-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .team-list-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .rating-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            color: #1a2980;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #26d0ce;
+        }
+
+        .team-cards-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .team-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 5px solid #1a2980;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .team-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .team-card.active {
+            border-left: 5px solid #26d0ce;
+            background: #e3f2fd;
+        }
+
+        .team-name {
+            font-size: 1.4rem;
+            color: #1a2980;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .team-owner {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .team-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-rated {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .playing11-display {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .playing11-title {
+            color: #1a2980;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .player-item:last-child {
+            border-bottom: none;
+        }
+
+        .player-name {
+            font-weight: 500;
+        }
+
+        .player-type {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .player-role {
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            background: #e9ecef;
+        }
+
+        .rating-controls {
+            margin-top: 30px;
+        }
+
+        .rating-input {
+            margin-bottom: 20px;
+        }
+
+        .rating-label {
+            display: block;
+            margin-bottom: 10px;
+            color: #1a2980;
+            font-weight: 500;
+        }
+
+        .stars {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .star {
+            font-size: 2.5rem;
+            color: #ddd;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .star:hover,
+        .star.active {
+            color: #ffc107;
+        }
+
+        .rating-value {
+            font-size: 1.2rem;
+            color: #1a2980;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .comments-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 100px;
+            margin-bottom: 20px;
+        }
+
+        .comments-input:focus {
+            outline: none;
+            border-color: #26d0ce;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .btn-primary {
+            background: #1a2980;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #15266d;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1a2980;
+        }
+
+        .no-team-selected {
+            text-align: center;
+            padding: 50px 20px;
+            color: #666;
+        }
+
+        .no-team-selected i {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #26d0ce;
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #28a745;
+        }
+
+        .notification.error {
+            background: #dc3545;
+        }
+
+        .notification.info {
+            background: #17a2b8;
+        }
+
+        @media (max-width: 768px) {
+            .content-area {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-trophy"></i> Team Validation Center</h1>
+            <p class="subtitle">Rate each team's Playing 11 and publish final results</p>
+            <div class="room-info">
+                <span id="roomCodeDisplay">Room: <strong>Loading...</strong></span>
+                <span id="auctioneerName" style="margin-left: 20px;">Auctioneer: <strong>Loading...</strong></span>
+            </div>
+        </header>
+
+        <div class="content-area">
+            <div class="team-list-section">
+                <h2 class="section-title"><i class="fas fa-users"></i> Teams to Validate</h2>
+                
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div id="progressText" class="progress-text">0/0 rated</div>
+                
+                <div class="team-cards-container" id="teamListContainer">
+                    <!-- Team cards will be populated here -->
+                    <div class="no-team-selected">
+                        <i class="fas fa-users"></i>
+                        <p>Loading teams...</p>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button id="publishResultsBtn" class="btn btn-success" disabled>
+                        <i class="fas fa-bullhorn"></i> Publish Results
+                    </button>
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div class="rating-section">
+                <h2 class="section-title"><i class="fas fa-star"></i> Rate Team</h2>
+                
+                <div id="teamDetails">
+                    <div class="no-team-selected">
+                        <i class="fas fa-hand-pointer"></i>
+                        <p>Select a team from the list to rate</p>
+                    </div>
+                </div>
+                
+                <div id="ratingControls" style="display: none;">
+                    <div class="playing11-display">
+                        <h3 class="playing11-title">Playing 11</h3>
+                        <div id="playing11List">
+                            <!-- Playing 11 will be displayed here -->
+                        </div>
+                    </div>
+                    
+                    <div class="rating-controls">
+                        <div class="rating-input">
+                            <label class="rating-label">Rating (1-10):</label>
+                            <div class="stars" id="starRating">
+                                <!-- Stars will be generated by JavaScript -->
+                            </div>
+                            <div class="rating-value">
+                                Current Rating: <span id="currentRating">0</span>/10
+                            </div>
+                        </div>
+                        
+                        <div class="rating-input">
+                            <label class="rating-label">Comments (optional):</label>
+                            <textarea id="commentsInput" class="comments-input" 
+                                      placeholder="Enter your comments about this team's selection..."></textarea>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button id="submitRatingBtn" class="btn btn-primary">
+                                <i class="fas fa-check-circle"></i> Submit Rating
+                            </button>
+                            <button id="skipBtn" class="btn btn-secondary">
+                                <i class="fas fa-forward"></i> Skip & Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket;
+        let sessionId;
+        let roomCode;
+        let auctioneerName;
+        let currentTeams = [];
+        let currentTeamIndex = -1;
+        let selectedTeam = null;
+
+        // Initialize connection
+        function init() {
+            // Get session data from URL or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            sessionId = urlParams.get('sessionId') || localStorage.getItem('validationSessionId');
+            roomCode = urlParams.get('roomCode') || localStorage.getItem('validationRoomCode');
+            auctioneerName = localStorage.getItem('auctioneerName');
+
+            if (!sessionId || !roomCode) {
+                showError('Missing session information. Redirecting to login...');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+                return;
+            }
+
+            // Store for later use
+            localStorage.setItem('validationSessionId', sessionId);
+            localStorage.setItem('validationRoomCode', roomCode);
+
+            // Update display
+            document.getElementById('roomCodeDisplay').innerHTML = `Room: <strong>${roomCode}</strong>`;
+            document.getElementById('auctioneerName').innerHTML = `Auctioneer: <strong>${auctioneerName || 'Unknown'}</strong>`;
+
+            // Connect to socket
+            socket = io();
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                showNotification('Connected to server', 'success');
+                loadTeams();
+            });
+
+            socket.on('disconnect', () => {
+                showNotification('Disconnected from server', 'error');
+            });
+
+            socket.on('error', (data) => {
+                showNotification(data.message, 'error');
+            });
+
+            // Listen for playing 11 submissions from users
+            socket.on('playing11Submitted', (data) => {
+                console.log('Playing 11 submitted:', data);
+                showNotification(`${data.username} submitted their Playing 11!`, 'info');
+                loadTeams();
+            });
+
+            // Listen for rating success
+            socket.on('ratingSuccess', (data) => {
+                showNotification(data.message, 'success');
+                loadTeams();
+                autoSelectNextTeam();
+            });
+
+            // Listen for final results published
+            socket.on('finalResults', (data) => {
+                console.log('Final results received:', data);
+                showNotification('Results published successfully! Redirecting...', 'success');
+                
+                // Store results for viewing later if needed
+                localStorage.setItem('finalResults', JSON.stringify(data));
+                
+                setTimeout(() => {
+                    window.location.href = 'results.html?role=auctioneer&roomCode=' + roomCode;
+                }, 2000);
+            });
+
+            // Setup event listeners
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            document.getElementById('refreshBtn').addEventListener('click', loadTeams);
+            document.getElementById('publishResultsBtn').addEventListener('click', publishResults);
+            document.getElementById('submitRatingBtn').addEventListener('click', submitRating);
+            document.getElementById('skipBtn').addEventListener('click', skipAndNext);
+        }
+
+        function loadTeams() {
+            // Emit event to get team data (we'll need to create this on server)
+            socket.emit('getTeamsForValidation', {
+                roomCode: roomCode,
+                sessionId: sessionId
+            });
+
+            // Listen for team data response (we'll need to create this on server)
+            socket.once('teamsForValidation', (data) => {
+                currentTeams = data.teams || [];
+                renderTeamList();
+                updateProgress();
+                
+                if (currentTeams.length > 0 && selectedTeam === null) {
+                    selectTeam(currentTeams[0].username);
+                }
+            });
+        }
+
+        function renderTeamList() {
+            const container = document.getElementById('teamListContainer');
+            
+            if (currentTeams.length === 0) {
+                container.innerHTML = `
+                    <div class="no-team-selected">
+                        <i class="fas fa-users"></i>
+                        <p>No teams available yet. Waiting for Playing 11 submissions...</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            currentTeams.forEach((team, index) => {
+                const isRated = team.rating !== undefined;
+                const isActive = selectedTeam && selectedTeam.username === team.username;
+                
+                html += `
+                    <div class="team-card ${isActive ? 'active' : ''}" 
+                         onclick="selectTeam('${team.username}')"
+                         data-username="${team.username}">
+                        <div class="team-name">
+                            <i class="fas fa-users"></i>
+                            ${team.team || 'Unknown Team'}
+                        </div>
+                        <div class="team-owner">
+                            <i class="fas fa-user"></i> ${team.username}
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Budget Left</div>
+                                <div class="stat-value">₹${team.budget || 0} Cr</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Squad Size</div>
+                                <div class="stat-value">${team.totalPlayers || 0}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Playing 11</div>
+                                <div class="stat-value">${team.playing11Submitted ? '✅' : '❌'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Rating</div>
+                                <div class="stat-value">${isRated ? `${team.rating}/10` : 'Pending'}</div>
+                            </div>
+                        </div>
+                        <div class="team-status ${isRated ? 'status-rated' : 'status-pending'}">
+                            ${isRated ? 'Rated' : 'Pending'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function selectTeam(username) {
+            const team = currentTeams.find(t => t.username === username);
+            if (!team) return;
+            
+            selectedTeam = team;
+            currentTeamIndex = currentTeams.findIndex(t => t.username === username);
+            renderTeamDetails();
+            renderTeamList(); // Re-render to update active state
+            
+            // Enable/disable rating controls based on whether playing 11 is submitted
+            const hasPlaying11 = team.playing11 && team.playing11.length > 0;
+            document.getElementById('ratingControls').style.display = hasPlaying11 ? 'block' : 'none';
+            
+            if (hasPlaying11) {
+                renderStarRating(team.rating || 0);
+            }
+        }
+
+        function renderTeamDetails() {
+            const container = document.getElementById('teamDetails');
+            
+            if (!selectedTeam) {
+                container.innerHTML = `
+                    <div class="no-team-selected">
+                        <i class="fas fa-hand-pointer"></i>
+                        <p>Select a team from the list to rate</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const hasPlaying11 = selectedTeam.playing11 && selectedTeam.playing11.length > 0;
+            
+            let detailsHtml = `
+                <div class="team-card active">
+                    <div class="team-name">
+                        <i class="fas fa-users"></i>
+                        ${selectedTeam.team || 'Unknown Team'}
+                    </div>
+                    <div class="team-owner">
+                        <i class="fas fa-user"></i> ${selectedTeam.username}
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Budget Left</div>
+                            <div class="stat-value">₹${selectedTeam.budget || 0} Cr</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Retained</div>
+                            <div class="stat-value">${selectedTeam.retainedPlayers || 0}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Auctioned</div>
+                            <div class="stat-value">${selectedTeam.auctionPlayers || 0}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Total</div>
+                            <div class="stat-value">${selectedTeam.totalPlayers || 0}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = detailsHtml;
+            
+            // Render playing 11 if available
+            if (hasPlaying11) {
+                renderPlaying11();
+            } else {
+                document.getElementById('playing11List').innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #666;">
+                        <i class="fas fa-clock" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>Playing 11 not submitted yet</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderPlaying11() {
+            const container = document.getElementById('playing11List');
+            
+            if (!selectedTeam.playing11 || selectedTeam.playing11.length === 0) {
+                container.innerHTML = '<p>No playing 11 submitted</p>';
+                return;
+            }
+
+            let html = '';
+            selectedTeam.playing11.forEach((player, index) => {
+                html += `
+                    <div class="player-item">
+                        <div>
+                            <div class="player-name">${player.name || 'Unknown Player'}</div>
+                            <div class="player-type">
+                                ${player.isOverseas ? '🇺🇸 Overseas' : '🇮🇳 Indian'} | 
+                                ${player.role || 'Player'}
+                            </div>
+                        </div>
+                        <div class="player-role">
+                            ${player.role || 'Player'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function renderStarRating(rating) {
+            const container = document.getElementById('starRating');
+            container.innerHTML = '';
+            
+            for (let i = 1; i <= 10; i++) {
+                const star = document.createElement('div');
+                star.className = `star ${i <= rating ? 'active' : ''}`;
+                star.innerHTML = '★';
+                star.dataset.value = i;
+                
+                star.addEventListener('click', () => {
+                    document.getElementById('currentRating').textContent = i;
+                    // Update all stars
+                    document.querySelectorAll('.star').forEach(s => {
+                        s.classList.remove('active');
+                        if (parseInt(s.dataset.value) <= i) {
+                            s.classList.add('active');
+                        }
+                    });
+                });
+                
+                container.appendChild(star);
+            }
+            
+            document.getElementById('currentRating').textContent = rating;
+        }
+
+        function submitRating() {
+            if (!selectedTeam) {
+                showNotification('Please select a team first', 'error');
+                return;
+            }
+
+            const rating = parseInt(document.getElementById('currentRating').textContent);
+            const comments = document.getElementById('commentsInput').value.trim();
+
+            if (rating < 1 || rating > 10) {
+                showNotification('Please select a rating between 1 and 10', 'error');
+                return;
+            }
+
+            socket.emit('rateTeam', {
+                roomCode: roomCode,
+                username: selectedTeam.username,
+                rating: rating,
+                comments: comments,
+                sessionId: sessionId
+            });
+        }
+
+        function skipAndNext() {
+            if (!selectedTeam) return;
+            
+            // Clear current rating
+            document.getElementById('currentRating').textContent = '0';
+            document.getElementById('commentsInput').value = '';
+            document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+            
+            // Move to next team
+            autoSelectNextTeam();
+        }
+
+        function autoSelectNextTeam() {
+            // Find next unrated team
+            const unratedTeams = currentTeams.filter(team => !team.rating);
+            
+            if (unratedTeams.length > 0) {
+                // Select the first unrated team
+                selectTeam(unratedTeams[0].username);
+            } else {
+                // All teams rated, deselect current team
+                selectedTeam = null;
+                renderTeamDetails();
+                document.getElementById('ratingControls').style.display = 'none';
+                renderTeamList();
+            }
+            
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const ratedCount = currentTeams.filter(team => team.rating).length;
+            const totalCount = currentTeams.length;
+            
+            const progressPercent = totalCount > 0 ? (ratedCount / totalCount) * 100 : 0;
+            document.getElementById('progressFill').style.width = `${progressPercent}%`;
+            document.getElementById('progressText').textContent = `${ratedCount}/${totalCount} rated`;
+            
+            // Enable publish button only when all teams are rated
+            document.getElementById('publishResultsBtn').disabled = ratedCount < totalCount || totalCount === 0;
+        }
+
+        function publishResults() {
+            if (!confirm('Are you sure you want to publish the final results? This action cannot be undone.')) {
+                return;
+            }
+
+            socket.emit('finalizeResults', {
+                roomCode: roomCode,
+                sessionId: sessionId
+            });
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
