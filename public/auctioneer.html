@@ -668,6 +668,7 @@ select option:hover {
                             break;
                         } else {
                             console.warn(`⚠️ Session in ${location} missing required fields`);
+                            localStorage.removeItem(location);
                         }
                     } catch (error) {
                         console.error(`❌ Error parsing ${location}:`, error);
