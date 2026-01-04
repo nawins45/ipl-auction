@@ -3,7 +3,7 @@ const http = require('http');
 const socketIO = require('socket.io');
 const fs = require('fs');
 const crypto = require('crypto');
-
+const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server, {
@@ -16,7 +16,7 @@ const io = socketIO(server, {
 });
 
 // Serve static files
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname,'public')));
 
 // Session storage
 const sessions = {};
