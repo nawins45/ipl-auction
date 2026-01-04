@@ -704,7 +704,8 @@
         // ========== SOCKET FUNCTIONS ==========
         function initializeSocket() {
             console.log('🔌 Connecting to socket server with state sync...');
-            socket = io();
+            const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
+        );
             
             socket.on('connect', () => {
                 console.log('✅ Connected to auction pool');

@@ -317,7 +317,8 @@
         // ========== SOCKET FUNCTIONS ==========
         function initializeSocket() {
             console.log('🔌 Connecting to socket server...');
-            socket = io();
+            const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
+        );
             
             socket.on('connect', () => {
                 console.log('✅ Connected to server');
