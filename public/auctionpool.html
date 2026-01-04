@@ -7,6 +7,172 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="stylesheet" href="style.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        .player-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .player-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .player-card.expanded {
+            border-color: #F59E0B;
+            background: rgba(245, 158, 11, 0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 12px;
+        }
+        
+        .stat-label {
+            color: #94a3b8;
+            font-size: 10px;
+            margin-bottom: 4px;
+        }
+        
+        .stat-value {
+            color: #f1f5f9;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .overseas-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(45deg, #8B5CF6, #7C3AED);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 10px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .role-badge {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .role-bat { background: rgba(34, 197, 94, 0.2); color: #22C55E; }
+        .role-bowl { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
+        .role-ar { background: rgba(168, 85, 247, 0.2); color: #A855F7; }
+        .role-wk { background: rgba(245, 158, 11, 0.2); color: #F59E0B; }
+        
+        .bid-log-item.new {
+            animation: highlight 1s ease-out;
+        }
+        
+        @keyframes highlight {
+            from { background: rgba(245, 158, 11, 0.3); }
+            to { background: rgba(245, 158, 11, 0.1); }
+        }
+        
+        .team-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .bounce {
+            animation: bounce 0.5s;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .sync-status {
+            transition: all 0.3s ease;
+        }
+        
+        .sync-status.syncing {
+            color: #F59E0B;
+        }
+        
+        .sync-status.synced {
+            color: #10B981;
+        }
+        
+        .sync-status.error {
+            color: #EF4444;
+        }
+        /* Team background with opacity */
+.team-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -10;
+    opacity: 0.1;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    pointer-events: none;
+}
+
+/* Unsold Popup Animation */
+@keyframes unsoldSlideIn {
+    from { 
+        transform: translate(-50%, -40px); 
+        opacity: 0; 
+    }
+    to { 
+        transform: translate(-50%, 0); 
+        opacity: 1; 
+    }
+}
+
+.unsold-popup {
+    animation: unsoldSlideIn 0.4s ease-out;
+}
+    </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
     <div class="container mx-auto px-4 py-6">
@@ -19,13 +185,22 @@
                 <div id="teamHeader" class="flex items-center justify-center md:justify-start space-x-3">
                     <!-- Team info will be loaded -->
                 </div>
+                <div class="flex items-center space-x-2 mt-2">
+                    <div id="syncStatus" class="text-xs sync-status synced flex items-center space-x-1">
+                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                        <span>State Synced</span>
+                    </div>
+                    <button id="manualSyncBtn" class="text-xs text-gray-400 hover:text-yellow-400 px-2 py-1 bg-gray-800/50 rounded-lg transition-colors">
+                        🔄 Sync Now
+                    </button>
+                </div>
             </div>
             
             <div class="flex flex-col md:flex-row items-center gap-4">
                 <!-- Auction Status -->
                 <div class="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-4 text-center min-w-[140px]">
                     <div class="text-sm text-gray-300 mb-1">AUCTION STATUS</div>
-                    <div id="auctionStatus" class="text-2xl font-bold text-yellow-400">LIVE</div>
+                    <div id="auctionStatus" class="text-2xl font-bold text-yellow-400 pulse-animation">LIVE</div>
                     <div class="text-xs text-gray-400">Auctioneer Controlled</div>
                 </div>
                 
@@ -37,8 +212,7 @@
                 </div>
                 
                 <!-- Squad Button -->
-                <button id="viewSquadBtn" 
-                        class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-lg font-semibold transition-all duration-300">
+                <button id="viewSquadBtn" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-semibold hover:scale-105 transition-transform">
                     👥 View Squad
                 </button>
             </div>
@@ -51,9 +225,13 @@
                 <div id="currentPlayerCard" class="glass-panel rounded-2xl p-6 slide-in hidden">
                     <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
                         <!-- Player Image -->
-                        <div class="w-48 h-48 rounded-xl bg-gray-800/50 flex items-center justify-center overflow-hidden">
-                            <img id="playerImage" src="default-player.png" alt="Player" 
-                                 class="w-full h-full object-cover">
+                        <div class="w-48 h-48 rounded-xl bg-gray-800/50 flex items-center justify-center overflow-hidden relative">
+                            <div id="playerImage" class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+                                <span class="text-5xl">🏏</span>
+                            </div>
+                            <div id="playerOverseasBadge" class="overseas-badge hidden">
+                                ✈️ Overseas
+                            </div>
                         </div>
                         
                         <!-- Player Details -->
@@ -62,39 +240,84 @@
                                 <div>
                                     <h2 id="playerName" class="text-3xl font-bold mb-1">Player Name</h2>
                                     <div class="flex items-center space-x-3 mb-3">
-                                        <span id="playerRole" class="px-3 py-1 bg-blue-900/30 text-blue-300 rounded-lg">Role</span>
+                                        <span id="playerRole" class="role-badge role-bat">BAT</span>
                                         <span id="playerType" class="px-3 py-1 bg-purple-900/30 text-purple-300 rounded-lg">Type</span>
                                         <span id="playerNationality" class="px-3 py-1 bg-yellow-900/30 text-yellow-300 rounded-lg">Nationality</span>
+                                    </div>
+                                    <div class="text-sm text-gray-400 mb-2">
+                                        Original Team: <span id="originalTeamName" class="text-yellow-300">-</span>
                                     </div>
                                 </div>
                                 <div class="text-right">
                                     <div class="text-2xl font-bold text-yellow-400 mb-1">Current Bid</div>
                                     <div id="currentBid" class="text-4xl font-black">₹0 Cr</div>
+                                    <div id="highestBidder" class="text-lg text-gray-300 mt-2">No bids yet</div>
                                 </div>
                             </div>
                             
-                            <!-- Stats Grid -->
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                                <div class="bg-gray-800/30 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-400">Total Runs</div>
-                                    <div id="statRuns" class="text-lg font-semibold">0</div>
-                                </div>
-                                <div class="bg-gray-800/30 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-400">Strike Rate</div>
-                                    <div id="statStrikeRate" class="text-lg font-semibold">0</div>
-                                </div>
-                                <div class="bg-gray-800/30 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-400">Wickets</div>
-                                    <div id="statWickets" class="text-lg font-semibold">0</div>
-                                </div>
-                                <div class="bg-gray-800/30 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-400">Economy</div>
-                                    <div id="statEconomy" class="text-lg font-semibold">0</div>
+                            <!-- Base Price -->
+                            <div class="mb-6">
+                                <div class="text-sm text-gray-400">Base Price: <span id="basePrice" class="text-yellow-300 font-bold">₹2 Cr</span></div>
+                            </div>
+                            
+                            <!-- Show Stats Button -->
+                            <button id="showStatsBtn" 
+                                    class="w-full py-3 bg-gradient-to-r from-blue-900/30 to-cyan-900/30 hover:from-blue-900/50 hover:to-cyan-900/50 rounded-xl font-semibold mb-4 transition-all duration-300">
+                                📊 Show Full Player Stats
+                            </button>
+                            
+                            <!-- Stats Grid (Hidden by default) -->
+                            <div id="playerStats" class="hidden slide-in">
+                                <div class="stats-grid">
+                                    <div class="stat-item">
+                                        <div class="stat-label">Total Runs</div>
+                                        <div id="statRuns" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">Highest Score</div>
+                                        <div id="statHighestScore" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">Strike Rate</div>
+                                        <div id="statStrikeRate" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">Wickets</div>
+                                        <div id="statWickets" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">Economy Rate</div>
+                                        <div id="statEconomy" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">Best Bowling</div>
+                                        <div id="statBestBowling" class="stat-value">0/0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">4's</div>
+                                        <div id="statFours" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">6's</div>
+                                        <div id="statSixes" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">50's</div>
+                                        <div id="statFifties" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">100's</div>
+                                        <div id="statHundreds" class="stat-value">0</div>
+                                    </div>
                                 </div>
                             </div>
                             
                             <!-- Bidding Controls -->
-                            <div id="biddingControls" class="space-y-4 hidden">
+                            <div id="biddingControls" class="space-y-4 mt-6 hidden">
+                                <div class="text-sm text-gray-400">
+                                    Minimum bid increment: <span id="minIncrement" class="text-yellow-400">₹0.10 Cr</span>
+                                </div>
+                                
                                 <div class="flex flex-wrap gap-3">
                                     <button class="bid-btn px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold transition-all duration-300" 
                                             data-increment="0.1">
@@ -112,19 +335,7 @@
                                             data-increment="1">
                                         +₹1 Cr
                                     </button>
-                                </div>
-                                <div class="text-sm text-gray-400">
-                                    Minimum bid increment: <span id="minIncrement" class="text-yellow-400">₹0.10 Cr</span>
-                                </div>
-                            </div>
-                            
-                            <!-- RTM Panel (Hidden initially) -->
-                            <div id="rtmPanel" class="bg-gradient-to-r from-yellow-900/20 to-orange-900/20 rounded-xl p-4 border border-yellow-500/30 hidden">
-                                <h3 class="text-xl font-bold text-yellow-400 mb-2">RTM (Right To Match) Active</h3>
-                                <p class="text-gray-300 mb-3">This player was originally from <span id="originalTeam" class="font-bold"></span>. They can match your bid.</p>
-                                <button id="useRtmBtn" class="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-lg font-semibold">
-                                    Use RTM Card
-                                </button>
+                                </div>                           
                             </div>
                         </div>
                     </div>
@@ -162,8 +373,8 @@
                             <span id="unsoldCount" class="font-semibold">0</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-400">RTM Cards:</span>
-                            <span id="rtmCards" class="font-semibold">2</span>
+                            <span class="text-gray-400">Current Player:</span>
+                            <span id="currentPlayerCount" class="font-semibold">0/0</span>
                         </div>
                     </div>
                 </div>
@@ -172,7 +383,9 @@
                 <div class="glass-panel rounded-2xl p-6 slide-in">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xl font-bold text-yellow-400">Live Bid Log</h3>
-                        <button id="clearLogBtn" class="text-xs text-gray-400 hover:text-gray-300">Clear</button>
+                        <button id="clearLogBtn" class="text-xs text-gray-400 hover:text-gray-300 px-3 py-1 bg-gray-800/50 rounded-lg">
+                            Clear
+                        </button>
                     </div>
                     <div id="bidLog" class="space-y-2 max-h-64 overflow-y-auto pr-2">
                         <!-- Bid messages will appear here -->
@@ -195,93 +408,37 @@
                             <div class="text-xs text-gray-500">Can buy: <span id="canBuy">25</span> more</div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Squad Modal -->
-    <div id="squadModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-        <div class="absolute inset-0 bg-black/80"></div>
-        <div class="glass-panel rounded-2xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto z-10">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-yellow-400" id="squadTeamName">Team Squad</h2>
-                <button onclick="closeSquadModal()" class="text-2xl hover:text-yellow-400">✕</button>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Retained Players -->
-                <div>
-                    <h3 class="text-xl font-bold mb-4 text-green-400">Retained Players</h3>
-                    <div id="retainedPlayers" class="space-y-3">
-                        <!-- Will be populated -->
-                    </div>
-                </div>
-                
-                <!-- Auction Buys -->
-                <div>
-                    <h3 class="text-xl font-bold mb-4 text-blue-400">Auction Purchases</h3>
-                    <div id="auctionBuys" class="space-y-3">
-                        <div class="text-gray-500 text-center py-4">No players bought yet</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Totals -->
-            <div class="mt-6 pt-6 border-t border-gray-700">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                        <div class="text-sm text-gray-400">Total Players</div>
-                        <div class="text-2xl font-bold" id="totalPlayers">0</div>
-                    </div>
-                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                        <div class="text-sm text-gray-400">Total Spent</div>
-                        <div class="text-2xl font-bold text-yellow-400">₹<span id="totalSpent">0</span> Cr</div>
-                    </div>
-                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                        <div class="text-sm text-gray-400">Purse Remaining</div>
-                        <div class="text-2xl font-bold text-green-400">₹<span id="modalPurseRemaining">100</span> Cr</div>
-                    </div>
-                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                        <div class="text-sm text-gray-400">RTM Cards Left</div>
-                        <div class="text-2xl font-bold text-purple-400" id="modalRtmCards">2</div>
+                    <div class="mt-4 grid grid-cols-2 gap-4">
+                        <div class="bg-gradient-to-r from-green-900/20 to-emerald-900/20 p-2 rounded-lg text-center">
+                            <div class="text-sm font-bold text-green-400" id="indianCount">0</div>
+                            <div class="text-xs text-gray-400">Indian</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-purple-900/20 to-pink-900/20 p-2 rounded-lg text-center">
+                            <div class="text-sm font-bold text-purple-400" id="overseasCount">0</div>
+                            <div class="text-xs text-gray-400">Overseas</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- RTM Modal -->
-    <div id="rtmModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+    <!-- Session Check Modal -->
+    <div id="sessionCheckModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
         <div class="absolute inset-0 bg-black/80"></div>
         <div class="glass-panel rounded-2xl p-6 max-w-md w-11/12 z-10">
-            <div class="text-center mb-6">
-                <div class="text-4xl mb-4">🔄</div>
-                <h3 class="text-2xl font-bold text-yellow-400 mb-2">RTM Decision Required</h3>
-                <p class="text-gray-300">
-                    <span id="rtmTeamName" class="font-bold"></span> has the Right To Match for 
-                    <span id="rtmPlayerName" class="font-bold text-yellow-300"></span>
-                </p>
-                <p class="text-gray-400 text-sm mt-2">Winning bid: <span id="rtmWinningBid" class="font-bold"></span></p>
-                <p class="text-gray-400 text-xs mt-1">You have <span id="rtmCardsRemaining" class="font-bold text-purple-400">2</span> RTM cards left</p>
-            </div>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block mb-2 text-gray-300">RTM Amount (must be ≥ winning bid, integer only)</label>
-                    <input type="number" id="rtmAmount" 
-                           class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-center text-xl"
-                           min="0" step="1" placeholder="Enter amount in Cr">
-                </div>
-                
-                <div class="flex space-x-4">
-                    <button onclick="declineRTM()" 
-                            class="flex-1 py-3 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 rounded-xl font-semibold">
-                        Decline RTM
+            <div class="text-center">
+                <div class="text-4xl mb-4">🔐</div>
+                <h3 class="text-2xl font-bold mb-2">Session Required</h3>
+                <p class="text-gray-300 mb-6">You need a valid session to join the auction pool.</p>
+                <div class="space-y-3">
+                    <button onclick="reconnectWithSession()" 
+                            class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold transition-all duration-300">
+                        Reconnect with Existing Session
                     </button>
-                    <button onclick="acceptRTM()" 
-                            class="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-xl font-semibold">
-                        Use RTM Card
+                    <button onclick="goToLogin()" 
+                            class="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl font-semibold transition-all duration-300">
+                        Go to Login Page
                     </button>
                 </div>
             </div>
@@ -313,13 +470,12 @@
             indian: 0, 
             overseas: 0, 
             total: 0,
-            maxSquad: 25,
-            maxIndian: 4,
-            maxOverseas: 3 
+            maxSquad: 25
         };
-        let rtmCards = 2;
-        let retentionData = { rules: { squadSize: 25 } };
-        let currentRtmData = null;
+        let userSession = null;
+        let lastSyncTime = null;
+        let syncRetryCount = 0;
+        const MAX_SYNC_RETRIES = 3;
 
         // ========== DOM ELEMENTS ==========
         const teamHeader = document.getElementById('teamHeader');
@@ -327,61 +483,169 @@
         const viewSquadBtn = document.getElementById('viewSquadBtn');
         const currentPlayerCard = document.getElementById('currentPlayerCard');
         const waitingAuction = document.getElementById('waitingAuction');
-        const playerImage = document.getElementById('playerImage');
         const playerName = document.getElementById('playerName');
         const playerRole = document.getElementById('playerRole');
         const playerType = document.getElementById('playerType');
         const playerNationality = document.getElementById('playerNationality');
+        const originalTeamName = document.getElementById('originalTeamName');
         const currentBid = document.getElementById('currentBid');
-        const statRuns = document.getElementById('statRuns');
-        const statStrikeRate = document.getElementById('statStrikeRate');
-        const statWickets = document.getElementById('statWickets');
-        const statEconomy = document.getElementById('statEconomy');
+        const highestBidder = document.getElementById('highestBidder');
+        const basePrice = document.getElementById('basePrice');
+        const playerOverseasBadge = document.getElementById('playerOverseasBadge');
+        const showStatsBtn = document.getElementById('showStatsBtn');
+        const playerStats = document.getElementById('playerStats');
         const biddingControls = document.getElementById('biddingControls');
-        const minIncrement = document.getElementById('minIncrement');
         const auctionCategory = document.getElementById('auctionCategory');
         const playersLeft = document.getElementById('playersLeft');
         const unsoldCount = document.getElementById('unsoldCount');
-        const rtmCardsEl = document.getElementById('rtmCards');
         const bidLog = document.getElementById('bidLog');
         const clearLogBtn = document.getElementById('clearLogBtn');
         const squadSize = document.getElementById('squadSize');
         const maxSquad = document.getElementById('maxSquad');
         const remainingSlots = document.getElementById('remainingSlots');
         const canBuy = document.getElementById('canBuy');
-        const rtmPanel = document.getElementById('rtmPanel');
-        const originalTeam = document.getElementById('originalTeam');
-        const useRtmBtn = document.getElementById('useRtmBtn');
+        const indianCount = document.getElementById('indianCount');
+        const overseasCount = document.getElementById('overseasCount');
+        const sessionCheckModal = document.getElementById('sessionCheckModal');
+        const minIncrement = document.getElementById('minIncrement');
+        const syncStatus = document.getElementById('syncStatus');
+        const manualSyncBtn = document.getElementById('manualSyncBtn');
+        const currentPlayerCount = document.getElementById('currentPlayerCount');
 
-        // ========== INITIALIZATION ==========
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🎯 Auction Pool loading...');
+        // ========== STATE SYNCHRONIZATION SYSTEM ==========
+        function requestStateSync() {
+            if (!socket || !socket.connected || !currentUsername || !currentRoomCode) {
+                console.log('❌ Cannot sync: Missing connection or credentials');
+                return false;
+            }
             
-            // Get user info from localStorage
-            const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
-            currentRoomCode = auctionUser.roomCode;
-            currentUsername = auctionUser.username;
+            console.log('🔄 Requesting auction state sync...');
+            updateSyncStatus('syncing', 'Syncing state...');
             
-            console.log('📊 User data:', { 
-                roomCode: currentRoomCode, 
-                username: currentUsername 
+            socket.emit('requestAuctionState', {
+                roomCode: currentRoomCode,
+                username: currentUsername
             });
             
-            if (!currentRoomCode || !currentUsername) {
-                showAlert('Session Error', 'No session found. Returning to join page.', '❌');
-                setTimeout(() => {
-                    window.location.href = 'user.html';
-                }, 3000);
+            return true;
+        }
+        
+        function updateSyncStatus(status, message = '') {
+            const dot = syncStatus.querySelector('.w-2');
+            const text = syncStatus.querySelector('span:last-child');
+            
+            syncStatus.className = `text-xs sync-status ${status} flex items-center space-x-1`;
+            
+            switch(status) {
+                case 'syncing':
+                    dot.className = 'w-2 h-2 rounded-full bg-yellow-500 animate-pulse';
+                    text.textContent = message || 'Syncing...';
+                    break;
+                case 'synced':
+                    dot.className = 'w-2 h-2 rounded-full bg-green-500';
+                    text.textContent = message || `State Synced ${lastSyncTime ? `at ${new Date(lastSyncTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : ''}`;
+                    break;
+                case 'error':
+                    dot.className = 'w-2 h-2 rounded-full bg-red-500';
+                    text.textContent = message || 'Sync Failed';
+                    break;
+            }
+        }
+        
+        function handleStateSync(data) {
+            console.log('✅ Received state sync:', data);
+            
+            lastSyncTime = Date.now();
+            syncRetryCount = 0;
+            
+            if (!data.isAuctionActive) {
+                console.log('⚠️ Auction not active yet');
+                waitingAuction.classList.remove('hidden');
+                currentPlayerCard.classList.add('hidden');
+                biddingControls.classList.add('hidden');
+                updateSyncStatus('synced', 'Waiting for auction start');
                 return;
             }
             
-            // Initialize socket connection
-            initializeSocket();
+            // Update auction info
+            if (data.category) auctionCategory.textContent = data.category;
+            if (data.playersLeft !== undefined) playersLeft.textContent = data.playersLeft;
+            if (data.unsoldCount !== undefined) unsoldCount.textContent = data.unsoldCount;
+            if (data.playerPosition) currentPlayerCount.textContent = data.playerPosition;
+            
+            // If we have a current player, display it
+            if (data.currentPlayer) {
+                console.log('🎯 Syncing current player:', data.currentPlayer.name);
+                currentPlayer = data.currentPlayer;
+                waitingAuction.classList.add('hidden');
+                currentPlayerCard.classList.remove('hidden');
+                displayCurrentPlayer();
+                biddingControls.classList.remove('hidden');
+                updateBidButtons();
+                
+                // Reset stats display
+                playerStats.classList.add('hidden');
+                currentPlayerCard.classList.remove('expanded');
+                showStatsBtn.innerHTML = '📊 Show Full Player Stats';
+                
+                updateBidIncrement(data.currentPlayer.currentBid || data.currentPlayer.basePrice || 2);
+            } else {
+                console.log('⚠️ No current player in state sync');
+                waitingAuction.classList.remove('hidden');
+                currentPlayerCard.classList.add('hidden');
+                biddingControls.classList.add('hidden');
+            }
+            
+            updateSyncStatus('synced', 'State Synced');
+        }
+        
+        function retryStateSync() {
+            if (syncRetryCount >= MAX_SYNC_RETRIES) {
+                console.log('❌ Max sync retries reached');
+                updateSyncStatus('error', 'Sync failed. Please refresh.');
+                showAlert('Connection Error', 'Unable to sync auction state. Please refresh the page.', '❌');
+                return;
+            }
+            
+            syncRetryCount++;
+            console.log(`🔄 Retry ${syncRetryCount}/${MAX_SYNC_RETRIES}`);
+            
+            setTimeout(() => {
+                if (socket && socket.connected) {
+                    requestStateSync();
+                }
+            }, 1000 * syncRetryCount);
+        }
+
+        // ========== INITIALIZATION ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎯 Auction Pool loading with state sync...');
+            
+            // Check for user session
+            userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+            
+            if (userSession.sessionId) {
+                currentUsername = userSession.username;
+                currentRoomCode = userSession.roomCode;
+                userTeam = userSession.team;
+                console.log('🔗 Found existing session:', { currentUsername, currentRoomCode });
+                initializeSocket();
+            } else {
+                // No session found, show session check modal
+                console.log('❌ No session found');
+                showSessionCheckModal();
+                return;
+            }
             
             // Event Listeners
             clearLogBtn.addEventListener('click', clearBidLog);
             viewSquadBtn.addEventListener('click', openSquadModal);
-            useRtmBtn.addEventListener('click', () => openRtmModal());
+            showStatsBtn.addEventListener('click', toggleStats);
+            manualSyncBtn.addEventListener('click', () => {
+                if (socket && socket.connected) {
+                    requestStateSync();
+                }
+            });
             
             // Bid button delegation
             document.addEventListener('click', function(e) {
@@ -390,40 +654,125 @@
                     placeBid(increment);
                 }
             });
+            
+            // Setup periodic sync (every 30 seconds as backup)
+            setInterval(() => {
+                if (socket && socket.connected && lastSyncTime) {
+                    const timeSinceLastSync = Date.now() - lastSyncTime;
+                    if (timeSinceLastSync > 30000) { // 30 seconds
+                        console.log('🔄 Periodic state sync check');
+                        requestStateSync();
+                    }
+                }
+            }, 30000);
+            
+            // Listen for visibility change (tab switch)
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && socket && socket.connected) {
+                    console.log('🔄 Page visible again, syncing state...');
+                    requestStateSync();
+                }
+            });
         });
+
+        // ========== SESSION FUNCTIONS ==========
+        function showSessionCheckModal() {
+            sessionCheckModal.classList.remove('hidden');
+        }
+
+        function reconnectWithSession() {
+            // Try to get session from localStorage
+            userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+            
+            if (userSession.sessionId) {
+                currentUsername = userSession.username;
+                currentRoomCode = userSession.roomCode;
+                userTeam = userSession.team;
+                
+                sessionCheckModal.classList.add('hidden');
+                initializeSocket();
+            } else {
+                showAlert('No Session Found', 'Please go to the login page to reconnect.', '❌');
+            }
+        }
+
+        function goToLogin() {
+            window.location.href = 'login.html';
+        }
 
         // ========== SOCKET FUNCTIONS ==========
         function initializeSocket() {
-            console.log('🔌 Connecting to socket server...');
+            console.log('🔌 Connecting to socket server with state sync...');
             socket = io();
             
             socket.on('connect', () => {
                 console.log('✅ Connected to auction pool');
+                updateSyncStatus('syncing', 'Connecting...');
                 
-                // Join auction pool
+                // Join auction pool with session
                 socket.emit('joinAuctionPool', {
                     roomCode: currentRoomCode,
-                    username: currentUsername
+                    username: currentUsername,
+                    sessionId: userSession.sessionId
                 });
+                
+                // Request initial state sync after join
+                setTimeout(() => {
+                    requestStateSync();
+                }, 500);
             });
             
             socket.on('connect_error', (error) => {
                 console.error('❌ Connection error:', error);
+                updateSyncStatus('error', 'Connection failed');
                 showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
+            });
+            
+            socket.on('reconnect', (attemptNumber) => {
+                console.log(`🔌 Reconnected (attempt ${attemptNumber})`);
+                updateSyncStatus('syncing', 'Reconnecting...');
+                
+                // Re-join auction pool and sync state
+                socket.emit('joinAuctionPool', {
+                    roomCode: currentRoomCode,
+                    username: currentUsername,
+                    sessionId: userSession.sessionId
+                });
+                
+                setTimeout(() => {
+                    requestStateSync();
+                }, 1000);
+            });
+            
+            socket.on('disconnect', (reason) => {
+                console.log('⚠️ Disconnected:', reason);
+                updateSyncStatus('error', 'Disconnected');
+                
+                if (reason === 'io server disconnect') {
+                    // Server initiated disconnect, try to reconnect
+                    socket.connect();
+                }
+            });
+            
+            // ========== STATE SYNC HANDLER ==========
+            socket.on('auctionStateSync', (data) => {
+                console.log('🔄 Received auction state sync:', data);
+                handleStateSync(data);
             });
             
             socket.on('auctionData', (data) => {
                 console.log('🎯 Received auction data:', data);
                 auctionData = data;
-                userTeam = data.team;
+                userTeam = data.team || userTeam;
                 teamBudget = data.purse || 100;
                 squadLimits = data.squadLimits || squadLimits;
-                rtmCards = data.rtmCards || 2;
                 
                 // Update UI
-                updateUserSession();
                 initializePage();
                 updateSquadLimits();
+                
+                // Request state sync after getting auction data
+                requestStateSync();
             });
             
             socket.on('playerUpForAuction', (data) => {
@@ -433,17 +782,17 @@
                 currentPlayerCard.classList.remove('hidden');
                 displayCurrentPlayer();
                 biddingControls.classList.remove('hidden');
-                updateBidButtons(currentPlayer.currentBid);
+                updateBidButtons();
                 
-                // Show RTM panel if player's original team is different
-                if (data.player.originalTeam && data.player.originalTeam !== userTeam?.name) {
-                    rtmPanel.classList.remove('hidden');
-                    originalTeam.textContent = data.player.originalTeam;
-                } else {
-                    rtmPanel.classList.add('hidden');
-                }
+                // Reset stats display
+                playerStats.classList.add('hidden');
+                currentPlayerCard.classList.remove('expanded');
+                showStatsBtn.innerHTML = '📊 Show Full Player Stats';
                 
-                updateBidIncrement(currentPlayer.currentBid || currentPlayer.basePrice || 0);
+                updateBidIncrement(currentPlayer.currentBid || currentPlayer.basePrice || 2);
+                
+                // Update sync status
+                updateSyncStatus('synced', 'Live Player Updated');
             });
             
             socket.on('bidUpdate', (data) => {
@@ -459,6 +808,17 @@
                     currentBid.classList.add('bounce');
                     setTimeout(() => currentBid.classList.remove('bounce'), 500);
                     
+                    if (data.team) {
+                        highestBidder.textContent = data.team.toUpperCase();
+                        // Add team color
+                        const teamColors = {
+                            'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
+                            'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
+                            'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
+                        };
+                        highestBidder.style.color = teamColors[data.team] || '#FFFFFF';
+                    }
+                    
                     updateBidIncrement(data.bid);
                 }
                 
@@ -468,10 +828,11 @@
             
             socket.on('playerSold', (data) => {
                 console.log('✅ Player sold:', data);
+                showSoldBroadcast(data.player, data.team, data.price);
                 
                 // Add to bid log
                 const soldItem = document.createElement('div');
-                soldItem.className = 'p-3 rounded-lg bg-green-900/30 border-l-4 border-green-500';
+                soldItem.className = 'p-3 rounded-lg bg-green-900/30 border-l-4 border-green-500 slide-in';
                 soldItem.innerHTML = `
                     <div class="flex justify-between items-center">
                         <div>
@@ -486,11 +847,10 @@
                 
                 // Update squad if it's our team
                 if (data.team === userTeam?.id) {
-                    updateTeamAfterPurchase(data.player, data.price, data.isOverseas);
                     teamBudget -= data.price;
                     purseRemaining.textContent = teamBudget.toFixed(2);
                     
-                    // Update squad limits
+                    // Update squad counts
                     if (data.isOverseas) {
                         squadLimits.overseas++;
                     } else {
@@ -503,23 +863,9 @@
                     // Request updated squad data
                     socket.emit('requestSquadUpdate', {
                         roomCode: currentRoomCode,
-                        username: currentUsername
+                        username: currentUsername,
+                        sessionId: userSession.sessionId
                     });
-                }
-                
-                // Show RTM notification if applicable
-                if (currentPlayer && currentPlayer.originalTeam && currentPlayer.originalTeam !== data.team) {
-                    setTimeout(() => {
-                        const rtmItem = document.createElement('div');
-                        rtmItem.className = 'p-3 rounded-lg bg-yellow-900/30 border-l-4 border-yellow-500 mt-2';
-                        rtmItem.innerHTML = `
-                            <div class="flex items-center space-x-2">
-                                <span class="text-yellow-400">🔄</span>
-                                <span>RTM available for <span class="font-bold">${currentPlayer.originalTeam}</span></span>
-                            </div>
-                        `;
-                        bidLog.prepend(rtmItem);
-                    }, 1000);
                 }
                 
                 // Clear current player after delay
@@ -527,15 +873,28 @@
                     currentPlayerCard.classList.add('hidden');
                     waitingAuction.classList.remove('hidden');
                     biddingControls.classList.add('hidden');
-                    rtmPanel.classList.add('hidden');
+                    currentPlayer = null;
+                    
+                    // Request fresh state sync after player sold
+                    setTimeout(() => {
+                        requestStateSync();
+                    }, 1000);
                 }, 3000);
+            });
+            
+            // ========== ADD THIS NEW SOCKET HANDLER ==========
+            socket.on('playerUnsoldBroadcast', (data) => {
+                console.log('❌ Player unsold popup received:', data);
+                
+                // ✅ SHOW POPUP ONLY TO AUCTIONPOOL USERS
+                showUnsoldPopup(data.player);
             });
             
             socket.on('playerUnsold', (data) => {
                 console.log('❌ Player unsold:', data);
                 
                 const unsoldItem = document.createElement('div');
-                unsoldItem.className = 'p-3 rounded-lg bg-red-900/30 border-l-4 border-red-500';
+                unsoldItem.className = 'p-3 rounded-lg bg-red-900/30 border-l-4 border-red-500 slide-in';
                 unsoldItem.innerHTML = `
                     <div class="flex justify-between items-center">
                         <span class="font-bold">${data.player}</span>
@@ -550,62 +909,18 @@
                     currentPlayerCard.classList.add('hidden');
                     waitingAuction.classList.remove('hidden');
                     biddingControls.classList.add('hidden');
-                    rtmPanel.classList.add('hidden');
+                    currentPlayer = null;
+                    
+                    // Request fresh state sync after player unsold
+                    setTimeout(() => {
+                        requestStateSync();
+                    }, 1000);
                 }, 3000);
             });
             
             socket.on('auctionUpdate', (data) => {
                 console.log('📊 Auction update:', data);
                 updateAuctionStatus(data);
-            });
-            
-            socket.on('rtmTriggered', (data) => {
-                console.log('🔄 RTM triggered:', data);
-                openRtmModal(data);
-            });
-            
-            socket.on('rtmResult', (data) => {
-                console.log('📝 RTM result:', data);
-                
-                const rtmItem = document.createElement('div');
-                rtmItem.className = 'p-3 rounded-lg bg-purple-900/30 border-l-4 border-purple-500';
-                rtmItem.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <span class="font-bold">${data.player}</span>
-                            <span class="text-gray-400 ml-2">→ ${data.success ? 'RTM USED' : 'RTM DECLINED'}</span>
-                        </div>
-                        ${data.success ? `<span class="font-bold text-purple-400">₹${data.rtmAmount} Cr</span>` : ''}
-                    </div>
-                    <div class="text-xs text-gray-400 mt-1">${data.success ? 'Retained by original team' : 'Goes to winning team'}</div>
-                `;
-                bidLog.prepend(rtmItem);
-                
-                if (data.success) {
-                    if (data.originalTeam === userTeam?.name) {
-                        // We used RTM
-                        rtmCards--;
-                        rtmCardsEl.textContent = rtmCards;
-                        teamBudget -= data.rtmAmount;
-                        purseRemaining.textContent = teamBudget.toFixed(2);
-                        
-                        // Update squad
-                        socket.emit('requestSquadUpdate', {
-                            roomCode: currentRoomCode,
-                            username: currentUsername
-                        });
-                    } else if (data.previousTeam === userTeam?.id) {
-                        // Our player was taken via RTM, refund us
-                        teamBudget += data.rtmAmount;
-                        purseRemaining.textContent = teamBudget.toFixed(2);
-                        
-                        // Update squad
-                        socket.emit('requestSquadUpdate', {
-                            roomCode: currentRoomCode,
-                            username: currentUsername
-                        });
-                    }
-                }
             });
             
             socket.on('squadUpdate', (data) => {
@@ -615,12 +930,76 @@
             
             socket.on('auctionComplete', (data) => {
                 console.log('🏆 Auction complete:', data);
-                showAlert('Auction Complete', 'All players have been auctioned!', '🏆');
                 
-                // Redirect to playing 11 after delay
+                // Show completion message
+                showAlert('Auction Complete', data.message, '🏆');
+                
+                // Add to bid log
+                addBidToLog('SYSTEM', 'Auction pool completed!', 'COMPLETE');
+                
+                // Disable bidding controls
+                document.getElementById('biddingControls')?.classList.add('hidden');
+                
+                // Show redirecting message
+                const waitingAuction = document.getElementById('waitingAuction');
+                if (waitingAuction) {
+                    waitingAuction.classList.remove('hidden');
+                    waitingAuction.innerHTML = `
+                        <div class="text-6xl mb-4">🎉</div>
+                        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+                        <p class="text-gray-300 mb-4">${data.message}</p>
+                        <p class="text-gray-500">Redirecting to Playing 11 selection...</p>
+                        <div class="mt-6 flex items-center justify-center space-x-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                        </div>
+                    `;
+                }
+            });
+            // Add this to your socket handlers in auctionpool.html
+socket.on('forceRedirectToPlaying11', (data) => {
+    console.log('🚀 Force redirect received:', data);
+    
+    // Store current squad data in localStorage before redirecting
+    const currentData = {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        team: userTeam,
+        budget: teamBudget,
+        squadLimits: squadLimits
+    };
+    
+    localStorage.setItem('auctionToPlaying11Data', JSON.stringify(currentData));
+    
+    // Show redirect message
+    showAlert('Auction Complete', 'Redirecting to Playing 11 selection...', '🏏');
+    
+    // Redirect after 1 second
+    setTimeout(() => {
+        window.location.href = data.url;
+    }, 1000);
+});
+            socket.on('redirectToPlaying11', (data) => {
+                console.log('🚀 Redirecting to playing 11:', data);
+                
+                // Store session data for playing11 page
+                const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+                userSession.roomCode = data.roomCode;
+                localStorage.setItem('userSession', JSON.stringify(userSession));
+                
+                // Store current session
+                const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+                if (currentSession.sessionId === userSession.sessionId) {
+                    currentSession.roomCode = data.roomCode;
+                    localStorage.setItem('currentSession', JSON.stringify(currentSession));
+                }
+                
+                // Redirect after short delay
                 setTimeout(() => {
+                    console.log('🔗 Redirecting to playing11.html');
                     window.location.href = 'playing11.html';
-                }, 3000);
+                }, 2000);
             });
             
             socket.on('bidError', (data) => {
@@ -628,23 +1007,9 @@
                 showAlert('Bid Error', data.message, '❌');
             });
             
-            socket.on('rtmError', (data) => {
-                console.error('❌ RTM error:', data);
-                showAlert('RTM Error', data.message, '❌');
-            });
-            
             socket.on('error', (data) => {
                 console.error('❌ Auction error:', data);
                 showAlert('Error', data.message, '❌');
-            });
-            
-            socket.on('redirectToPlaying11', (data) => {
-                console.log('🚀 Redirecting to playing 11:', data);
-                showAlert('Auction Complete', 'Redirecting to playing 11 selection...', '✅');
-                
-                setTimeout(() => {
-                    window.location.href = 'playing11.html';
-                }, 2000);
             });
         }
 
@@ -663,34 +1028,64 @@
             
             // Update UI
             purseRemaining.textContent = teamBudget.toFixed(2);
-            rtmCardsEl.textContent = rtmCards;
-            maxSquad.textContent = squadLimits.maxSquad;
+            maxSquad.textContent = squadLimits.maxSquad || 25;
             
             console.log('✅ Auction page initialized');
         }
         
         function displayTeamInfo() {
-            if (!userTeam) return;
-            
-            teamHeader.innerHTML = `
-                <div class="flex items-center space-x-4">
-                    <div class="w-16 h-16 rounded-full flex items-center justify-center relative" 
-                         style="background: ${userTeam.color}20; border: 2px solid ${userTeam.color}">
-                        <div class="w-12 h-12 rounded-full bg-gray-900/80 flex items-center justify-center overflow-hidden">
-                            <img src="${userTeam.logo || 'default-player.png'}" 
-                                 alt="${userTeam.name}" 
-                                 class="w-full h-full object-contain p-1"
-                                 onerror="this.onerror=null; this.src='default-player.png';">
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-bold" style="color: ${userTeam.color}">${userTeam.name}</h2>
-                        <p class="text-gray-400 text-sm">Live Auction Pool</p>
-                        <p class="text-gray-500 text-xs">${currentUsername}</p>
-                    </div>
+    if (!userTeam) return;
+    
+    // Team logo mapping
+    const teamLogos = {
+        'csk': 'images/teams/CSK.png',
+        'mi': 'images/teams/MI.png', 
+        'rcb': 'images/teams/RCB.png',
+        'kkr': 'images/teams/KKR.png',
+        'dc': 'images/teams/DC.png',
+        'pbks': 'images/teams/PBKS.png',
+        'rr': 'images/teams/RR.png',
+        'srh': 'images/teams/SRH.png',
+        'gt': 'images/teams/GT.png',
+        'lsg': 'images/teams/LSG.png'
+    };
+    
+    const teamLogo = teamLogos[userTeam.id] || userTeam.logo || 'images/teams/default.png';
+    
+    teamHeader.innerHTML = `
+        <div class="flex items-center space-x-4">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center relative" 
+                 style="background: ${userTeam.color}20; border: 2px solid ${userTeam.color}">
+                <div class="w-12 h-12 rounded-full bg-gray-900/80 flex items-center justify-center overflow-hidden">
+                    <img src="${teamLogo}" alt="${userTeam.name}" 
+                         class="w-10 h-10 object-contain p-1"
+                         onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span class=\\'text-2xl\\'>🏏</span>';">
                 </div>
-            `;
-        }
+            </div>
+            <div>
+                <h2 class="text-xl font-bold" style="color: ${userTeam.color}">${userTeam.name}</h2>
+                <p class="text-gray-400 text-sm">Live Auction Pool</p>
+                <p class="text-gray-500 text-xs">${currentUsername}</p>
+            </div>
+        </div>
+    `;
+    
+    // Create or update team background
+    let teamBg = document.getElementById('teamBackground');
+    if (!teamBg) {
+        teamBg = document.createElement('div');
+        teamBg.id = 'teamBackground';
+        teamBg.className = 'team-background';
+        document.body.appendChild(teamBg);
+    }
+    
+    // Set background image
+    teamBg.style.backgroundImage = `url('${teamLogo}')`;
+    teamBg.style.filter = 'blur(4px) brightness(0.15) opacity(0.4)';
+    teamBg.style.backgroundSize = '300px';
+    teamBg.style.backgroundRepeat = 'no-repeat';
+    teamBg.style.backgroundPosition = 'center';
+}
         
         function displayCurrentPlayer() {
             if (!currentPlayer) return;
@@ -700,53 +1095,94 @@
             
             // Update player info
             playerName.textContent = currentPlayer.name || 'Unknown Player';
-            playerRole.textContent = currentPlayer.role || 'Player';
+            
+            // Set role and badge
+            const role = currentPlayer.role || 'Player';
+            let roleClass = 'role-bat';
+            let roleDisplay = role;
+            
+            if (role) {
+                const roleLower = role.toLowerCase();
+                if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin') || roleLower === 'bow') {
+                    roleClass = 'role-bowl';
+                    roleDisplay = 'Bowler';
+                } else if (roleLower.includes('all') || roleLower.includes('ar')) {
+                    roleClass = 'role-ar';
+                    roleDisplay = 'All-Rounder';
+                } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
+                    roleClass = 'role-wk';
+                    roleDisplay = 'WK-Batsman';
+                } else if (roleLower.includes('bat')) {
+                    roleClass = 'role-bat';
+                    roleDisplay = 'Batsman';
+                }
+            }
+            
+            playerRole.className = `role-badge ${roleClass}`;
+            playerRole.textContent = roleDisplay;
+            
             playerType.textContent = currentPlayer.bowlingType || 'N/A';
             playerNationality.textContent = currentPlayer.nationality || 'Indian';
-            currentBid.textContent = `₹${currentPlayer.currentBid || currentPlayer.basePrice || 2} Cr`;
+            const currentBidValue = currentPlayer.currentBid || currentPlayer.basePrice || 2;
+            currentBid.textContent = `₹${currentBidValue} Cr`;
+            basePrice.textContent = `₹${currentPlayer.basePrice || 2} Cr`;
+            originalTeamName.textContent = currentPlayer.originalTeam || '-';
             
-            // Update stats
-            statRuns.textContent = currentPlayer.totalRuns || 0;
-            statStrikeRate.textContent = currentPlayer.strikeRate || 0;
-            statWickets.textContent = currentPlayer.wickets || 0;
-            statEconomy.textContent = currentPlayer.economyRate || 0;
+            // Update highest bidder
+            if (currentPlayer.currentBidder) {
+                highestBidder.textContent = currentPlayer.currentBidder.toUpperCase();
+                const teamColors = {
+                    'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
+                    'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
+                    'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
+                };
+                highestBidder.style.color = teamColors[currentPlayer.currentBidder] || '#FFFFFF';
+            } else {
+                highestBidder.textContent = 'No bids yet';
+                highestBidder.style.color = '#D1D5DB';
+            }
             
-            // Update player image
-            const playerNameSlug = (currentPlayer.name || '').toLowerCase().replace(/\s+/g, '_');
-            playerImage.src = `images/players/${playerNameSlug}.jpg`;
-            playerImage.onerror = () => {
-                playerImage.src = 'default-player.png';
-            };
+            // Show overseas badge
+            const isOverseas = currentPlayer.nationality?.toString().toLowerCase() !== 'indian';
+            if (isOverseas) {
+                playerOverseasBadge.classList.remove('hidden');
+            } else {
+                playerOverseasBadge.classList.add('hidden');
+            }
+            
+            // Update stats - FIXED: Properly display player stats
+            document.getElementById('statRuns').textContent = currentPlayer.totalRuns || '0';
+            document.getElementById('statHighestScore').textContent = currentPlayer.highestScore || '0';
+            document.getElementById('statStrikeRate').textContent = currentPlayer.strikeRate || '0';
+            document.getElementById('statWickets').textContent = currentPlayer.wickets || '0';
+            document.getElementById('statEconomy').textContent = currentPlayer.economyRate || '0';
+            document.getElementById('statBestBowling').textContent = currentPlayer.bestBowling || '0/0';
+            document.getElementById('statFours').textContent = currentPlayer.fours || '0';
+            document.getElementById('statSixes').textContent = currentPlayer.sixes || '0';
+            document.getElementById('statFifties').textContent = currentPlayer.fifties || '0';
+            document.getElementById('statHundreds').textContent = currentPlayer.hundreds || '0';
         }
         
-        function showErrorState(message) {
-            waitingAuction.innerHTML = `
-                <div class="text-6xl mb-4">❌</div>
-                <h3 class="text-2xl font-bold text-gray-300 mb-2">Error</h3>
-                <p class="text-gray-500 mb-4">${message}</p>
-                <button onclick="window.location.href='rules.html'" 
-                        class="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-semibold">
-                    Return to Rules
-                </button>
-            `;
+        function toggleStats() {
+            const isVisible = !playerStats.classList.contains('hidden');
+            
+            if (isVisible) {
+                playerStats.classList.add('hidden');
+                currentPlayerCard.classList.remove('expanded');
+                showStatsBtn.innerHTML = '📊 Show Full Player Stats';
+            } else {
+                playerStats.classList.remove('hidden');
+                currentPlayerCard.classList.add('expanded');
+                showStatsBtn.innerHTML = '📊 Hide Player Stats';
+            }
         }
 
         // ========== BIDDING FUNCTIONS ==========
         function updateBidIncrement(currentBid) {
-            console.log(`🔄 Current bid: ₹${currentBid} Cr`);
-            
-            // ALL buttons are always enabled - no restrictions
-            document.querySelectorAll('.bid-btn').forEach(btn => {
-                btn.disabled = false;
-                btn.classList.remove('opacity-40', 'cursor-not-allowed');
-                btn.classList.add('cursor-pointer');
-            });
-            
-            // Just show minimum increment
             minIncrement.textContent = '₹0.10 Cr';
         }
         
-        function updateBidButtons(currentBid) {
+        function updateBidButtons() {
             // Enable all bid buttons
             document.querySelectorAll('.bid-btn').forEach(btn => {
                 btn.disabled = false;
@@ -761,15 +1197,16 @@
             
             const currentBidValue = parseFloat(currentPlayer.currentBid || currentPlayer.basePrice || 2);
             const newBid = currentBidValue + increment;
-            
-            // Round to 2 decimal places
             const roundedBid = Math.round(newBid * 100) / 100;
             
             console.log(`🎯 Bid attempt: ${userTeam.id} bidding ₹${roundedBid} Cr`);
-            console.log(`   Current: ₹${currentBidValue} Cr, Increment: ₹${increment} Cr`);
             
+            sendBidToServer(roundedBid);
+        }
+        
+        function sendBidToServer(bidAmount) {
             // Validate bid
-            if (roundedBid > teamBudget) {
+            if (bidAmount > teamBudget) {
                 showAlert('Insufficient Funds', `Your purse is only ₹${teamBudget.toFixed(2)} Cr`, '❌');
                 return;
             }
@@ -788,246 +1225,168 @@
                 roomCode: currentRoomCode,
                 playerId: currentPlayer.id,
                 team: userTeam.id,
-                bid: roundedBid,
-                increment: increment
+                bid: bidAmount
             });
             
-            console.log(`📤 Bid sent: ₹${roundedBid} Cr`);
+            console.log(`📤 Bid sent: ₹${bidAmount} Cr`);
         }
         
-        function addBidToLog(team, bid) {
-            const bidItem = document.createElement('div');
-            bidItem.className = 'bid-log-item new p-3 rounded-lg bg-gray-800/30';
-            
-            // Get team color from predefined teams
-            const teamColors = {
-                'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
-                'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
-                'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
-            };
-            
-            const teamColor = teamColors[team] || '#FFFFFF';
-            
-            bidItem.innerHTML = `
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-3 h-3 rounded-full" style="background: ${teamColor}"></div>
-                        <span class="font-semibold" style="color: ${teamColor}">${team.toUpperCase()}</span>
-                    </div>
-                    <span class="font-bold text-yellow-400">₹${bid} Cr</span>
+        function addBidToLog(team, bid, type = 'BID') {
+    const bidItem = document.createElement('div');
+    bidItem.className = 'bid-log-item new p-3 rounded-lg bg-gray-800/30 border-l-4 border-yellow-500 slide-in';
+    
+    // Team logos mapping with actual image paths
+    const teamLogos = {
+        'csk': 'images/teams/CSK.png',
+        'mi': 'images/teams/MI.png', 
+        'rcb': 'images/teams/RCB.png',
+        'kkr': 'images/teams/KKR.png',
+        'dc': 'images/teams/DC.png',
+        'pbks': 'images/teams/PBKS.png',
+        'rr': 'images/teams/RR.png',
+        'srh': 'images/teams/SRH.png',
+        'gt': 'images/teams/GT.png',
+        'lsg': 'images/teams/LSG.png'
+    };
+    
+    const teamColors = {
+        'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
+        'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
+        'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
+    };
+    
+    const teamColor = teamColors[team] || '#FFFFFF';
+    const teamLogo = teamLogos[team] || 'images/teams/default.png';
+    
+    bidItem.innerHTML = `
+        <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <div class="w-6 h-6 rounded-full overflow-hidden bg-gray-800/50 flex items-center justify-center">
+                    <img src="${teamLogo}" alt="${team}" 
+                         class="w-5 h-5 object-contain"
+                         onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span class=\\'text-sm\\'>🏏</span>';">
                 </div>
-                <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString()}</div>
-            `;
-            
-            bidLog.prepend(bidItem);
-            
-            // Remove "new" class after animation
-            setTimeout(() => {
-                bidItem.classList.remove('new');
-            }, 1000);
-            
-            // Limit log to 20 items
-            if (bidLog.children.length > 20) {
-                bidLog.removeChild(bidLog.lastChild);
-            }
-        }
+                <div class="h-4 w-1 bg-gradient-to-b from-transparent via-${teamColor} to-transparent"></div>
+            </div>
+            <span class="font-bold text-yellow-400">₹${bid} Cr</span>
+        </div>
+        <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+    `;
+    
+    bidLog.prepend(bidItem);
+    
+    setTimeout(() => {
+        bidItem.classList.remove('new');
+    }, 1000);
+    
+    if (bidLog.children.length > 20) {
+        bidLog.removeChild(bidLog.lastChild);
+    }
+}
         
         function clearBidLog() {
             bidLog.innerHTML = '<div class="text-center text-gray-500 py-4">No bids yet</div>';
         }
-
-        // ========== AUCTION STATUS FUNCTIONS ==========
+        
         function updateAuctionStatus(data) {
-            auctionCategory.textContent = data.category || '-';
-            playersLeft.textContent = data.playersLeft || '-';
-            unsoldCount.textContent = data.unsoldCount || 0;
-        }
-        
-        function updateSquadLimits() {
-            // Calculate squad size
-            const totalSquadSize = squadLimits.total;
-            const maxSquadValue = squadLimits.maxSquad || 25;
-            const remaining = Math.max(0, maxSquadValue - totalSquadSize);
+            if (data.category) auctionCategory.textContent = data.category;
+            if (data.playersLeft !== undefined) playersLeft.textContent = data.playersLeft;
+            if (data.unsoldCount !== undefined) unsoldCount.textContent = data.unsoldCount;
             
-            squadSize.textContent = totalSquadSize;
-            maxSquad.textContent = maxSquadValue;
-            remainingSlots.textContent = remaining;
-            canBuy.textContent = remaining;
-            
-            // Update color based on limits
-            squadSize.className = `text-lg font-bold ${
-                totalSquadSize > maxSquadValue ? 'text-red-400' : 'text-green-400'
-            }`;
-            
-            remainingSlots.className = `text-lg font-bold ${
-                remaining === 0 ? 'text-red-400' : 'text-blue-400'
-            }`;
-        }
-        
-        function updateTeamAfterPurchase(playerName, price, isOverseas) {
-            // Budget already updated in playerSold handler
-            // Update squad counts
-            if (isOverseas) {
-                squadLimits.overseas++;
-            } else {
-                squadLimits.indian++;
+            // Update player count
+            if (data.currentPlayerIndex !== undefined && data.totalPlayers !== undefined) {
+                const currentCount = data.currentPlayerIndex + 1;
+                currentPlayerCount.textContent = `${currentCount}/${data.totalPlayers}`;
             }
-            squadLimits.total = squadLimits.indian + squadLimits.overseas;
-            
-            updateSquadLimits();
         }
 
-        // ========== SQUAD MODAL FUNCTIONS ==========
+        // ========== SQUAD FUNCTIONS ==========
         function openSquadModal() {
             socket.emit('requestSquad', {
                 roomCode: currentRoomCode,
-                username: currentUsername
+                username: currentUsername,
+                sessionId: userSession.sessionId
             });
         }
         
-        function closeSquadModal() {
-            document.getElementById('squadModal').classList.add('hidden');
-        }
+        function updateSquadLimits() {
+    squadSize.textContent = squadLimits.total || 0;
+    
+    // FIX: Use actual max squad from rules, not hardcoded 25
+    const max = squadLimits.maxSquad || 25;
+    maxSquad.textContent = max;
+    
+    remainingSlots.textContent = max - squadLimits.total;
+    canBuy.textContent = max - squadLimits.total;
+    indianCount.textContent = squadLimits.indian || 0;
+    overseasCount.textContent = squadLimits.overseas || 0;
+}
         
         function updateSquadDisplay(data) {
-            document.getElementById('squadTeamName').textContent = data.team?.name || 'Team Squad';
-            document.getElementById('modalPurseRemaining').textContent = teamBudget.toFixed(2);
-            document.getElementById('modalRtmCards').textContent = rtmCards;
-            
-            // Update retained players
-            const retainedContainer = document.getElementById('retainedPlayers');
-            retainedContainer.innerHTML = '';
-            
-            if (data.retainedPlayers && data.retainedPlayers.length > 0) {
-                data.retainedPlayers.forEach(player => {
-                    const playerEl = document.createElement('div');
-                    playerEl.className = 'flex justify-between items-center p-3 bg-gray-800/30 rounded-lg';
-                    playerEl.innerHTML = `
+            // Create a simple squad modal
+            const squadModal = document.createElement('div');
+            squadModal.className = 'fixed inset-0 flex items-center justify-center z-50';
+            squadModal.innerHTML = `
+                <div class="absolute inset-0 bg-black/80"></div>
+                <div class="glass-panel rounded-2xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto z-10">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-yellow-400">My Squad</h2>
+                        <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                                class="text-2xl hover:text-yellow-400">✕</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <div class="font-medium">${player.name}</div>
-                            <div class="text-sm text-gray-400">${player.role}</div>
+                            <h3 class="text-xl font-bold mb-4 text-green-400">Retained Players (${data.retainedPlayers?.length || 0})</h3>
+                            <div class="space-y-3 max-h-[300px] overflow-y-auto">
+                                ${(data.retainedPlayers || []).map(player => `
+                                    <div class="p-3 bg-gray-800/30 rounded-lg">
+                                        <div class="font-medium">${player.name}</div>
+                                        <div class="text-sm text-gray-400">${player.role}</div>
+                                    </div>
+                                `).join('')}
+                                ${(!data.retainedPlayers || data.retainedPlayers.length === 0) ? 
+                                    '<div class="text-gray-500 text-center py-4">No retained players</div>' : ''}
+                            </div>
                         </div>
-                        <div class="text-green-400 font-bold">Retained</div>
-                    `;
-                    retainedContainer.appendChild(playerEl);
-                });
-            } else {
-                retainedContainer.innerHTML = '<div class="text-gray-500 text-center py-4">No retained players</div>';
-            }
-            
-            // Update auction purchases
-            const auctionContainer = document.getElementById('auctionBuys');
-            auctionContainer.innerHTML = '';
-            
-            if (data.auctionPlayers && data.auctionPlayers.length > 0) {
-                let totalSpent = 0;
-                data.auctionPlayers.forEach(player => {
-                    totalSpent += player.price;
-                    const playerEl = document.createElement('div');
-                    playerEl.className = 'flex justify-between items-center p-3 bg-gray-800/30 rounded-lg';
-                    playerEl.innerHTML = `
                         <div>
-                            <div class="font-medium">${player.name}</div>
-                            <div class="text-sm text-gray-400">${player.role}</div>
+                            <h3 class="text-xl font-bold mb-4 text-blue-400">Auction Buys (${data.auctionPlayers?.length || 0})</h3>
+                            <div class="space-y-3 max-h-[300px] overflow-y-auto">
+                                ${(data.auctionPlayers || []).map(player => `
+                                    <div class="p-3 bg-gray-800/30 rounded-lg">
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <div class="font-medium">${player.name}</div>
+                                                <div class="text-sm text-gray-400">${player.role}</div>
+                                            </div>
+                                            <div class="text-yellow-400 font-bold">₹${player.price || 0} Cr</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                                ${(!data.auctionPlayers || data.auctionPlayers.length === 0) ? 
+                                    '<div class="text-gray-500 text-center py-4">No players bought yet</div>' : ''}
+                            </div>
                         </div>
-                        <div class="text-yellow-400 font-bold">₹${player.price} Cr</div>
-                    `;
-                    auctionContainer.appendChild(playerEl);
-                });
-                
-                document.getElementById('totalSpent').textContent = totalSpent.toFixed(2);
-                document.getElementById('totalPlayers').textContent = 
-                    (data.retainedPlayers?.length || 0) + data.auctionPlayers.length;
-            } else {
-                auctionContainer.innerHTML = '<div class="text-gray-500 text-center py-4">No players bought yet</div>';
-                document.getElementById('totalSpent').textContent = '0';
-                document.getElementById('totalPlayers').textContent = data.retainedPlayers?.length || 0;
-            }
+                    </div>
+                    <div class="mt-6 pt-6 border-t border-gray-700">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                                <div class="text-sm text-gray-400">Total Players</div>
+                                <div class="text-2xl font-bold">${(data.retainedPlayers?.length || 0) + (data.auctionPlayers?.length || 0)}</div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                                <div class="text-sm text-gray-400">Purse Remaining</div>
+                                <div class="text-2xl font-bold text-green-400">₹${data.budget || 0} Cr</div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                                <div class="text-sm text-gray-400">Squad Limit</div>
+                                <div class="text-2xl font-bold text-purple-400">${data.squadLimit || 25}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
             
-            document.getElementById('squadModal').classList.remove('hidden');
-        }
-
-        // ========== RTM FUNCTIONS ==========
-        function openRtmModal(data) {
-            currentRtmData = data;
-            
-            // If opening from RTM panel
-            if (!data && currentPlayer) {
-                data = {
-                    playerId: currentPlayer.id,
-                    player: currentPlayer.name,
-                    originalTeam: currentPlayer.originalTeam,
-                    winningBid: currentPlayer.currentBid || currentPlayer.basePrice || 2
-                };
-            }
-            
-            if (!data) return;
-            
-            document.getElementById('rtmPlayerName').textContent = data.player;
-            document.getElementById('rtmTeamName').textContent = data.originalTeam;
-            document.getElementById('rtmWinningBid').textContent = `₹${data.winningBid} Cr`;
-            document.getElementById('rtmCardsRemaining').textContent = rtmCards;
-            
-            // Set min value on input
-            const rtmInput = document.getElementById('rtmAmount');
-            rtmInput.min = Math.ceil(data.winningBid);
-            rtmInput.value = Math.ceil(data.winningBid);
-            
-            document.getElementById('rtmModal').classList.remove('hidden');
-        }
-        
-        function closeRtmModal() {
-            document.getElementById('rtmModal').classList.add('hidden');
-            currentRtmData = null;
-        }
-        
-        function declineRTM() {
-            if (!currentRtmData) return;
-            
-            socket.emit('submitRtmDecision', {
-                roomCode: currentRoomCode,
-                playerId: currentRtmData.playerId,
-                rtmAmount: 0,
-                accept: false
-            });
-            
-            closeRtmModal();
-        }
-        
-        function acceptRTM() {
-            if (!currentRtmData) return;
-            
-            const rtmAmount = parseInt(document.getElementById('rtmAmount').value);
-            const winningBid = currentRtmData.winningBid;
-            
-            if (rtmAmount < winningBid) {
-                showAlert('Invalid RTM Amount', `RTM amount must be ≥ winning bid (₹${winningBid} Cr)`, '❌');
-                return;
-            }
-            
-            if (!Number.isInteger(rtmAmount)) {
-                showAlert('Invalid Amount', 'RTM amount must be an integer (no decimals)', '❌');
-                return;
-            }
-            
-            if (rtmAmount > teamBudget) {
-                showAlert('Insufficient Funds', `Your purse is only ₹${teamBudget.toFixed(2)} Cr`, '❌');
-                return;
-            }
-            
-            if (rtmCards <= 0) {
-                showAlert('No RTM Cards', 'You have no RTM cards remaining', '❌');
-                return;
-            }
-            
-            socket.emit('submitRtmDecision', {
-                roomCode: currentRoomCode,
-                playerId: currentRtmData.playerId,
-                rtmAmount: rtmAmount,
-                accept: true
-            });
-            
-            closeRtmModal();
+            document.body.appendChild(squadModal);
         }
 
         // ========== HELPER FUNCTIONS ==========
@@ -1047,26 +1406,88 @@
             document.getElementById('alertToast').classList.add('hidden');
         }
         
-        function updateUserSession() {
-            const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
-            localStorage.setItem('auctionUser', JSON.stringify({
-                ...auctionUser,
-                username: currentUsername,
-                roomCode: currentRoomCode,
-                team: userTeam,
-                budget: teamBudget,
-                rtmCards: rtmCards,
-                squadLimits: squadLimits
-            }));
+        function showErrorState(message) {
+            waitingAuction.innerHTML = `
+                <div class="text-6xl mb-4">❌</div>
+                <h3 class="text-2xl font-bold text-red-400 mb-2">Error</h3>
+                <p class="text-gray-300 mb-4">${message}</p>
+                <button onclick="goToLogin()" class="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
+                    Go to Login
+                </button>
+            `;
+        }
+        
+        function showSoldBroadcast(player, team, price) {
+            const broadcast = document.createElement('div');
+            broadcast.className = 'fixed bottom-1/3 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg';
+            broadcast.innerHTML = `
+                <div class="bg-gradient-to-r from-green-900/90 to-emerald-900/90 backdrop-blur-lg rounded-xl p-4 border-2 border-green-500/50 shadow-2xl">
+                    <div class="flex items-center justify-center space-x-3">
+                        <div class="text-3xl">🎉</div>
+                        <div class="text-center">
+                            <div class="text-sm text-green-300 mb-1">PLAYER SOLD</div>
+                            <div class="text-xl font-bold text-white mb-1">${player}</div>
+                            <div class="flex items-center justify-center space-x-2">
+                                <span class="text-green-300">to</span>
+                                <span class="px-3 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg font-bold">
+                                    ${team.toUpperCase()}
+                                </span>
+                                <span class="text-green-300">for</span>
+                                <span class="text-2xl font-black text-yellow-400">₹${price} Cr</span>
+                            </div>
+                        </div>
+                        <div class="text-3xl">💰</div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(broadcast);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                broadcast.remove();
+            }, 3000);
+        }
+
+        // ========== NEW FUNCTION FOR UNSOLD POPUP ==========
+        function showUnsoldPopup(playerName) {
+            console.log('❌ Showing unsold popup for:', playerName);
+            
+            // Create unsold popup
+            const popup = document.createElement('div');
+            popup.className = 'fixed top-1/3 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg unsold-popup';
+            popup.innerHTML = `
+                <div class="bg-gradient-to-r from-red-900/90 to-orange-900/90 backdrop-blur-lg rounded-xl p-4 border-2 border-red-500/50 shadow-2xl">
+                    <div class="flex items-center justify-center space-x-3">
+                        <div class="text-3xl">❌</div>
+                        <div class="text-center">
+                            <div class="text-sm text-red-300 mb-1">PLAYER UNSOLD</div>
+                            <div class="text-xl font-bold text-white mb-1">${playerName}</div>
+                            <div class="text-yellow-200 text-sm mt-1">
+                                Went unsold and will come again in the unsold list
+                            </div>
+                        </div>
+                        <div class="text-3xl">📋</div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(popup);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (popup.parentElement) {
+                    popup.remove();
+                }
+            }, 3000);
         }
 
         // ========== EXPOSE FUNCTIONS TO GLOBAL SCOPE ==========
-        window.closeSquadModal = closeSquadModal;
-        window.closeRtmModal = closeRtmModal;
-        window.openRtmModal = openRtmModal;
-        window.declineRTM = declineRTM;
-        window.acceptRTM = acceptRTM;
+        window.reconnectWithSession = reconnectWithSession;
+        window.goToLogin = goToLogin;
         window.closeAlert = closeAlert;
+
+        console.log('✅ Auction pool page loaded with state synchronization');
     </script>
 </body>
 </html>

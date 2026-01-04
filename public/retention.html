@@ -64,6 +64,76 @@
             from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+        
+        .player-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #1e293b, #475569);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            overflow: hidden;
+        }
+        
+        .overseas-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: linear-gradient(45deg, #8B5CF6, #7C3AED);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+        
+        .stat-label {
+            color: #94a3b8;
+            font-size: 9px;
+        }
+        
+        .stat-value {
+            color: #f1f5f9;
+            font-weight: 600;
+        }
+        
+        .role-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        .role-bat { background: rgba(34, 197, 94, 0.2); color: #22C55E; }
+        .role-bowl { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
+        .role-ar { background: rgba(168, 85, 247, 0.2); color: #A855F7; }
+        .role-wk { background: rgba(245, 158, 11, 0.2); color: #F59E0B; }
+        
+        .timer-warning {
+            animation: warning-pulse 1s infinite;
+        }
+        
+        @keyframes warning-pulse {
+            0%, 100% { color: #f1f5f9; }
+            50% { color: #ef4444; }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
@@ -107,6 +177,14 @@
                     <div class="text-sm text-gray-400">Time Left</div>
                 </div>
             </div>
+            
+            <!-- Limits Display -->
+            <div class="mt-4 text-center">
+                <div class="text-sm text-gray-400">
+                    Limits: Max <span id="maxIndianLimit" class="text-green-400 font-bold">4</span> Indian • 
+                    Max <span id="maxOverseasLimit" class="text-purple-400 font-bold">3</span> Overseas
+                </div>
+            </div>
         </div>
 
         <!-- Players Grid -->
@@ -129,26 +207,39 @@
             </div>
         </div>
 
-        <!-- Controls -->
-        <div class="glass-panel rounded-2xl p-6 fixed bottom-6 left-1/2 transform -translate-x-1/2 w-11/12 max-w-2xl z-10 hidden" id="controlsPanel">
+        <!-- Auto-Submit Notice -->
+        <div class="glass-panel rounded-2xl p-6 fixed bottom-6 left-1/2 transform -translate-x-1/2 w-11/12 max-w-2xl z-10 hidden" id="autoSubmitNotice">
             <div class="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div class="text-center md:text-left">
-                    <h3 class="font-semibold text-gray-300">Selection Rules</h3>
+                    <h3 class="font-semibold text-gray-300">⚠️ Auto-Submission Notice</h3>
                     <p class="text-sm text-gray-400">
-                        Max <span id="maxIndianRule" class="text-green-400 font-bold">4</span> Indian • 
-                        Max <span id="maxOverseasRule" class="text-purple-400 font-bold">3</span> Overseas
+                        Your selections will be automatically submitted when the timer ends.
+                        <br>If no players are selected, you'll enter auction with zero retained players.
                     </p>
                 </div>
                 
                 <div class="flex space-x-4">
-                    <button id="clearSelectionBtn" 
+                    <button onclick="clearAllSelections()" 
                             class="px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 rounded-xl font-semibold transition-all duration-300">
                         Clear All
                     </button>
-                    <button id="submitBtn" 
-                            class="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                        ✅ Submit Retention
-                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="statsModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="absolute inset-0 bg-black/70"></div>
+        <div class="glass-panel rounded-2xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto z-10">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-yellow-400" id="statsPlayerName">Player Stats</h2>
+                <button onclick="closeStatsModal()" class="text-2xl hover:text-yellow-400">✕</button>
+            </div>
+            
+            <div class="space-y-4">
+                <div id="statsContent">
+                    <!-- Stats will be loaded here -->
                 </div>
             </div>
         </div>
@@ -174,27 +265,27 @@
         // ========== GLOBAL VARIABLES ==========
         let socket = null;
         let retentionData = null;
-        let selectedPlayers = new Set();
+        let selectedPlayers = new Map(); // Use Map to store player objects
         let countdownInterval = null;
         let timeLeft = 90;
-        let submitted = false;
+        let autoSubmitted = false;
         let currentRoomCode = null;
         let currentUsername = null;
+        let maxIndian = 4;
+        let maxOverseas = 3;
 
         // ========== DOM ELEMENTS ==========
         const teamHeader = document.getElementById('teamHeader');
         const timer = document.getElementById('timer');
         const playersGrid = document.getElementById('playersGrid');
         const emptyState = document.getElementById('emptyState');
-        const controlsPanel = document.getElementById('controlsPanel');
+        const autoSubmitNotice = document.getElementById('autoSubmitNotice');
         const selectedCount = document.getElementById('selectedCount');
         const indianCount = document.getElementById('indianCount');
         const overseasCount = document.getElementById('overseasCount');
         const remainingTime = document.getElementById('remainingTime');
-        const maxIndianRule = document.getElementById('maxIndianRule');
-        const maxOverseasRule = document.getElementById('maxOverseasRule');
-        const clearSelectionBtn = document.getElementById('clearSelectionBtn');
-        const submitBtn = document.getElementById('submitBtn');
+        const maxIndianLimit = document.getElementById('maxIndianLimit');
+        const maxOverseasLimit = document.getElementById('maxOverseasLimit');
 
         // ========== INITIALIZATION ==========
         document.addEventListener('DOMContentLoaded', function() {
@@ -230,13 +321,17 @@
             socket.on('connect', () => {
                 console.log('✅ Connected to server');
                 
-                // Join retention with credentials
+                // Join retention with session data
+                const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+                const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+                
                 socket.emit('joinRetention', {
                     roomCode: currentRoomCode,
-                    username: currentUsername
+                    username: currentUsername,
+                    sessionId: userSession.sessionId || currentSession.sessionId
                 });
                 
-                showAlert('Connected', 'Waiting for retention data from auctioneer...', '⏳');
+                console.log('📤 Sent joinRetention request');
             });
             
             socket.on('connect_error', (error) => {
@@ -247,6 +342,15 @@
             socket.on('retentionData', (data) => {
                 console.log('🎯 Received retention data:', data);
                 retentionData = data;
+                
+                // Set limits from rules
+                if (data.rules) {
+                    maxIndian = data.rules.maxIndian || 4;
+                    maxOverseas = data.rules.maxOverseas || 3;
+                    maxIndianLimit.textContent = maxIndian;
+                    maxOverseasLimit.textContent = maxOverseas;
+                }
+                
                 initializePage();
             });
             
@@ -255,11 +359,13 @@
                 showAlert('Auction Pool Starting', 'Retention phase complete. Moving to auction pool...', '💰');
                 
                 // Update localStorage with current data
-                localStorage.setItem('auctionUser', JSON.stringify({
-                    username: currentUsername,
-                    roomCode: currentRoomCode,
-                    team: retentionData?.team
-                }));
+                // In retention.html's autoSubmitRetention function:
+localStorage.setItem('userSession', JSON.stringify({
+    username: currentUsername,
+    roomCode: currentRoomCode,
+    team: retentionData?.team,
+    sessionId: userSession.sessionId
+}));
                 
                 setTimeout(() => {
                     window.location.href = 'auctionpool.html';
@@ -303,17 +409,11 @@
             // Display team info
             displayTeamInfo();
             
-            // Set rules
-            if (retentionData.rules) {
-                maxIndianRule.textContent = retentionData.rules.maxIndian || 4;
-                maxOverseasRule.textContent = retentionData.rules.maxOverseas || 3;
-            }
-            
             // Load players
             loadPlayers();
             
-            // Show controls
-            controlsPanel.classList.remove('hidden');
+            // Show auto-submit notice
+            autoSubmitNotice.classList.remove('hidden');
             
             // Start timer
             startTimer();
@@ -387,8 +487,9 @@
         
         function createPlayerCard(player, index) {
             const playerCard = document.createElement('div');
-            playerCard.className = 'player-card glass-panel rounded-xl p-4 cursor-pointer hover:transform hover:-translate-y-1 transition-all duration-300';
+            playerCard.className = 'player-card glass-panel rounded-xl p-4 cursor-pointer hover:transform hover:-translate-y-1 transition-all duration-300 relative';
             playerCard.dataset.id = player.id || `player_${index}`;
+            playerCard.dataset.index = index;
             
             // Determine if overseas
             let isOverseas = player.isOverseas || false;
@@ -403,28 +504,48 @@
             }
             playerCard.dataset.isOverseas = isOverseas;
             
-            // Determine role color
+            // Determine role class and display name
             const role = player.role || 'Player';
-            let roleColor = 'blue';
-            if (role.toLowerCase().includes('bat')) roleColor = 'green';
-            else if (role.toLowerCase().includes('bowl') || role.toLowerCase().includes('pace') || role.toLowerCase().includes('spin')) roleColor = 'red';
-            else if (role.toLowerCase().includes('all')) roleColor = 'purple';
-            else if (role.toLowerCase().includes('wk') || role.toLowerCase().includes('keep')) roleColor = 'yellow';
+            let roleClass = 'role-bat';
+            let roleDisplay = role;
+            
+            if (role) {
+                const roleLower = role.toLowerCase();
+                if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin') || roleLower === 'bow') {
+                    roleClass = 'role-bowl';
+                    roleDisplay = 'Bowler';
+                } else if (roleLower.includes('all') || roleLower.includes('ar')) {
+                    roleClass = 'role-ar';
+                    roleDisplay = 'All-Rounder';
+                } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
+                    roleClass = 'role-wk';
+                    roleDisplay = 'WK-Batsman';
+                } else if (roleLower.includes('bat')) {
+                    roleClass = 'role-bat';
+                    roleDisplay = 'Batsman';
+                }
+            }
+            
+            // Determine bowling type
+            const bowlingType = player.bowlingType || 'N/A';
             
             playerCard.innerHTML = `
+                ${isOverseas ? '<div class="overseas-badge">✈️ Overseas</div>' : ''}
                 <div class="flex items-start space-x-4">
-                    <div class="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
-                        <img src="default-player.svg" 
-                             alt="${player.name}" 
-                             class="w-full h-full object-cover">
+                    <div class="player-image relative">
+                        <span class="text-2xl">${getPlayerEmoji(role)}</span>
+                        <button onclick="showPlayerStats(event, ${index})" 
+                                class="absolute -bottom-1 -right-1 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-xs hover:bg-yellow-600 transition-colors"
+                                title="View Stats">
+                            📊
+                        </button>
                     </div>
                     <div class="flex-1">
-                        <h3 class="font-bold text-lg mb-2">${player.name || 'Unknown Player'}</h3>
-                        <div class="flex items-center space-x-2 mb-3">
-                            <span class="px-2 py-1 bg-${roleColor}-900/30 text-${roleColor}-300 rounded text-xs">
-                                ${role}
-                            </span>
-                            ${isOverseas ? '<span class="text-xs px-2 py-1 bg-purple-900/30 text-purple-300 rounded">✈️ Overseas</span>' : ''}
+                        <h3 class="font-bold text-lg mb-1">${player.name || 'Unknown Player'}</h3>
+                        <div class="flex items-center space-x-2 mb-2">
+                            <span class="${roleClass} role-badge">${roleDisplay}</span>
+                            ${bowlingType !== 'NO' && bowlingType !== 'N/A' ? 
+                                `<span class="text-xs px-2 py-1 bg-gray-800 text-gray-300 rounded">${bowlingType}</span>` : ''}
                         </div>
                         <div class="text-sm text-gray-400">
                             <div class="mb-1">${player.nationality || 'Indian'}</div>
@@ -435,34 +556,42 @@
             `;
             
             playerCard.addEventListener('click', () => {
-                if (submitted) return;
-                togglePlayerSelection(player.id || `player_${index}`, isOverseas);
+                if (autoSubmitted) return;
+                togglePlayerSelection(playerCard, player, isOverseas);
             });
             
             playersGrid.appendChild(playerCard);
         }
         
-        function togglePlayerSelection(playerId, isOverseas) {
-            const maxIndian = retentionData.rules?.maxIndian || 4;
-            const maxOverseas = retentionData.rules?.maxOverseas || 3;
+        function getPlayerEmoji(role) {
+            const roleLower = role.toLowerCase();
+            if (roleLower.includes('wk') || roleLower.includes('keep')) return '🧤';
+            if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin')) return '🎯';
+            if (roleLower.includes('all') || roleLower.includes('ar')) return '⚡';
+            return '🏏';
+        }
+        
+        function togglePlayerSelection(playerCard, player, isOverseas) {
+            const playerId = playerCard.dataset.id;
             
+            // Check current counts
             let currentIndian = 0;
             let currentOverseas = 0;
             
-            selectedPlayers.forEach(id => {
-                const card = document.querySelector(`[data-id="${id}"]`);
-                if (card) {
-                    if (card.dataset.isOverseas === 'true') {
-                        currentOverseas++;
-                    } else {
-                        currentIndian++;
-                    }
+            selectedPlayers.forEach(p => {
+                if (p.isOverseas) {
+                    currentOverseas++;
+                } else {
+                    currentIndian++;
                 }
             });
             
             if (selectedPlayers.has(playerId)) {
+                // Deselect player
                 selectedPlayers.delete(playerId);
+                playerCard.classList.remove('selected');
             } else {
+                // Check limits before selecting
                 if (isOverseas && currentOverseas >= maxOverseas) {
                     showAlert('Limit Reached', `Maximum ${maxOverseas} overseas players allowed`, '✈️');
                     return;
@@ -471,36 +600,28 @@
                     showAlert('Limit Reached', `Maximum ${maxIndian} Indian players allowed`, '🇮🇳');
                     return;
                 }
-                selectedPlayers.add(playerId);
+                
+                // Select player
+                selectedPlayers.set(playerId, {
+                    ...player,
+                    isOverseas: isOverseas,
+                    index: playerCard.dataset.index
+                });
+                playerCard.classList.add('selected');
             }
             
-            updatePlayerCards();
             updateCounts();
-        }
-        
-        function updatePlayerCards() {
-            document.querySelectorAll('.player-card').forEach(card => {
-                const playerId = card.dataset.id;
-                if (selectedPlayers.has(playerId)) {
-                    card.classList.add('selected');
-                } else {
-                    card.classList.remove('selected');
-                }
-            });
         }
         
         function updateCounts() {
             let indian = 0;
             let overseas = 0;
             
-            selectedPlayers.forEach(id => {
-                const card = document.querySelector(`[data-id="${id}"]`);
-                if (card) {
-                    if (card.dataset.isOverseas === 'true') {
-                        overseas++;
-                    } else {
-                        indian++;
-                    }
+            selectedPlayers.forEach(player => {
+                if (player.isOverseas) {
+                    overseas++;
+                } else {
+                    indian++;
                 }
             });
             
@@ -508,9 +629,7 @@
             indianCount.textContent = indian;
             overseasCount.textContent = overseas;
             
-            const maxIndian = retentionData.rules?.maxIndian || 4;
-            const maxOverseas = retentionData.rules?.maxOverseas || 3;
-            
+            // Update color based on limits
             indianCount.className = `text-2xl font-bold ${indian > maxIndian ? 'text-red-400' : 'text-green-400'}`;
             overseasCount.className = `text-2xl font-bold ${overseas > maxOverseas ? 'text-red-400' : 'text-purple-400'}`;
         }
@@ -525,7 +644,7 @@
                     clearInterval(countdownInterval);
                     timeLeft = 0;
                     updateTimerDisplay();
-                    autoSubmit();
+                    autoSubmitRetention();
                     return;
                 }
                 timeLeft--;
@@ -540,51 +659,29 @@
             timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             remainingTime.textContent = `${timeLeft}s`;
             
-            timer.classList.remove('text-red-400', 'text-yellow-400', 'text-white', 'pulse-timer');
+            timer.classList.remove('text-red-400', 'text-yellow-400', 'text-white', 'pulse-timer', 'timer-warning');
             
             if (timeLeft <= 30) {
-                timer.classList.add('text-red-400', 'pulse-timer');
+                timer.classList.add('text-red-400', 'timer-warning');
             } else if (timeLeft <= 60) {
                 timer.classList.add('text-yellow-400');
             } else {
-                timer.classList.add('text-white');
+                timer.classList.add('text-white', 'pulse-timer');
             }
         }
         
-        function autoSubmit() {
-            if (!submitted) {
-                submitRetention();
-            }
-        }
-
-        // ========== SUBMISSION FUNCTIONS ==========
-        function submitRetention() {
-            if (submitted) {
-                console.log('Already submitted');
+        function autoSubmitRetention() {
+            if (autoSubmitted) {
+                console.log('Already auto-submitted');
                 return;
             }
             
-            submitted = true;
+            autoSubmitted = true;
             clearInterval(countdownInterval);
             
-            const selectedPlayersData = Array.from(selectedPlayers).map(id => {
-                const card = document.querySelector(`[data-id="${id}"]`);
-                if (!card) return null;
-                
-                const playerName = card.querySelector('h3')?.textContent || 'Unknown';
-                const isOverseas = card.dataset.isOverseas === 'true';
-                const role = card.querySelector('.bg-\\w+-900\\/30')?.textContent || 'Player';
-                
-                return {
-                    id: id,
-                    name: playerName,
-                    role: role,
-                    nationality: isOverseas ? 'Overseas' : 'Indian',
-                    isOverseas: isOverseas
-                };
-            }).filter(player => player !== null);
+            const selectedPlayersData = Array.from(selectedPlayers.values());
             
-            console.log('📤 Submitting retention:', {
+            console.log('📤 Auto-submitting retention:', {
                 roomCode: currentRoomCode,
                 username: currentUsername,
                 count: selectedPlayersData.length,
@@ -595,13 +692,16 @@
             socket.emit('submitRetention', {
                 roomCode: currentRoomCode,
                 username: currentUsername,
-                selectedPlayers: selectedPlayersData
+                selectedPlayers: selectedPlayersData,
+                sessionId: JSON.parse(localStorage.getItem('userSession') || '{}').sessionId
             });
             
-            // UI feedback
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '✅ Submitted';
-            clearSelectionBtn.disabled = true;
+            // Show auto-submitted message
+            showAlert('Retention Auto-Submitted', 
+                selectedPlayersData.length > 0 
+                    ? `Your ${selectedPlayersData.length} selected players have been retained.` 
+                    : 'No players selected. You will enter auction with zero retained players.',
+                selectedPlayersData.length > 0 ? '✅' : '⚠️');
             
             // Disable all player cards
             document.querySelectorAll('.player-card').forEach(card => {
@@ -609,23 +709,150 @@
                 card.style.opacity = '0.5';
             });
             
-            showAlert('Success', 'Retention submitted successfully!', '✅');
-            
             // Store retention data in localStorage
             localStorage.setItem('retentionSubmitted', 'true');
+            localStorage.setItem('retainedPlayers', JSON.stringify(selectedPlayersData));
+            
+            // Wait 3 seconds then show redirect message
+            setTimeout(() => {
+                showAlert('Auction Pool Starting', 'Moving to auction pool in 5 seconds...', '💰');
+                setTimeout(() => {
+                    window.location.href = 'auctionpool.html';
+                }, 5000);
+            }, 3000);
+        }
+
+        // ========== STATS MODAL FUNCTIONS ==========
+        function showPlayerStats(e, index) {
+            e.stopPropagation();
+            
+            const players = retentionData.players || [];
+            if (index >= players.length) return;
+            
+            const player = players[index];
+            if (!player) return;
+            
+            document.getElementById('statsPlayerName').textContent = player.name || 'Player Stats';
+            
+            // Get all stats except marqueeSet and basePrice
+            const statsContent = document.getElementById('statsContent');
+            statsContent.innerHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    ${player.totalRuns !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">Total Runs</div>
+                            <div class="text-lg font-bold text-green-400">${player.totalRuns}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${player.highestScore !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">Highest Score</div>
+                            <div class="text-lg font-bold text-yellow-400">${player.highestScore}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${player.strikeRate !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">Strike Rate</div>
+                            <div class="text-lg font-bold text-blue-400">${player.strikeRate}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${player.wickets !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">Wickets</div>
+                            <div class="text-lg font-bold text-red-400">${player.wickets}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${player.economyRate !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">Economy Rate</div>
+                            <div class="text-lg font-bold text-purple-400">${player.economyRate}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${player.bestBowling !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">Best Bowling</div>
+                            <div class="text-lg font-bold text-cyan-400">${player.bestBowling}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${player.fours !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">4's</div>
+                            <div class="text-lg font-bold text-green-400">${player.fours}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${player.sixes !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">6's</div>
+                            <div class="text-lg font-bold text-yellow-400">${player.sixes}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${player.fifties !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">50's</div>
+                            <div class="text-lg font-bold text-blue-400">${player.fifties}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${player.hundreds !== undefined ? `
+                        <div class="bg-gray-800/30 p-4 rounded-lg">
+                            <div class="text-sm text-gray-400">100's</div>
+                            <div class="text-lg font-bold text-red-400">${player.hundreds}</div>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="mt-6 pt-6 border-t border-gray-700">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <div class="text-sm text-gray-400">Role</div>
+                            <div class="font-medium">${player.role || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-400">Bowling Type</div>
+                            <div class="font-medium">${player.bowlingType || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-400">Nationality</div>
+                            <div class="font-medium">${player.nationality || 'Indian'}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-400">Base Price</div>
+                            <div class="font-medium text-yellow-400">₹${player.basePrice || '2.00'} Cr</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('statsModal').classList.remove('hidden');
         }
         
-        // ========== EVENT LISTENERS ==========
-        clearSelectionBtn.addEventListener('click', () => {
-            if (submitted) return;
-            selectedPlayers.clear();
-            updatePlayerCards();
-            updateCounts();
-        });
-        
-        submitBtn.addEventListener('click', submitRetention);
+        function closeStatsModal() {
+            document.getElementById('statsModal').classList.add('hidden');
+        }
 
         // ========== HELPER FUNCTIONS ==========
+        function clearAllSelections() {
+            if (autoSubmitted) return;
+            
+            selectedPlayers.clear();
+            updateCounts();
+            
+            // Remove selected class from all cards
+            document.querySelectorAll('.player-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            showAlert('Cleared', 'All selections have been cleared.', '🔄');
+        }
+        
         function showAlert(title, message, icon = 'ℹ️') {
             const modal = document.getElementById('alertModal');
             const modalIcon = document.getElementById('modalIcon');
@@ -643,7 +870,13 @@
             document.getElementById('alertModal').classList.add('hidden');
         }
         
+        // Expose functions to global scope
         window.closeModal = closeModal;
+        window.closeStatsModal = closeStatsModal;
+        window.showPlayerStats = showPlayerStats;
+        window.clearAllSelections = clearAllSelections;
+
+        console.log('✅ Retention page loaded with auto-submission');
     </script>
 </body>
 </html>

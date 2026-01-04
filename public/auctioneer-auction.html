@@ -3,207 +3,366 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auctioneer - Live Auction Control</title>
+    <title>Auctioneer Auction - IPL Auction</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .sell-player-btn {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            position: relative;
+            overflow: hidden;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .sell-player-btn:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+        }
+        
+        .sell-player-btn:disabled {
+            background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .sell-player-btn::after {
+            content: '💰';
+            position: absolute;
+            right: 20px;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: all 0.3s ease;
+        }
+        
+        .sell-player-btn:hover::after {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed !important;
+            pointer-events: none;
+        }
+        
+        .player-card-auctioneer {
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 20px;
+            border: 2px solid rgba(245, 158, 11, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .player-card-auctioneer:hover {
+            border-color: rgba(245, 158, 11, 0.5);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stats-grid-auctioneer {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .stat-item-auctioneer {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 12px;
+        }
+        
+        .current-bid-display {
+            font-size: 48px;
+            font-weight: 900;
+            background: linear-gradient(45deg, #F59E0B, #EF4444);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(245, 158, 11, 0.3);
+        }
+        
+        .bidder-badge {
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .bidder-badge.active {
+            animation: pulse 1.5s infinite;
+            border: 2px solid currentColor;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .bounce {
+            animation: bounce 0.5s;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+    </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
     <div class="container mx-auto px-4 py-6">
         <!-- Header -->
-        <header class="glass-panel rounded-2xl p-6 mb-6">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div>
-                    <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                        Auctioneer Control Panel
-                    </h1>
-                    <div class="flex items-center space-x-4">
-                        <div id="connectionStatus" class="flex items-center space-x-2">
-                            <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                            <span class="text-sm text-gray-300">Connected</span>
-                        </div>
-                        <span class="text-sm text-gray-400">Live Auction Pool</span>
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                    🎤 Auctioneer Auction Control
+                </h1>
+                <div class="flex items-center space-x-2">
+                    <div id="connectionStatus" class="flex items-center space-x-2 px-3 py-1 bg-gray-800/50 rounded-full">
+                        <div id="connectionDot" class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <span id="connectionText" class="text-sm text-gray-300">Connected</span>
                     </div>
+                    <span class="text-sm text-gray-400">Room: <span id="roomCodeDisplay" class="font-bold">----</span></span>
                 </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3">
+                <button id="sellPlayerBtn" class="sell-player-btn rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span class="flex items-center justify-center space-x-2">
+                        <span>✅</span>
+                        <span>SELL PLAYER</span>
+                    </span>
+                </button>
                 
-                <div class="text-right">
-                    <div class="text-sm text-gray-400">ROOM CODE</div>
-                    <div id="roomCode" class="text-2xl font-bold tracking-wider text-yellow-400">----</div>
-                    <div class="text-xs text-gray-500 mt-1">Auctioneer View</div>
-                </div>
+                <button id="markUnsoldBtn" 
+                        class="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-xl font-bold text-lg transition-all duration-300 hover:scale-[1.02] active:scale-95">
+                    ❌ UNSOLD
+                </button>
+                
+                <button id="nextPlayerBtn" 
+                        class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl font-bold text-lg transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:btn-disabled">
+                    ⏭️ NEXT
+                </button>
+                
+                <button id="endAuctionBtn" 
+                        class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold text-lg transition-all duration-300 hover:scale-[1.02] active:scale-95">
+                    🏁 END
+                </button>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Left Column: Current Player & Controls -->
-            <div class="lg:col-span-2 space-y-6">
-                <!-- Current Player Card -->
-                <div id="currentPlayerSection" class="glass-panel rounded-2xl p-6 hidden slide-in">
-                    <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
-                        <!-- Player Image -->
-                        <div class="w-40 h-40 rounded-xl bg-gray-800/50 flex items-center justify-center overflow-hidden">
-                            <div id="playerImage" class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
-                                <span class="text-4xl">🏏</span>
+        <!-- Current Player Section -->
+        <div class="glass-panel rounded-2xl p-6 mb-8">
+            <div id="playerInfo" class="hidden">
+                <div class="flex flex-col lg:flex-row gap-8">
+                    <!-- Player Image & Basic Info -->
+                    <div class="lg:w-1/3">
+                        <div class="relative">
+                            <div class="w-full aspect-square rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center mb-4">
+                                <span class="text-8xl">🏏</span>
+                            </div>
+                            <div class="absolute top-4 right-4 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                                <span id="playerCategory">MARQUEE</span>
                             </div>
                         </div>
                         
-                        <!-- Player Details -->
-                        <div class="flex-1">
-                            <div class="flex flex-col md:flex-row justify-between items-start mb-4">
-                                <div>
-                                    <div class="text-sm text-gray-400 mb-1">CURRENT PLAYER</div>
-                                    <h2 id="playerName" class="text-3xl font-bold text-yellow-400 mb-2">Waiting for Player...</h2>
-                                    <div class="flex flex-wrap gap-2">
-                                        <span id="playerRole" class="px-3 py-1 bg-blue-900/50 text-blue-300 rounded-lg text-sm">Role</span>
-                                        <span id="playerType" class="px-3 py-1 bg-purple-900/50 text-purple-300 rounded-lg text-sm">Type</span>
-                                        <span id="playerNationality" class="px-3 py-1 bg-green-900/50 text-green-300 rounded-lg text-sm">Nationality</span>
+                        <div class="mt-4">
+                            <h2 id="playerName" class="text-3xl font-bold mb-2">Player Name</h2>
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                <span id="playerRole" class="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg font-semibold">BAT</span>
+                                <span id="playerType" class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg">Right Arm Fast</span>
+                                <span id="playerNationality" class="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg">Indian</span>
+                            </div>
+                            <div class="text-gray-400 mb-1">
+                                Original Team: <span id="originalTeam" class="text-yellow-300 font-semibold">Team Name</span>
+                            </div>
+                            <div class="text-gray-400">
+                                Base Price: <span id="basePrice" class="text-green-400 font-bold text-xl">₹2 Cr</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bidding Info & Controls -->
+                    <div class="lg:w-2/3">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <!-- Current Bid Section -->
+                            <div class="space-y-6">
+                                <div class="text-center">
+                                    <div class="text-sm text-gray-400 mb-2">CURRENT BID</div>
+                                    <div id="currentBid" class="current-bid-display">₹0 Cr</div>
+                                    <div id="currentBidder" class="mt-3">
+                                        <span class="bidder-badge bg-gray-800/50 text-gray-300">
+                                            No bids yet
+                                        </span>
                                     </div>
                                 </div>
                                 
-                                <!-- Bid Info -->
-                                <div class="mt-4 md:mt-0 text-center md:text-right">
-                                    <div class="text-sm text-gray-400">CURRENT HIGHEST BID</div>
-                                    <div id="currentBid" class="text-4xl font-bold text-yellow-400 mt-1">₹0 Cr</div>
-                                    <div id="highestTeam" class="text-lg text-gray-300 mt-2">No bids yet</div>
-                                    <div class="text-sm text-gray-400 mt-1">Base: <span id="basePrice" class="text-yellow-300">₹0 Cr</span></div>
+                                <!-- Bid History -->
+                                <div class="glass-panel-dark rounded-xl p-4">
+                                    <h3 class="text-lg font-semibold text-yellow-400 mb-3">Bid History</h3>
+                                    <div id="bidHistory" class="space-y-2 max-h-40 overflow-y-auto pr-2">
+                                        <div class="text-center text-gray-500 py-4">No bids yet</div>
+                                    </div>
                                 </div>
                             </div>
                             
                             <!-- Player Stats -->
-                            <div class="mt-6">
-                                <div class="text-sm text-gray-400 mb-3">PLAYER STATISTICS</div>
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    <div class="stat-card">
+                            <div>
+                                <h3 class="text-lg font-semibold text-yellow-400 mb-3">Player Statistics</h3>
+                                <div class="stats-grid-auctioneer">
+                                    <div class="stat-item-auctioneer">
                                         <div class="text-xs text-gray-400">Total Runs</div>
-                                        <div id="statRuns" class="text-lg font-bold">0</div>
+                                        <div id="statRuns" class="text-xl font-bold">0</div>
                                     </div>
-                                    <div class="stat-card">
+                                    <div class="stat-item-auctioneer">
+                                        <div class="text-xs text-gray-400">Highest Score</div>
+                                        <div id="statHighestScore" class="text-xl font-bold">0</div>
+                                    </div>
+                                    <div class="stat-item-auctioneer">
                                         <div class="text-xs text-gray-400">Strike Rate</div>
-                                        <div id="statStrikeRate" class="text-lg font-bold">0</div>
+                                        <div id="statStrikeRate" class="text-xl font-bold">0</div>
                                     </div>
-                                    <div class="stat-card">
+                                    <div class="stat-item-auctioneer">
                                         <div class="text-xs text-gray-400">Wickets</div>
-                                        <div id="statWickets" class="text-lg font-bold">0</div>
+                                        <div id="statWickets" class="text-xl font-bold">0</div>
                                     </div>
-                                    <div class="stat-card">
+                                    <div class="stat-item-auctioneer">
                                         <div class="text-xs text-gray-400">Economy</div>
-                                        <div id="statEconomy" class="text-lg font-bold">0</div>
+                                        <div id="statEconomy" class="text-xl font-bold">0</div>
+                                    </div>
+                                    <div class="stat-item-auctioneer">
+                                        <div class="text-xs text-gray-400">Best Bowling</div>
+                                        <div id="statBestBowling" class="text-xl font-bold">0/0</div>
+                                    </div>
+                                    <div class="stat-item-auctioneer">
+                                        <div class="text-xs text-gray-400">4's</div>
+                                        <div id="statFours" class="text-xl font-bold">0</div>
+                                    </div>
+                                    <div class="stat-item-auctioneer">
+                                        <div class="text-xs text-gray-400">6's</div>
+                                        <div id="statSixes" class="text-xl font-bold">0</div>
+                                    </div>
+                                    <div class="stat-item-auctioneer">
+                                        <div class="text-xs text-gray-400">50's</div>
+                                        <div id="statFifties" class="text-xl font-bold">0</div>
+                                    </div>
+                                    <div class="stat-item-auctioneer">
+                                        <div class="text-xs text-gray-400">100's</div>
+                                        <div id="statHundreds" class="text-xl font-bold">0</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Auction Status -->
+                                <div class="glass-panel-dark rounded-xl p-4 mt-6">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <div class="text-xs text-gray-400">Category</div>
+                                            <div id="auctionCategory" class="font-bold text-yellow-400">-</div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs text-gray-400">Players Left</div>
+                                            <div id="playersLeft" class="font-bold text-blue-400">-</div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs text-gray-400">Unsold</div>
+                                            <div id="unsoldCount" class="font-bold text-red-400">0</div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs text-gray-400">Player</div>
+                                            <div id="playerPosition" class="font-bold text-green-400">0/0</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Empty State -->
-                <div id="emptyState" class="glass-panel rounded-2xl p-12 text-center slide-in">
-                    <div class="text-6xl mb-4">⏳</div>
-                    <h3 class="text-2xl font-bold text-gray-300 mb-2">Waiting for Auction to Start</h3>
-                    <p class="text-gray-500">The auction pool will begin shortly...</p>
-                    <div class="mt-6 flex items-center justify-center space-x-2">
-                        <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                        <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-                        <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+            </div>
+            
+            <!-- Waiting for Player -->
+            <div id="waitingPlayer" class="text-center py-12">
+                <div class="text-6xl mb-4">⏳</div>
+                <h3 class="text-2xl font-bold text-gray-300 mb-2">Waiting for Players</h3>
+                <p class="text-gray-500">Auction pool will start soon...</p>
+            </div>
+        </div>
+
+        <!-- Auction Stats & Logs -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Auction Stats -->
+            <div class="glass-panel rounded-2xl p-6">
+                <h3 class="text-xl font-bold text-yellow-400 mb-4">Auction Statistics</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Total Players</span>
+                        <span id="totalPlayers" class="font-bold">0</span>
                     </div>
-                </div>
-
-                <!-- Auctioneer Controls -->
-                <div class="glass-panel rounded-2xl p-6 slide-in">
-                    <h2 class="text-2xl font-bold text-yellow-400 mb-6">Auction Controls</h2>
-                    
-                    <!-- Action Buttons -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <button id="sellBtn"
-                                class="py-4 rounded-xl font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed text-lg"
-                                disabled>
-                            ✅ SELL PLAYER
-                        </button>
-
-                        <button id="unsoldBtn"
-                                class="py-4 rounded-xl font-semibold bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed text-lg"
-                                disabled>
-                            ❌ MARK UNSOLD
-                        </button>
-
-                        <button id="nextBtn"
-                                class="py-4 rounded-xl font-semibold bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed text-lg"
-                                disabled>
-                            ⏭ NEXT PLAYER
-                        </button>
-                        
-                        <button id="endAuctionBtn"
-                                class="py-4 rounded-xl font-semibold bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 transition-all duration-300 text-lg">
-                            🏁 END AUCTION
-                        </button>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Sold</span>
+                        <span id="soldPlayers" class="font-bold text-green-400">0</span>
                     </div>
-                    
-                    <!-- Status Info -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-gray-800/50 p-4 rounded-xl">
-                            <div class="text-sm text-gray-400">Category</div>
-                            <div id="auctionCategory" class="text-xl font-bold text-yellow-400">-</div>
-                        </div>
-                        <div class="bg-gray-800/50 p-4 rounded-xl">
-                            <div class="text-sm text-gray-400">Players Left</div>
-                            <div id="playersLeft" class="text-xl font-bold text-green-400">-</div>
-                        </div>
-                        <div class="bg-gray-800/50 p-4 rounded-xl">
-                            <div class="text-sm text-gray-400">Unsold Players</div>
-                            <div id="unsoldCount" class="text-xl font-bold text-red-400">0</div>
-                        </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Unsold</span>
+                        <span id="unsoldPlayers" class="font-bold text-red-400">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Total Value</span>
+                        <span id="totalValue" class="font-bold text-yellow-400">₹0 Cr</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Avg Price</span>
+                        <span id="avgPrice" class="font-bold text-blue-400">₹0 Cr</span>
                     </div>
                 </div>
             </div>
-
-            <!-- Right Column: Auction Log & Info -->
-            <div class="space-y-6">
-                <!-- Auction Statistics -->
-                <div class="glass-panel rounded-2xl p-6 slide-in">
-                    <h3 class="text-xl font-bold text-yellow-400 mb-4">Auction Statistics</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-400">Total Players Sold:</span>
-                            <span id="totalSold" class="font-bold text-green-400">0</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-400">Total Amount:</span>
-                            <span id="totalAmount" class="font-bold text-yellow-400">₹0 Cr</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-400">Active Teams:</span>
-                            <span id="activeTeams" class="font-bold text-blue-400">0</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-400">Average Bid:</span>
-                            <span id="averageBid" class="font-bold text-purple-400">₹0 Cr</span>
-                        </div>
-                    </div>
+            
+            <!-- Live Bid Log -->
+            <div class="glass-panel rounded-2xl p-6 lg:col-span-2">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-yellow-400">Live Bid Log</h3>
+                    <button id="clearLogBtn" class="text-sm text-gray-400 hover:text-gray-300 px-3 py-1 bg-gray-800/50 rounded-lg">
+                        Clear Log
+                    </button>
                 </div>
-                
-                <!-- Live Bid Log -->
-                <div class="glass-panel rounded-2xl p-6 slide-in">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold text-yellow-400">Live Bid Log</h3>
-                        <button id="clearBidLogBtn" class="text-xs text-gray-400 hover:text-gray-300 px-3 py-1 bg-gray-800/50 rounded-lg">
-                            Clear
-                        </button>
-                    </div>
-                    <div id="bidLog" class="space-y-2 max-h-96 overflow-y-auto pr-2">
-                        <div class="text-gray-500 text-center py-8">No bids yet</div>
-                    </div>
+                <div id="bidLog" class="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    <div class="text-center text-gray-500 py-4">No bids yet</div>
                 </div>
-                
-                <!-- Quick Actions -->
-                <div class="glass-panel rounded-2xl p-6 slide-in">
-                    <h3 class="text-xl font-bold text-yellow-400 mb-4">Quick Actions</h3>
+            </div>
+        </div>
+        
+        <!-- Session Modal -->
+        <div id="sessionModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+            <div class="absolute inset-0 bg-black/80"></div>
+            <div class="glass-panel rounded-2xl p-6 max-w-md mx-4 z-10">
+                <div class="text-center">
+                    <div class="text-4xl mb-4">🔐</div>
+                    <h3 class="text-2xl font-bold mb-2">Session Required</h3>
+                    <p class="text-gray-300 mb-6">You need a valid session to access the auction control panel.</p>
                     <div class="space-y-3">
-                        <button id="skipPlayerBtn" 
-                                class="w-full py-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 rounded-lg font-medium">
-                            ⏭ Skip Current Player
+                        <button onclick="reconnectWithSession()" 
+                                class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold transition-all duration-300">
+                            Reconnect with Existing Session
                         </button>
-                        <button id="forceNextBtn" 
-                                class="w-full py-2 bg-gradient-to-r from-orange-700 to-amber-800 hover:from-orange-800 hover:to-amber-900 rounded-lg font-medium">
-                            ⏩ Force Next Player
+                        <button onclick="goToLogin()" 
+                                class="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl font-semibold transition-all duration-300">
+                            Go to Login Page
                         </button>
                     </div>
                 </div>
@@ -213,8 +372,8 @@
 
     <!-- Alert Modal -->
     <div id="alertModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-        <div class="absolute inset-0 bg-black/80"></div>
-        <div class="glass-panel rounded-2xl p-6 max-w-md w-11/12 z-10">
+        <div class="absolute inset-0 bg-black/70"></div>
+        <div class="glass-panel rounded-2xl p-6 max-w-md mx-4 z-10">
             <div class="text-center">
                 <div class="text-4xl mb-4" id="modalIcon">⚠️</div>
                 <h3 class="text-2xl font-bold mb-2" id="modalTitle">Alert</h3>
@@ -231,457 +390,753 @@
         // ========== GLOBAL VARIABLES ==========
         const socket = io();
         let currentRoomCode = null;
-        let currentPlayer = null;
-        let decisionTaken = false;
+        let currentSessionId = null;
+        let currentUsername = null;
+        let currentPlayerData = null;
         let auctionStats = {
-            totalSold: 0,
-            totalAmount: 0,
-            activeTeams: new Set(),
-            bidCount: 0
+            totalPlayers: 0,
+            soldPlayers: 0,
+            unsoldPlayers: 0,
+            totalValue: 0,
+            avgPrice: 0
         };
 
         // ========== DOM ELEMENTS ==========
-        const roomCodeEl = document.getElementById('roomCode');
-        const connectionStatus = document.getElementById('connectionStatus');
-        const currentPlayerSection = document.getElementById('currentPlayerSection');
-        const emptyState = document.getElementById('emptyState');
-        const playerNameEl = document.getElementById('playerName');
-        const playerRoleEl = document.getElementById('playerRole');
-        const playerTypeEl = document.getElementById('playerType');
-        const playerNationalityEl = document.getElementById('playerNationality');
-        const currentBidEl = document.getElementById('currentBid');
-        const highestTeamEl = document.getElementById('highestTeam');
-        const basePriceEl = document.getElementById('basePrice');
-        const statRuns = document.getElementById('statRuns');
-        const statStrikeRate = document.getElementById('statStrikeRate');
-        const statWickets = document.getElementById('statWickets');
-        const statEconomy = document.getElementById('statEconomy');
+        const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+        const sellPlayerBtn = document.getElementById('sellPlayerBtn');
+        const markUnsoldBtn = document.getElementById('markUnsoldBtn');
+        const nextPlayerBtn = document.getElementById('nextPlayerBtn');
+        const endAuctionBtn = document.getElementById('endAuctionBtn');
+        const playerInfo = document.getElementById('playerInfo');
+        const waitingPlayer = document.getElementById('waitingPlayer');
+        const playerName = document.getElementById('playerName');
+        const playerRole = document.getElementById('playerRole');
+        const playerType = document.getElementById('playerType');
+        const playerNationality = document.getElementById('playerNationality');
+        const originalTeam = document.getElementById('originalTeam');
+        const basePrice = document.getElementById('basePrice');
+        const currentBid = document.getElementById('currentBid');
+        const currentBidder = document.getElementById('currentBidder');
+        const bidHistory = document.getElementById('bidHistory');
         const auctionCategory = document.getElementById('auctionCategory');
         const playersLeft = document.getElementById('playersLeft');
         const unsoldCount = document.getElementById('unsoldCount');
-        const sellBtn = document.getElementById('sellBtn');
-        const unsoldBtn = document.getElementById('unsoldBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const endAuctionBtn = document.getElementById('endAuctionBtn');
+        const playerPosition = document.getElementById('playerPosition');
+        const statRuns = document.getElementById('statRuns');
+        const statHighestScore = document.getElementById('statHighestScore');
+        const statStrikeRate = document.getElementById('statStrikeRate');
+        const statWickets = document.getElementById('statWickets');
+        const statEconomy = document.getElementById('statEconomy');
+        const statBestBowling = document.getElementById('statBestBowling');
+        const statFours = document.getElementById('statFours');
+        const statSixes = document.getElementById('statSixes');
+        const statFifties = document.getElementById('statFifties');
+        const statHundreds = document.getElementById('statHundreds');
         const bidLog = document.getElementById('bidLog');
-        const clearBidLogBtn = document.getElementById('clearBidLogBtn');
-        const skipPlayerBtn = document.getElementById('skipPlayerBtn');
-        const forceNextBtn = document.getElementById('forceNextBtn');
-        const totalSold = document.getElementById('totalSold');
-        const totalAmount = document.getElementById('totalAmount');
-        const activeTeams = document.getElementById('activeTeams');
-        const averageBid = document.getElementById('averageBid');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const totalPlayers = document.getElementById('totalPlayers');
+        const soldPlayers = document.getElementById('soldPlayers');
+        const unsoldPlayers = document.getElementById('unsoldPlayers');
+        const totalValue = document.getElementById('totalValue');
+        const avgPrice = document.getElementById('avgPrice');
 
         // ========== INITIALIZATION ==========
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🎤 Auctioneer auction page loading...');
+            console.log('🎤 Auctioneer auction page loaded');
             
-            // Get room code from URL or localStorage
-            const urlParams = new URLSearchParams(window.location.search);
-            currentRoomCode = urlParams.get('roomCode') || localStorage.getItem('auctioneerRoomCode');
-            
-            if (!currentRoomCode) {
-                showAlert('No Room Code', 'Redirecting to auctioneer panel...', '❌');
-                setTimeout(() => {
-                    window.location.href = 'auctioneer.html';
-                }, 2000);
-                return;
-            }
-            
-            roomCodeEl.textContent = currentRoomCode;
-            
-            console.log(`🔗 Joining room: ${currentRoomCode}`);
-            
-            // Join as auctioneer
-            socket.emit('joinAuctioneer', { roomCode: currentRoomCode });
+            // Check for session
+            checkSession();
             
             // Setup event listeners
             setupEventListeners();
         });
-
-        function setupEventListeners() {
-            // Control buttons
-            sellBtn.addEventListener('click', () => sellCurrentPlayer());
-            unsoldBtn.addEventListener('click', () => markUnsold());
-            nextBtn.addEventListener('click', () => nextPlayer());
-            endAuctionBtn.addEventListener('click', () => endAuction());
-            clearBidLogBtn.addEventListener('click', clearBidLog);
-            skipPlayerBtn.addEventListener('click', () => skipPlayer());
-            forceNextBtn.addEventListener('click', () => forceNextPlayer());
+        
+        function checkSession() {
+            // Get room code from URL or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlRoomCode = urlParams.get('roomCode');
+            const localRoomCode = localStorage.getItem('auctioneerRoomCode');
             
-            // Socket events
-            setupSocketEvents();
-        }
-
-        function setupSocketEvents() {
-            socket.on('connect', () => {
-                console.log('✅ Connected to server');
-                updateConnectionStatus('Connected', 'green');
-                
-                if (currentRoomCode) {
-                    socket.emit('joinAuctioneer', { roomCode: currentRoomCode });
+            currentRoomCode = urlRoomCode || localRoomCode;
+            
+            // Get session data
+            const auctioneerSession = localStorage.getItem('auctioneerSession');
+            const currentSession = localStorage.getItem('currentSession');
+            
+            if (auctioneerSession) {
+                try {
+                    const sessionData = JSON.parse(auctioneerSession);
+                    currentSessionId = sessionData.sessionId;
+                    currentUsername = sessionData.username;
+                    
+                    console.log(`🔗 Loaded auctioneer session for room: ${currentRoomCode}`);
+                    
+                    if (!currentRoomCode) {
+                        showAlert('Room Error', 'No room code found. Please return to control panel.', '❌');
+                        setTimeout(() => {
+                            window.location.href = 'auctioneer.html';
+                        }, 3000);
+                        return;
+                    }
+                    
+                    roomCodeDisplay.textContent = currentRoomCode;
+                    
+                    initializeSocket();
+                    
+                } catch (error) {
+                    console.error('❌ Error parsing session:', error);
+                    showSessionModal();
                 }
+            } else if (currentSession) {
+                try {
+                    const sessionData = JSON.parse(currentSession);
+                    if (sessionData.role === 'auctioneer') {
+                        currentSessionId = sessionData.sessionId;
+                        currentUsername = sessionData.username;
+                        
+                        if (!currentRoomCode) {
+                            showAlert('Room Error', 'No room code found. Please return to control panel.', '❌');
+                            setTimeout(() => {
+                                window.location.href = 'auctioneer.html';
+                            }, 3000);
+                            return;
+                        }
+                        
+                        roomCodeDisplay.textContent = currentRoomCode;
+                        initializeSocket();
+                    } else {
+                        showSessionModal();
+                    }
+                } catch (error) {
+                    console.error('❌ Error parsing current session:', error);
+                    showSessionModal();
+                }
+            } else {
+                showSessionModal();
+            }
+        }
+        
+        function showSessionModal() {
+            document.getElementById('sessionModal').classList.remove('hidden');
+        }
+        
+        function reconnectWithSession() {
+            const auctioneerSession = localStorage.getItem('auctioneerSession');
+            if (auctioneerSession) {
+                document.getElementById('sessionModal').classList.add('hidden');
+                checkSession();
+            } else {
+                goToLogin();
+            }
+        }
+        
+        function goToLogin() {
+            localStorage.removeItem('auctioneerSession');
+            localStorage.removeItem('currentSession');
+            window.location.href = 'login.html';
+        }
+        
+        function initializeSocket() {
+            console.log('🔌 Connecting to socket server...');
+            
+            socket.on('connect', () => {
+                console.log('✅ Connected to auction room');
+                updateConnectionStatus(true);
+                
+                // Join as auctioneer
+                socket.emit('joinAuctioneer', {
+                    roomCode: currentRoomCode,
+                    sessionId: currentSessionId
+                });
             });
             
             socket.on('connect_error', (error) => {
                 console.error('❌ Connection error:', error);
-                updateConnectionStatus('Disconnected', 'red');
+                updateConnectionStatus(false);
                 showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
             });
             
             socket.on('disconnect', () => {
-                console.log('❌ Disconnected from server');
-                updateConnectionStatus('Disconnected', 'red');
+                console.log('⚠️ Disconnected from server');
+                updateConnectionStatus(false);
             });
             
-            // Player starts auction
-            socket.on('playerUpForAuction', ({ player, category }) => {
-                console.log('🎯 New player up for auction:', player);
-                
-                decisionTaken = false;
-                currentPlayer = player;
-                
-                // Hide empty state, show player section
-                emptyState.classList.add('hidden');
-                currentPlayerSection.classList.remove('hidden');
-                
-                // Update player info
-                updatePlayerInfo(player);
-                
-                // Update category
-                auctionCategory.textContent = category || '-';
-                auctionCategory.className = 'text-xl font-bold text-yellow-400';
-                
-                // Enable sell/unsold buttons, disable next
-                sellBtn.disabled = false;
-                unsoldBtn.disabled = false;
-                nextBtn.disabled = true;
-                
-                // Add log entry
-                addToLog('NEW_PLAYER', `Starting auction for ${player.name}`, 'blue');
-            });
+            setupSocketEvents();
+        }
+        
+        function updateConnectionStatus(connected) {
+            const connectionDot = document.getElementById('connectionDot');
+            const connectionText = document.getElementById('connectionText');
             
-            // Bid update
-            socket.on('bidUpdate', ({ team, bid, playerId }) => {
-                console.log('💰 Bid update:', team, bid);
+            if (connected) {
+                connectionDot.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
+                connectionText.textContent = 'Connected';
+                connectionText.className = 'text-sm text-green-400';
+            } else {
+                connectionDot.className = 'w-2 h-2 rounded-full bg-red-500';
+                connectionText.textContent = 'Disconnected';
+                connectionText.className = 'text-sm text-red-400';
+            }
+        }
+        
+        function setupEventListeners() {
+            sellPlayerBtn.addEventListener('click', sellPlayer);
+            markUnsoldBtn.addEventListener('click', markUnsold);
+            nextPlayerBtn.addEventListener('click', nextPlayer);
+            endAuctionBtn.addEventListener('click', endAuction);
+            clearLogBtn.addEventListener('click', clearBidLog);
+        }
+        
+        // ========== ACTION FUNCTIONS ==========
+// In auctioneer-auction.html, around line 250-300
+function sellPlayer() {
+    if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
+        showAlert('Error', 'No player to sell', '❌');
+        return;
+    }
+    
+    console.log('🏷️ Selling player:', currentPlayerData.name);
+    
+    // Check if there's a bidder
+    if (!currentPlayerData.currentBidder) {
+        showAlert('No Bids', 'Cannot sell player with no bids. Mark as unsold instead.', '❌');
+        return;
+    }
+    
+    // Disable all buttons temporarily
+    sellPlayerBtn.disabled = true;
+    markUnsoldBtn.disabled = true;
+    nextPlayerBtn.disabled = true;
+    endAuctionBtn.disabled = true;
+    
+    sellPlayerBtn.innerHTML = `
+        <span class="flex items-center justify-center space-x-2">
+            <span class="animate-spin">⏳</span>
+            <span>SELLING...</span>
+        </span>
+    `;
+    
+    socket.emit('sellPlayer', {
+        roomCode: currentRoomCode,
+        sessionId: currentSessionId
+    });
+}
+
+function markUnsold() {
+    if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
+        showAlert('Error', 'No player to mark unsold', '❌');
+        return;
+    }
+    
+    if (confirm('Mark this player as UNSOLD?')) {
+        console.log('❌ Marking player unsold:', currentPlayerData.name);
+        
+        // Disable all buttons temporarily
+        sellPlayerBtn.disabled = true;
+        markUnsoldBtn.disabled = true;
+        nextPlayerBtn.disabled = true;
+        
+        markUnsoldBtn.innerHTML = 'MARKING...';
+        
+        socket.emit('markUnsold', {
+            roomCode: currentRoomCode,
+            sessionId: currentSessionId
+        });
+        
+        // Add auto-reset timer
+        setTimeout(() => {
+            markUnsoldBtn.disabled = false;
+            markUnsoldBtn.innerHTML = '❌ UNSOLD';
+        }, 2000);
+    }
+}
+
+function nextPlayer() {
+    if (!currentSessionId || !currentRoomCode) {
+        showAlert('Error', 'No active session', '❌');
+        return;
+    }
+    
+    console.log('⏭️ Moving to next player');
+    
+    // Disable next button temporarily
+    nextPlayerBtn.disabled = true;
+    
+    socket.emit('nextPlayer', {
+        roomCode: currentRoomCode,
+        sessionId: currentSessionId
+    });
+    
+    // Hide current player info
+    playerInfo.classList.add('hidden');
+    waitingPlayer.classList.remove('hidden');
+    
+    // Disable other buttons until new player loaded
+    sellPlayerBtn.disabled = true;
+    markUnsoldBtn.disabled = true;
+}
+
+// ========== SOCKET EVENT HANDLERS ==========
+function setupSocketEvents() {
+    socket.on('playerUpForAuction', (data) => {
+        console.log('👤 Player up for auction:', data);
+        currentPlayerData = data.player;
+        
+        // Show player info
+        waitingPlayer.classList.add('hidden');
+        playerInfo.classList.remove('hidden');
+        
+        // Update player details
+        updatePlayerDisplay(data.player);
+        updateBidDisplay(data.player);
+        
+        // Enable buttons
+        sellPlayerBtn.disabled = false;
+        markUnsoldBtn.disabled = false;
+        nextPlayerBtn.disabled = true; // Disable next until player sold/unsold
+        
+        // Update auction info
+        auctionCategory.textContent = data.category || '-';
+    });
+    
+    socket.on('bidUpdate', (data) => {
+        console.log('💰 Bid update:', data);
+        
+        if (currentPlayerData && currentPlayerData.id === data.playerId) {
+            currentPlayerData.currentBid = data.bid;
+            currentPlayerData.currentBidder = data.team;
+            updateBidDisplay(currentPlayerData);
+        }
+        
+        // Add to bid log
+        addBidToLog(data.team, data.bid, 'BID');
+    });
+    
+    socket.on('playerSold', (data) => {
+    console.log('✅ Player sold:', data);
+    
+    // Update auction stats
+    auctionStats.soldPlayers++;
+    auctionStats.totalValue += data.price;
+    auctionStats.avgPrice = auctionStats.totalValue / auctionStats.soldPlayers;
+    updateAuctionStats();
+    
+    // Add to bid log
+    addBidToLog('SOLD', `${data.player} → ${data.team} for ₹${data.price} Cr`, 'SOLD');
+    
+    // Show success message
+    showAlert('Player Sold!', `${data.player} sold to ${data.team} for ₹${data.price} Cr`, '✅');
+    
+    // Hide player info and show waiting
+    playerInfo.classList.add('hidden');
+    waitingPlayer.classList.remove('hidden');
+    
+    // Reset button states
+    sellPlayerBtn.disabled = true;
+    markUnsoldBtn.disabled = true;
+    nextPlayerBtn.disabled = true;
+    
+    // Reset sell button text
+    sellPlayerBtn.innerHTML = `
+        <span class="flex items-center justify-center space-x-2">
+            <span>✅</span>
+            <span>SELL PLAYER</span>
+        </span>
+    `;
+    
+    // Reset mark unsold button
+    markUnsoldBtn.innerHTML = '❌ UNSOLD';
+    
+    // Enable next player button after delay
+    setTimeout(() => {
+        nextPlayerBtn.disabled = false;
+    }, 2000);
+});
+    
+    socket.on('playerUnsoldAuctioneer', (data) => {
+    console.log('❌ Player unsold (auctioneer view):', data);
+    
+    // Update auction stats
+    auctionStats.unsoldPlayers++;
+    updateAuctionStats();
+    
+    // Add to bid log
+    addBidToLog('UNSOLD', `${data.player} unsold`, 'UNSOLD');
+    
+    // ✅ NO POPUP FOR AUCTIONEER - just reset buttons
+    // Reset buttons after delay
+    setTimeout(() => {
+        nextPlayerBtn.disabled = false;
+        sellPlayerBtn.disabled = true;
+        markUnsoldBtn.disabled = true;
+        markUnsoldBtn.innerHTML = '❌ UNSOLD';
+    }, 1000);
+});
+
+    socket.on('auctionUpdate', (data) => {
+        console.log('📊 Auction update:', data);
+        updateAuctionInfo(data);
+    });
+    
+    // Update socket event handlers in auctioneer-auction.html
+socket.on('auctionComplete', (data) => {
+    console.log('🏆 Auction complete:', data);
+    showAlert('Auction Complete', 'All players have been auctioned! Redirecting...', '🏆');
+    
+    // Disable all buttons
+    sellPlayerBtn.disabled = true;
+    markUnsoldBtn.disabled = true;
+    nextPlayerBtn.disabled = true;
+    endAuctionBtn.disabled = true;
+    
+    // Show redirecting message
+    waitingPlayer.classList.remove('hidden');
+    waitingPlayer.innerHTML = `
+        <div class="text-6xl mb-4">🎉</div>
+        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+        <p class="text-gray-300 mb-4">${data.message}</p>
+        <p class="text-gray-500">Preparing for team validation...</p>
+        <div class="mt-6 flex items-center justify-center space-x-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+        </div>
+    `;
+    playerInfo.classList.add('hidden');
+});
+
+// NEW: Handle auctioneer redirect to validation
+socket.on('redirectAuctioneerToValidation', (data) => {
+    console.log('📋 Auctioneer redirect to validation:', data);
+    
+    // Store session data for validation page
+    const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
+    auctioneerSession.roomCode = data.roomCode;
+    localStorage.setItem('auctioneerSession', JSON.stringify(auctioneerSession));
+    
+    // Also update currentSession
+    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+    if (currentSession.sessionId === currentSessionId) {
+        currentSession.roomCode = data.roomCode;
+        localStorage.setItem('currentSession', JSON.stringify(currentSession));
+    }
+    
+    // Show redirect message
+    showAlert('Redirecting', 'Taking you to team validation page...', '📋');
+    
+    // Redirect after short delay
+    setTimeout(() => {
+        console.log('🔗 Redirecting auctioneer to validation.html');
+        window.location.href = data.redirectUrl || 'validation.html';
+    }, 2000);
+});
+// ✅ Add this handler to reset END button
+socket.on('endAuctionComplete', (data) => {
+    console.log('✅ End auction complete:', data);
+    
+    // Reset end button
+    endAuctionBtn.disabled = false;
+    endAuctionBtn.innerHTML = '🏁 END';
+    
+    // Already being redirected, but keep button reset
+    console.log('Auction ended successfully, redirecting...');
+});
+
+// Regular users get redirected to playing11, but auctioneer should ignore this
+socket.on('redirectToPlaying11', (data) => {
+    console.log('📤 Received general redirect (auctioneer ignoring):', data);
+    // Auctioneer will be redirected via redirectAuctioneerToValidation instead
+    // So we ignore this event
+});
+    socket.on('error', (data) => {
+        console.error('❌ Socket error:', data);
+        showAlert('Error', data.message, '❌');
+        
+        // Re-enable buttons on error
+        sellPlayerBtn.disabled = false;
+        markUnsoldBtn.disabled = false;
+        nextPlayerBtn.disabled = false;
+        
+        // Reset button text
+        sellPlayerBtn.innerHTML = `
+            <span class="flex items-center justify-center space-x-2">
+                <span>✅</span>
+                <span>SELL PLAYER</span>
+            </span>
+        `;
+        markUnsoldBtn.innerHTML = '❌ UNSOLD';
+    });
+}
+        
+        // ========== ACTION FUNCTIONS ==========
+        // ========== ACTION FUNCTIONS ==========
+        // ========== ACTION FUNCTIONS ==========
+function sellPlayer() {
+    if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
+        showAlert('Error', 'No player to sell', '❌');
+        return;
+    }
+    
+    console.log('🏷️ Selling player:', currentPlayerData.name);
+    console.log('Current bidder:', currentPlayerData.currentBidder);
+    console.log('Current bid:', currentPlayerData.currentBid);
+    
+    // Check if there's a bidder
+    if (!currentPlayerData.currentBidder) {
+        showAlert('No Bids', 'Cannot sell player with no bids. Mark as unsold instead.', '❌');
+        return;
+    }
+    
+    // Disable all buttons temporarily
+    sellPlayerBtn.disabled = true;
+    markUnsoldBtn.disabled = true;
+    nextPlayerBtn.disabled = true;
+    
+    sellPlayerBtn.innerHTML = `
+        <span class="flex items-center justify-center space-x-2">
+            <span class="animate-spin">⏳</span>
+            <span>SELLING...</span>
+        </span>
+    `;
+    
+    socket.emit('sellPlayer', {
+        roomCode: currentRoomCode,
+        sessionId: currentSessionId
+    });
+}
+
+function markUnsold() {
+    if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
+        showAlert('Error', 'No player to mark unsold', '❌');
+        return;
+    }
+    
+    if (confirm('Mark this player as UNSOLD?')) {
+        console.log('❌ Marking player unsold:', currentPlayerData.name);
+        
+        // Disable all buttons temporarily
+        sellPlayerBtn.disabled = true;
+        markUnsoldBtn.disabled = true;
+        nextPlayerBtn.disabled = true;
+        
+        markUnsoldBtn.innerHTML = 'MARKING...';
+        
+        socket.emit('markUnsold', {
+            roomCode: currentRoomCode,
+            sessionId: currentSessionId
+        });
+    }
+}
+
+function nextPlayer() {
+    if (!currentSessionId || !currentRoomCode) {
+        showAlert('Error', 'No active session', '❌');
+        return;
+    }
+    
+    console.log('⏭️ Moving to next player');
+    
+    // Disable next button temporarily
+    nextPlayerBtn.disabled = true;
+    
+    socket.emit('nextPlayer', {
+        roomCode: currentRoomCode,
+        sessionId: currentSessionId
+    });
+    
+    // Hide current player info
+    playerInfo.classList.add('hidden');
+    waitingPlayer.classList.remove('hidden');
+    
+    // Disable other buttons until new player loaded
+    sellPlayerBtn.disabled = true;
+    markUnsoldBtn.disabled = true;
+}
+
+        
+        function endAuction() {
+            if (!currentSessionId || !currentRoomCode) {
+                showAlert('Error', 'No active session', '❌');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to END the auction? This will complete the auction pool and redirect all users.')) {
+                console.log('🏁 Ending auction for room:', currentRoomCode);
                 
-                // Update current bid display
-                currentBidEl.textContent = `₹${bid} Cr`;
-                highestTeamEl.textContent = team.toUpperCase();
+                socket.emit('endAuction', {
+                    roomCode: currentRoomCode,
+                    sessionId: currentSessionId
+                });
                 
-                // Update stats
-                auctionStats.activeTeams.add(team);
-                auctionStats.bidCount++;
-                updateStats();
-                
-                // Add to bid log
-                addBidToLog(team, bid);
-                
-                // Add team color
+                endAuctionBtn.disabled = true;
+                endAuctionBtn.innerHTML = 'ENDING...';
+            }
+        }
+        
+        function clearBidLog() {
+            bidLog.innerHTML = '<div class="text-center text-gray-500 py-4">No bids yet</div>';
+        }
+        
+        // ========== UI UPDATE FUNCTIONS ==========
+        function updatePlayerDisplay(player) {
+            playerName.textContent = player.name || 'Unknown Player';
+            
+            // Set role badge
+            const role = player.role || 'Player';
+            let roleClass = 'bg-green-500/20 text-green-400';
+            let roleText = role;
+            
+            if (role.toLowerCase().includes('bowl')) {
+                roleClass = 'bg-red-500/20 text-red-400';
+                roleText = 'Bowler';
+            } else if (role.toLowerCase().includes('all')) {
+                roleClass = 'bg-purple-500/20 text-purple-400';
+                roleText = 'All-Rounder';
+            } else if (role.toLowerCase().includes('wk')) {
+                roleClass = 'bg-yellow-500/20 text-yellow-400';
+                roleText = 'WK-Batsman';
+            }
+            
+            playerRole.className = `px-3 py-1 rounded-lg font-semibold ${roleClass}`;
+            playerRole.textContent = roleText;
+            
+            playerType.textContent = player.bowlingType || 'N/A';
+            playerNationality.textContent = player.nationality || 'Indian';
+            originalTeam.textContent = player.originalTeam || 'Unknown';
+            basePrice.textContent = `₹${player.basePrice || 2} Cr`;
+            
+            // Update stats
+            statRuns.textContent = player.totalRuns || '0';
+            statHighestScore.textContent = player.highestScore || '0';
+            statStrikeRate.textContent = player.strikeRate || '0';
+            statWickets.textContent = player.wickets || '0';
+            statEconomy.textContent = player.economyRate || '0';
+            statBestBowling.textContent = player.bestBowling || '0/0';
+            statFours.textContent = player.fours || '0';
+            statSixes.textContent = player.sixes || '0';
+            statFifties.textContent = player.fifties || '0';
+            statHundreds.textContent = player.hundreds || '0';
+        }
+        
+        function updateBidDisplay(player) {
+            const bid = player.currentBid || player.basePrice || 2;
+            currentBid.textContent = `₹${bid} Cr`;
+            
+            // Clear bid history
+            bidHistory.innerHTML = '';
+            
+            // Update bidder display
+            if (player.currentBidder) {
                 const teamColors = {
                     'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
                     'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
                     'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
                 };
                 
-                highestTeamEl.style.color = teamColors[team] || '#FFFFFF';
-            });
-            
-            // Auction status update
-            socket.on('auctionUpdate', (data) => {
-                console.log('📊 Auction update:', data);
-                updateAuctionStatus(data);
-            });
-            
-            // Player sold
-            socket.on('playerSold', ({ player, team, price }) => {
-                console.log('✅ Player sold:', player, 'to', team, 'for', price);
+                const teamColor = teamColors[player.currentBidder] || '#FFFFFF';
                 
-                // Update stats
-                auctionStats.totalSold++;
-                auctionStats.totalAmount += price;
-                updateStats();
+                currentBidder.innerHTML = `
+                    <span class="bidder-badge active" style="background: ${teamColor}20; color: ${teamColor}; border-color: ${teamColor}">
+                        ${player.currentBidder.toUpperCase()}
+                    </span>
+                `;
                 
-                // Add to log
-                addToLog('SOLD', `${player} → ${team.toUpperCase()} for ₹${price} Cr`, 'green');
+                // Add to bid history
+                const historyItem = document.createElement('div');
+                historyItem.className = 'flex justify-between items-center p-2 bg-gray-800/30 rounded-lg slide-in';
+                historyItem.innerHTML = `
+                    <span style="color: ${teamColor}">${player.currentBidder.toUpperCase()}</span>
+                    <span class="font-bold text-yellow-400">₹${bid} Cr</span>
+                `;
+                bidHistory.prepend(historyItem);
                 
-                // Disable sell/unsold, enable next
-                sellBtn.disabled = true;
-                unsoldBtn.disabled = true;
-                nextBtn.disabled = false;
-                decisionTaken = true;
-                
-                // Show RTM notification if applicable
-                if (currentPlayer && currentPlayer.originalTeam && currentPlayer.originalTeam !== team) {
-                    setTimeout(() => {
-                        addToLog('RTM_AVAILABLE', `RTM available for ${currentPlayer.originalTeam}`, 'yellow');
-                    }, 1000);
+                // Limit history to 5 items
+                if (bidHistory.children.length > 5) {
+                    bidHistory.removeChild(bidHistory.lastChild);
                 }
-                
-                // Hide player section after delay if next not clicked
-                setTimeout(() => {
-                    if (!decisionTaken) {
-                        currentPlayerSection.classList.add('hidden');
-                        emptyState.classList.remove('hidden');
-                    }
-                }, 5000);
-            });
-            
-            // Player unsold
-            socket.on('playerUnsold', ({ player }) => {
-                console.log('❌ Player unsold:', player);
-                
-                // Add to log
-                addToLog('UNSOLD', `${player} went unsold`, 'red');
-                
-                // Disable sell/unsold, enable next
-                sellBtn.disabled = true;
-                unsoldBtn.disabled = true;
-                nextBtn.disabled = false;
-                decisionTaken = true;
-                
-                // Update unsold count
-                unsoldCount.textContent = parseInt(unsoldCount.textContent) + 1;
-                
-                // Hide player section after delay if next not clicked
-                setTimeout(() => {
-                    if (!decisionTaken) {
-                        currentPlayerSection.classList.add('hidden');
-                        emptyState.classList.remove('hidden');
-                    }
-                }, 3000);
-            });
-            
-            // RTM result
-            socket.on('rtmResult', (data) => {
-                console.log('📝 RTM result:', data);
-                
-                const message = data.success 
-                    ? `RTM: ${data.player} retained by ${data.originalTeam} for ₹${data.rtmAmount} Cr`
-                    : `RTM: ${data.player} goes to ${data.winningTeam}`;
-                
-                addToLog('RTM', message, data.success ? 'purple' : 'orange');
-            });
-            
-            // Auction complete
-            socket.on('auctionComplete', (data) => {
-                console.log('🏆 Auction complete:', data);
-                
-                addToLog('COMPLETE', 'Auction pool completed! All users redirected to playing 11.', 'blue');
-                
-                // Disable all buttons
-                sellBtn.disabled = true;
-                unsoldBtn.disabled = true;
-                nextBtn.disabled = true;
-                endAuctionBtn.disabled = true;
-                endAuctionBtn.innerHTML = '🏁 Auction Ended';
-                
-                showAlert('Auction Complete', 'All players have been auctioned! Users are being redirected to playing 11 selection.', '✅');
-                
-                // Redirect after delay
-                setTimeout(() => {
-                    window.location.href = 'auctioneer.html';
-                }, 5000);
-            });
-            
-            // Error handling
-            socket.on('error', (data) => {
-                console.error('❌ Error:', data);
-                showAlert('Error', data.message, '❌');
-            });
-            
-            socket.on('roomClosed', () => {
-                showAlert('Room Closed', 'You have been disconnected from the room.', '🚪');
-                setTimeout(() => {
-                    window.location.href = 'auctioneer.html';
-                }, 3000);
-            });
-        }
-
-        // ========== PLAYER FUNCTIONS ==========
-        function updatePlayerInfo(player) {
-            playerNameEl.textContent = player.name;
-            playerRoleEl.textContent = player.role || 'Player';
-            playerTypeEl.textContent = player.bowlingType || 'N/A';
-            playerNationalityEl.textContent = player.nationality || 'Indian';
-            currentBidEl.textContent = `₹${player.currentBid || player.basePrice} Cr`;
-            highestTeamEl.textContent = player.currentBidder || 'No bids yet';
-            basePriceEl.textContent = `₹${player.basePrice} Cr`;
-            
-            // Update stats
-            statRuns.textContent = player.totalRuns || 0;
-            statStrikeRate.textContent = player.strikeRate || 0;
-            statWickets.textContent = player.wickets || 0;
-            statEconomy.textContent = player.economyRate || 0;
-            
-            // Reset team color
-            highestTeamEl.style.color = '#D1D5DB';
-        }
-
-        // ========== AUCTION CONTROL FUNCTIONS ==========
-        function sellCurrentPlayer() {
-            if (!currentRoomCode || !currentPlayer) return;
-            
-            if (confirm(`Sell ${currentPlayer.name} to ${highestTeamEl.textContent} for ${currentBidEl.textContent}?`)) {
-                socket.emit('sellPlayer', { roomCode: currentRoomCode });
-                decisionTaken = true;
+            } else {
+                currentBidder.innerHTML = `
+                    <span class="bidder-badge bg-gray-800/50 text-gray-300">
+                        No bids yet
+                    </span>
+                `;
+                bidHistory.innerHTML = '<div class="text-center text-gray-500 py-4">No bids yet</div>';
             }
         }
         
-        function markUnsold() {
-            if (!currentRoomCode || !currentPlayer) return;
-            
-            if (confirm(`Mark ${currentPlayer.name} as UNSOLD?`)) {
-                socket.emit('markUnsold', { roomCode: currentRoomCode });
-                decisionTaken = true;
+        function updateAuctionInfo(data) {
+            if (data.category) auctionCategory.textContent = data.category;
+            if (data.playersLeft !== undefined) playersLeft.textContent = data.playersLeft;
+            if (data.unsoldCount !== undefined) {
+                unsoldCount.textContent = data.unsoldCount;
+                unsoldPlayers.textContent = data.unsoldCount;
+            }
+            if (data.currentPlayerIndex !== undefined && data.totalPlayers !== undefined) {
+                playerPosition.textContent = `${data.currentPlayerIndex + 1}/${data.totalPlayers}`;
             }
         }
         
-        function nextPlayer() {
-            if (!currentRoomCode) return;
+        function updateAuctionStats() {
+            auctionStats.totalPlayers = auctionStats.soldPlayers + auctionStats.unsoldPlayers;
             
-            socket.emit('nextPlayer', { roomCode: currentRoomCode });
-            nextBtn.disabled = true;
-            
-            // Hide player section
-            currentPlayerSection.classList.add('hidden');
-            emptyState.classList.remove('hidden');
+            soldPlayers.textContent = auctionStats.soldPlayers;
+            unsoldPlayers.textContent = auctionStats.unsoldPlayers;
+            totalPlayers.textContent = auctionStats.totalPlayers;
+            totalValue.textContent = `₹${auctionStats.totalValue.toFixed(2)} Cr`;
+            avgPrice.textContent = `₹${auctionStats.avgPrice.toFixed(2)} Cr`;
         }
         
-        function endAuction() {
-            if (!currentRoomCode) return;
-            
-            if (confirm('Are you sure you want to END the auction? This will complete the auction pool and redirect all users to playing 11 selection.')) {
-                socket.emit('endAuction', { roomCode: currentRoomCode });
-                endAuctionBtn.disabled = true;
-                endAuctionBtn.innerHTML = '🏁 Ending...';
-            }
-        }
-        
-        function skipPlayer() {
-            if (!currentRoomCode) return;
-            
-            if (confirm('Skip current player? Player will go to unsold pool.')) {
-                socket.emit('skipPlayer', { roomCode: currentRoomCode });
-                decisionTaken = true;
-            }
-        }
-        
-        function forceNextPlayer() {
-            if (!currentRoomCode) return;
-            
-            socket.emit('nextPlayer', { roomCode: currentRoomCode });
-            nextBtn.disabled = true;
-            
-            // Hide player section
-            currentPlayerSection.classList.add('hidden');
-            emptyState.classList.remove('hidden');
-        }
-
-        // ========== LOG FUNCTIONS ==========
-        function addBidToLog(team, bid) {
+        function addBidToLog(team, bid, type = 'BID') {
             const bidItem = document.createElement('div');
-            bidItem.className = 'p-3 rounded-lg bg-gray-800/30 border-l-4 border-yellow-500 slide-in';
+            bidItem.className = 'bid-log-item glass-panel-dark rounded-xl p-4 slide-in';
             
-            const teamColors = {
-                'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
-                'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
-                'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
-            };
+            let color = '#FFFFFF';
+            let icon = '💰';
             
-            const teamColor = teamColors[team] || '#FFFFFF';
+            switch(type) {
+                case 'SOLD':
+                    color = '#10B981';
+                    icon = '✅';
+                    break;
+                case 'UNSOLD':
+                    color = '#EF4444';
+                    icon = '❌';
+                    break;
+                default:
+                    color = '#3B82F6';
+                    icon = '💰';
+            }
             
             bidItem.innerHTML = `
                 <div class="flex justify-between items-center">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-3 h-3 rounded-full" style="background: ${teamColor}"></div>
-                        <span class="font-semibold" style="color: ${teamColor}">${team.toUpperCase()}</span>
+                    <div class="flex items-center space-x-3">
+                        <div class="text-xl">${icon}</div>
+                        <div>
+                            <div class="font-semibold" style="color: ${color}">${team.toUpperCase()}</div>
+                            <div class="text-xs text-gray-400">${new Date().toLocaleTimeString()}</div>
+                        </div>
                     </div>
-                    <span class="font-bold text-yellow-400">₹${bid} Cr</span>
+                    ${bid ? `<span class="font-bold text-yellow-400">${bid}</span>` : ''}
                 </div>
-                <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString()}</div>
             `;
             
             bidLog.prepend(bidItem);
             
-            // Limit log to 50 items
-            if (bidLog.children.length > 50) {
+            if (bidLog.children.length > 20) {
                 bidLog.removeChild(bidLog.lastChild);
             }
         }
         
-        function addToLog(type, message, color = 'gray') {
-            const logItem = document.createElement('div');
-            logItem.className = `p-3 rounded-lg bg-${color}-900/20 border-l-4 border-${color}-500 slide-in`;
-            
-            const icons = {
-                'NEW_PLAYER': '🎯',
-                'SOLD': '✅',
-                'UNSOLD': '❌',
-                'RTM': '🔄',
-                'RTM_AVAILABLE': '🃏',
-                'COMPLETE': '🏆'
-            };
-            
-            logItem.innerHTML = `
-                <div class="flex items-center space-x-2">
-                    <span class="text-lg">${icons[type] || '📝'}</span>
-                    <span class="font-medium">${message}</span>
-                </div>
-                <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString()}</div>
-            `;
-            
-            bidLog.prepend(logItem);
-            
-            // Limit log to 50 items
-            if (bidLog.children.length > 50) {
-                bidLog.removeChild(bidLog.lastChild);
-            }
-        }
-        
-        function clearBidLog() {
-            bidLog.innerHTML = '<div class="text-gray-500 text-center py-8">No bids yet</div>';
-        }
-
-        // ========== STATUS FUNCTIONS ==========
-        function updateAuctionStatus(data) {
-            if (data.category) auctionCategory.textContent = data.category;
-            if (data.playersLeft !== undefined) playersLeft.textContent = data.playersLeft;
-            if (data.unsoldCount !== undefined) unsoldCount.textContent = data.unsoldCount;
-            
-            if (data.currentBid && !decisionTaken) {
-                currentBidEl.textContent = `₹${data.currentBid} Cr`;
-                if (data.currentBidder) {
-                    highestTeamEl.textContent = data.currentBidder.toUpperCase();
-                }
-            }
-        }
-        
-        function updateStats() {
-            totalSold.textContent = auctionStats.totalSold;
-            totalAmount.textContent = `₹${auctionStats.totalAmount.toFixed(2)} Cr`;
-            activeTeams.textContent = auctionStats.activeTeams.size;
-            
-            const avgBid = auctionStats.bidCount > 0 
-                ? auctionStats.totalAmount / auctionStats.bidCount 
-                : 0;
-            averageBid.textContent = `₹${avgBid.toFixed(2)} Cr`;
-        }
-        
-        function updateConnectionStatus(status, color) {
-            const colorClass = color === 'green' ? 'bg-green-500' : 'bg-red-500';
-            connectionStatus.innerHTML = `
-                <div class="w-2 h-2 rounded-full ${colorClass} mr-2 ${color === 'green' ? 'animate-pulse' : ''}"></div>
-                <span>${status}</span>
-            `;
-        }
-
-        // ========== HELPER FUNCTIONS ==========
         function showAlert(title, message, icon = '⚠️') {
             const modal = document.getElementById('alertModal');
-            document.getElementById('modalIcon').textContent = icon;
-            document.getElementById('modalTitle').textContent = title;
-            document.getElementById('modalMessage').textContent = message;
+            const modalIcon = document.getElementById('modalIcon');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            
+            modalIcon.textContent = icon;
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            
             modal.classList.remove('hidden');
         }
         
@@ -689,9 +1144,10 @@
             document.getElementById('alertModal').classList.add('hidden');
         }
         
-        // Expose to global scope
         window.closeModal = closeModal;
-
+        window.reconnectWithSession = reconnectWithSession;
+        window.goToLogin = goToLogin;
+        
         console.log('✅ Auctioneer auction page loaded');
     </script>
 </body>

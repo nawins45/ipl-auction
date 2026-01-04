@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Results - IPL Auction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Poppins', sans-serif; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Medal shine effects */
+        .gold-trophy {
+            background: linear-gradient(45deg, #FFD700, #FFEC8B, #FFD700, #FFF8DC);
+            background-size: 300% 300%;
+            animation: goldShine 3s ease-in-out infinite;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.7);
+        }
+        
+        .silver-trophy {
+            background: linear-gradient(45deg, #C0C0C0, #E8E8E8, #C0C0C0, #F8F8F8);
+            background-size: 300% 300%;
+            animation: silverShine 3s ease-in-out infinite;
+            box-shadow: 0 0 50px rgba(192, 192, 192, 0.7);
+        }
+        
+        .bronze-trophy {
+            background: linear-gradient(45deg, #CD7F32, #E8B87A, #CD7F32, #F0D0A0);
+            background-size: 300% 300%;
+            animation: bronzeShine 3s ease-in-out infinite;
+            box-shadow: 0 0 50px rgba(205, 127, 50, 0.7);
+        }
+        
+        @keyframes goldShine {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        @keyframes silverShine {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        @keyframes bronzeShine {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .podium {
+            height: 200px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 20px;
+            margin: 40px 0;
+        }
+        
+        .podium-step {
+            width: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .first-place { height: 160px; }
+        .second-place { height: 120px; }
+        .third-place { height: 90px; }
+        
+        .slide-in {
+            animation: slideIn 0.8s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #f00;
+            opacity: 0;
+        }
+        
+        .rating-bar {
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .rating-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #F59E0B, #F97316);
+            transition: width 1s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 bg-clip-text text-transparent animate-pulse">
+                🏆 FINAL RESULTS 🏆
+            </h1>
+            <p class="text-gray-300">IPL Auction Season - Team Rankings</p>
+            <div class="flex items-center justify-center space-x-2 mt-2">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span class="text-sm text-gray-400">Room: <span id="roomCodeDisplay" class="font-bold">----</span></span>
+            </div>
+        </header>
+
+        <!-- Winner Announcement -->
+        <div id="winnerAnnouncement" class="glass-panel rounded-2xl p-8 mb-8 text-center hidden">
+            <div class="text-6xl mb-4">🎉</div>
+            <h2 class="text-3xl font-bold text-yellow-400 mb-2" id="winnerName">Loading...</h2>
+            <p class="text-gray-300">Congratulations to the winning team!</p>
+        </div>
+
+        <!-- Podium -->
+        <div class="podium mb-12">
+            <!-- Podium will be populated by JavaScript -->
+        </div>
+
+        <!-- Results Table -->
+        <div class="glass-panel rounded-2xl p-6 slide-in">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-yellow-400 flex items-center gap-2">
+                    <span class="text-2xl">📊</span>
+                    Final Rankings
+                </h2>
+                <span class="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-sm">
+                    <span id="teamsCount">0</span> teams
+                </span>
+            </div>
+            
+            <div id="resultsTable" class="space-y-3">
+                <div class="text-center py-8">
+                    <div class="text-4xl mb-3">⏳</div>
+                    <p class="text-gray-400">Waiting for final results...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Team Card -->
+        <div id="myTeamCard" class="glass-panel rounded-2xl p-6 mt-6 border-2 border-yellow-500/30 hidden slide-in">
+            <h2 class="text-2xl font-bold text-yellow-400 mb-4">🎯 My Team Performance</h2>
+            <div id="myTeamDetails">
+                <!-- My team details will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-center space-x-4 mt-8">
+            <button onclick="viewMySquad()" 
+                    class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl font-bold transition-all duration-300">
+                👥 View My Squad
+            </button>
+            <button onclick="downloadCertificate()" 
+                    class="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-bold transition-all duration-300">
+                📄 Download Certificate
+            </button>
+            <button onclick="newAuction()" 
+                    class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-xl font-bold transition-all duration-300">
+                🚀 New Auction
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-12 pt-6 border-t border-gray-700">
+            <p class="text-gray-400">Thank you for participating in the IPL Auction!</p>
+            <p class="text-sm text-gray-500 mt-2">Results published on: <span id="publishDate">--/--/----</span></p>
+        </div>
+    </div>
+
+    <!-- Squad Modal -->
+    <div id="squadModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="absolute inset-0 bg-black/80"></div>
+        <div class="glass-panel rounded-2xl p-6 max-w-4xl w-11/12 max-h-[90vh] overflow-y-auto z-10">
+            <div id="squadModalContent">
+                <!-- Modal content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Confetti container -->
+    <div id="confettiContainer"></div>
+
+    <script>
+        // Global variables
+        const socket = io();
+        let currentUsername = null;
+        let currentRoomCode = null;
+        let results = [];
+        let myTeamResult = null;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🏆 Results page loaded');
+            
+            // Get session data
+            const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+            const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+            
+            currentUsername = userSession.username || currentSession.username;
+            currentRoomCode = userSession.roomCode || currentSession.roomCode;
+            
+            if (currentRoomCode) {
+                document.getElementById('roomCodeDisplay').textContent = currentRoomCode;
+                initializeSocket();
+                loadResults();
+            } else {
+                // No session, redirect to login
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+            }
+        });
+        
+        function initializeSocket() {
+            socket.on('connect', () => {
+                console.log('✅ Connected to results');
+            });
+            
+            socket.on('finalResultsPublished', (data) => {
+                console.log('🏆 Received final results:', data);
+                displayResults(data.results);
+            });
+            
+            socket.on('redirectToResults', (data) => {
+                console.log('📤 Received redirect to results:', data);
+                loadResults();
+            });
+        }
+        
+        function loadResults() {
+            // In a real implementation, this would fetch from server
+            // For now, we'll simulate loading
+            setTimeout(() => {
+                // Simulate receiving results
+                const mockResults = [
+                    {
+                        username: 'User1',
+                        team: { name: 'Mumbai Indians', color: '#0048A0', logo: 'images/teams/MI.png' },
+                        rating: 9.5,
+                        comments: 'Excellent team composition with strong batting lineup',
+                        position: 1,
+                        medal: 'gold',
+                        budget: 12.5,
+                        playing11: 11,
+                        impactPlayers: 3
+                    },
+                    {
+                        username: 'User2',
+                        team: { name: 'Chennai Super Kings', color: '#FFCC00', logo: 'images/teams/CSK.png' },
+                        rating: 8.8,
+                        comments: 'Good balance between batting and bowling',
+                        position: 2,
+                        medal: 'silver',
+                        budget: 15.2,
+                        playing11: 11,
+                        impactPlayers: 3
+                    },
+                    {
+                        username: 'User3',
+                        team: { name: 'Royal Challengers Bangalore', color: '#D5152C', logo: 'images/teams/RCB.png' },
+                        rating: 8.2,
+                        comments: 'Strong batting but weak bowling department',
+                        position: 3,
+                        medal: 'bronze',
+                        budget: 8.7,
+                        playing11: 11,
+                        impactPlayers: 3
+                    }
+                ];
+                
+                displayResults(mockResults);
+                createConfetti();
+            }, 1000);
+        }
+        
+        function displayResults(resultsData) {
+            results = resultsData;
+            
+            // Update teams count
+            document.getElementById('teamsCount').textContent = results.length;
+            
+            // Update publish date
+            document.getElementById('publishDate').textContent = new Date().toLocaleDateString();
+            
+            // Find my team
+            myTeamResult = results.find(r => r.username === currentUsername);
+            
+            // Display winner announcement
+            if (results.length > 0) {
+                const winner = results[0];
+                document.getElementById('winnerAnnouncement').classList.remove('hidden');
+                document.getElementById('winnerName').textContent = `${winner.team.name} (${winner.username})`;
+            }
+            
+            // Create podium
+            createPodium();
+            
+            // Create results table
+            createResultsTable();
+            
+            // Show my team card if found
+            if (myTeamResult) {
+                document.getElementById('myTeamCard').classList.remove('hidden');
+                createMyTeamCard();
+            }
+        }
+        
+        function createPodium() {
+            const podium = document.querySelector('.podium');
+            podium.innerHTML = '';
+            
+            // Get top 3 teams
+            const topThree = results.slice(0, 3);
+            
+            // Create podium steps (2nd, 1st, 3rd for proper visual)
+            const podiumOrder = [1, 0, 2]; // 2nd, 1st, 3rd
+            
+            podiumOrder.forEach((index, podiumIndex) => {
+                if (topThree[index]) {
+                    const team = topThree[index];
+                    const step = document.createElement('div');
+                    step.className = 'podium-step slide-in';
+                    step.style.animationDelay = `${podiumIndex * 0.3}s`;
+                    
+                    let heightClass = '';
+                    let medalClass = '';
+                    let positionText = '';
+                    
+                    if (index === 0) { // 1st place
+                        heightClass = 'first-place';
+                        medalClass = 'gold-trophy';
+                        positionText = '1st';
+                    } else if (index === 1) { // 2nd place
+                        heightClass = 'second-place';
+                        medalClass = 'silver-trophy';
+                        positionText = '2nd';
+                    } else { // 3rd place
+                        heightClass = 'third-place';
+                        medalClass = 'bronze-trophy';
+                        positionText = '3rd';
+                    }
+                    
+                    step.innerHTML = `
+                        <div class="w-full ${heightClass} ${medalClass} rounded-t-2xl flex items-end justify-center p-4">
+                            <div class="text-center">
+                                <div class="text-4xl mb-2">${team.medal === 'gold' ? '🥇' : team.medal === 'silver' ? '🥈' : '🥉'}</div>
+                                <div class="font-bold text-lg">${positionText}</div>
+                            </div>
+                        </div>
+                        <div class="mt-4 text-center">
+                            <div class="font-bold">${team.team.name}</div>
+                            <div class="text-sm text-gray-400">${team.username}</div>
+                            <div class="text-xl font-bold text-yellow-400 mt-1">${team.rating}/10</div>
+                        </div>
+                    `;
+                    
+                    podium.appendChild(step);
+                }
+            });
+        }
+        
+        function createResultsTable() {
+            const resultsTable = document.getElementById('resultsTable');
+            resultsTable.innerHTML = '';
+            
+            results.forEach((result, index) => {
+                const row = document.createElement('div');
+                row.className = `glass-panel rounded-xl p-4 flex items-center justify-between slide-in ${result.medal !== 'none' ? 'border-2 ' + (result.medal === 'gold' ? 'border-yellow-500/50' : result.medal === 'silver' ? 'border-gray-400/50' : 'border-yellow-700/50') : ''}`;
+                row.style.animationDelay = `${index * 0.1}s`;
+                
+                let medalIcon = '';
+                if (result.medal === 'gold') medalIcon = '🥇';
+                else if (result.medal === 'silver') medalIcon = '🥈';
+                else if (result.medal === 'bronze') medalIcon = '🥉';
+                
+                row.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${result.position <= 3 ? 'bg-gradient-to-br from-yellow-500 to-orange-500' : 'bg-gray-800'}">
+                            ${result.position}
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-full flex items-center justify-center" 
+                                 style="background: ${result.team.color}20; border: 2px solid ${result.team.color}">
+                                ${result.team.logo ? 
+                                    `<img src="${result.team.logo}" alt="${result.team.name}" class="w-8 h-8">` :
+                                    `<span class="text-xl">🏏</span>`
+                                }
+                            </div>
+                            <div>
+                                <div class="font-bold">${result.team.name} ${medalIcon}</div>
+                                <div class="text-sm text-gray-400">${result.username}</div>
+                                ${result.comments ? `<div class="text-xs text-gray-500 mt-1">"${result.comments}"</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-yellow-400">${result.rating}/10</div>
+                        <div class="text-sm text-gray-400">Rating</div>
+                        <div class="rating-bar w-32 mt-2">
+                            <div class="rating-fill" style="width: ${result.rating * 10}%"></div>
+                        </div>
+                    </div>
+                `;
+                
+                resultsTable.appendChild(row);
+            });
+        }
+        
+        function createMyTeamCard() {
+            const myTeamDetails = document.getElementById('myTeamDetails');
+            
+            myTeamDetails.innerHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-gray-800/30 p-3 rounded-lg">
+                        <div class="text-sm text-gray-400">Position</div>
+                        <div class="text-2xl font-bold">${myTeamResult.position}</div>
+                    </div>
+                    <div class="bg-gray-800/30 p-3 rounded-lg">
+                        <div class="text-sm text-gray-400">Rating</div>
+                        <div class="text-2xl font-bold text-yellow-400">${myTeamResult.rating}/10</div>
+                    </div>
+                    <div class="bg-gray-800/30 p-3 rounded-lg">
+                        <div class="text-sm text-gray-400">Remaining Budget</div>
+                        <div class="text-xl font-bold text-green-400">₹${myTeamResult.budget} Cr</div>
+                    </div>
+                    <div class="bg-gray-800/30 p-3 rounded-lg">
+                        <div class="text-sm text-gray-400">Auctioneer's Comments</div>
+                        <div class="text-sm">${myTeamResult.comments}</div>
+                    </div>
+                </div>
+                
+                ${myTeamResult.position <= 3 ? `
+                    <div class="bg-gradient-to-r ${myTeamResult.medal === 'gold' ? 'from-yellow-500/20 to-orange-500/20 border-yellow-500/30' : myTeamResult.medal === 'silver' ? 'from-gray-400/20 to-gray-300/20 border-gray-400/30' : 'from-yellow-700/20 to-orange-700/20 border-yellow-700/30'} border p-4 rounded-xl text-center">
+                        <div class="text-3xl mb-2">${myTeamResult.medal === 'gold' ? '🏆 GOLD MEDAL 🏆' : myTeamResult.medal === 'silver' ? '🥈 SILVER MEDAL 🥈' : '🥉 BRONZE MEDAL 🥉'}</div>
+                        <div class="text-lg font-bold">Congratulations! You secured ${myTeamResult.position}${getOrdinalSuffix(myTeamResult.position)} place!</div>
+                    </div>
+                ` : ''}
+            `;
+        }
+        
+        function getOrdinalSuffix(n) {
+            if (n >= 11 && n <= 13) return 'th';
+            switch (n % 10) {
+                case 1: return 'st';
+                case 2: return 'nd';
+                case 3: return 'rd';
+                default: return 'th';
+            }
+        }
+        
+        function createConfetti() {
+            const container = document.getElementById('confettiContainer');
+            const colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
+            
+            for (let i = 0; i < 150; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.opacity = '1';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                
+                // Animation
+                confetti.animate([
+                    { 
+                        transform: `translateY(-100px) rotate(0deg)`,
+                        opacity: 1 
+                    },
+                    { 
+                        transform: `translateY(${window.innerHeight}px) rotate(${Math.random() * 360}deg)`,
+                        opacity: 0 
+                    }
+                ], {
+                    duration: Math.random() * 3000 + 2000,
+                    easing: 'cubic-bezier(0.215, 0.610, 0.355, 1)'
+                });
+                
+                container.appendChild(confetti);
+                
+                // Remove after animation
+                setTimeout(() => {
+                    confetti.remove();
+                }, 5000);
+            }
+        }
+        
+        function viewMySquad() {
+            const modal = document.getElementById('squadModal');
+            const modalContent = document.getElementById('squadModalContent');
+            
+            modalContent.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-yellow-400">My Squad</h3>
+                    <button onclick="closeSquadModal()" class="text-2xl hover:text-yellow-400">✕</button>
+                </div>
+                
+                <div class="text-center py-8">
+                    <div class="text-4xl mb-3">🏏</div>
+                    <p class="text-gray-400">Squad details will be shown here</p>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+        
+        function closeSquadModal() {
+            document.getElementById('squadModal').classList.add('hidden');
+        }
+        
+        function downloadCertificate() {
+            alert('Certificate download feature will be implemented here.');
+            // In real implementation, this would generate and download a certificate
+        }
+        
+        function newAuction() {
+            if (confirm('Start a new auction? You will be redirected to login.')) {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }
+        }
+        
+        console.log('✅ Results page ready');
+    </script>
+</body>
+</html>

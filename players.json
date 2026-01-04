@@ -96,7 +96,7 @@
   "economy rate": 7.64,
   "status": "CAPPED",
   "Base price": "2cr",
-  "marquee": "YES",
+  "marquee": "NO",
   "bowling type": "SPIN"
  },
  {
@@ -156,7 +156,7 @@
   "economy rate": 7.31,
   "status": "CAPPED",
   "Base price": "2cr",
-  "marquee": "YES",
+  "marquee": "NO",
   "bowling type": "SPIN"
  },
  {
@@ -436,7 +436,7 @@
   "economy rate": 0,
   "status": "CAPPED",
   "Base price": "2cr",
-  "marquee": "YES",
+  "marquee": "NO",
   "bowling type": "NO"
  },
  {
@@ -456,7 +456,7 @@
   "economy rate": 9.48,
   "status": "CAPPED",
   "Base price": "2cr",
-  "marquee": "YES",
+  "marquee": "NO",
   "bowling type": "FAST"
  },
  {
@@ -976,7 +976,7 @@
   "economy rate": 10.59,
   "status": "CAPPED",
   "Base price": "2cr",
-  "marquee": "YES",
+  "marquee": "NO",
   "bowling type": "FAST"
  },
  {
@@ -1374,7 +1374,7 @@
   "economy rate": 9.02,
   "status": "CAPPED",
   "Base price": "2cr",
-  "marquee": "YES",
+  "marquee": "NO",
   "bowling type": "SPIN"
  },
  {
@@ -1711,7 +1711,7 @@
   "best ": "0",
   "economy rate": 0,
   "status": "UNCAPPED",
-  "Base price": "5ol",
+  "Base price": "50l",
   "marquee": "NO",
   "bowling type": "NO"
  },
@@ -2492,7 +2492,7 @@
   "economy rate": 0,
   "status": "CAPPED",
   "Base price": "2cr",
-  "marquee": "YES",
+  "marquee": "NO",
   "bowling type": "SPIN"
  },
  {
