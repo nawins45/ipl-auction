@@ -197,7 +197,8 @@
 
     <script>
         // Global variables
-        const socket = io();
+         const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
+        );
         let currentUsername = null;
         let currentRoomCode = null;
         let results = [];

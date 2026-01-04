@@ -172,7 +172,8 @@
     </div>
     <!-- Replace the entire script section in rules.html -->
 <script>
-    const socket = io();
+     const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
+        );
     
     // Get session data
     const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');

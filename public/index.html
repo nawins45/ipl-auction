@@ -456,7 +456,8 @@
 
     <script>
         // ========== SOCKET CONNECTION ==========
-        const socket = io();
+         const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
+        );
         let selectedSession = null;
         let loginSuccessData = null;
         

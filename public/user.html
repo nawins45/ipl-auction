@@ -278,7 +278,8 @@
     <!-- Replace the script section in user.html (from line 250 onwards) -->
 <script>
     // ========== SOCKET CONNECTION ==========
-    const socket = io();
+     const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
+        );
     let currentSessionId = null;
     
     // ========== DOM ELEMENTS ==========
