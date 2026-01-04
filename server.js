@@ -2669,7 +2669,7 @@ app.post('/api/create-room', express.json(), (req, res) => {
 // ========================================
 // Start server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log('\n' + '='.repeat(80));
     console.log(`✅ SERVER RUNNING ON PORT ${PORT}`);
     console.log('='.repeat(80));
