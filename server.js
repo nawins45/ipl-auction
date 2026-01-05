@@ -1603,7 +1603,8 @@ socket.on('submitRetention', (data) => {
             io.to(room.auctioneerSocket).emit('retentionSubmitted', {
                 username: user.username,
                 team: user.team?.name || 'Unknown',
-                count: user.retainedPlayers.length
+                count: user.retainedPlayers.length,
+                autoSubmitted: false
             });
         }
         
@@ -1625,7 +1626,7 @@ socket.on('submitRetention', (data) => {
         
         console.log('================================\n');
         
-        // Check if all users have submitted
+        // IMPORTANT: Check if all users have submitted after this submission
         checkAllRetentionSubmitted(roomCode);
 
     } catch (error) {
