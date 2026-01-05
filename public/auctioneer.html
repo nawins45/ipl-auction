@@ -226,13 +226,6 @@ select option:hover {
 
 
         </header>
-        <!-- Add this right after the header section -->
-<div class="flex flex-wrap justify-center gap-4 mb-4">
-    <button onclick="forceCheckRetention()" 
-            class="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl font-semibold text-sm hover:scale-[1.02] transition-all duration-300">
-        🔍 Check Retention Status
-    </button>
-</div>
 
         <!-- Quick Stats -->
         <div class="glass-panel rounded-2xl p-6 mb-8 slide-in">
@@ -409,6 +402,17 @@ select option:hover {
                             </span>
                         </button>
                         
+                        <!-- ADD THE CHECK RETENTION BUTTON HERE -->
+                        <button onclick="forceCheckRetention()" 
+                                class="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl font-bold text-lg transition-all duration-300 hover:scale-[1.02] active:scale-95">
+                            <span class="flex items-center justify-center space-x-2">
+                                <span>🔍</span>
+                                <span>CHECK RETENTION STATUS</span>
+                            </span>
+                        </button>
+
+
+
                         <button id="startAuctionPoolBtn" 
                                 class="w-full py-3 btn-success rounded-xl font-bold text-lg transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled>
@@ -1264,46 +1268,87 @@ socket.on('userLeft', (data) => {
     showAlert('Team Shuffled', `${data.username} shuffled to ${data.team}`, '🔄');
 });
             socket.on('retentionSubmitted', (data) => {
-                retentionProgress.classList.remove('hidden');
-                
-                // Check if already added
-                const existingItems = Array.from(submissionList.children);
-                const alreadyExists = existingItems.some(item => 
-                    item.textContent.includes(data.username)
-                );
-                
-                if (!alreadyExists) {
-                    const subItem = document.createElement('div');
-                    subItem.className = 'user-item glass-panel rounded-xl p-4 slide-in';
-                    subItem.innerHTML = `
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-2 h-2 rounded-full bg-green-500"></div>
-                                <div>
-                                    <div class="font-medium">${data.username}</div>
-                                    <div class="text-xs text-gray-500">${data.team}</div>
-                                </div>
-                            </div>
-                            <div class="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-semibold">
-                                ${data.count} players
-                            </div>
-                        </div>
-                    `;
-                    submissionList.appendChild(subItem);
-                }
-                
-                // Enable auction pool button if all users submitted
-                const totalUsers = parseInt(userCount.textContent);
-                const submittedCount = submissionList.children.length;
-                
-                if (totalUsers > 0 && submittedCount >= totalUsers) {
-                    startAuctionPoolBtn.disabled = false;
-                    showAlert('All Submissions Received', 'All users have submitted retention. Ready to start auction pool.', '✅');
-                }
-                
-                updateStats();
-            });
-
+    retentionProgress.classList.remove('hidden');
+    
+    // Check if already added
+    const existingItems = Array.from(submissionList.children);
+    const alreadyExists = existingItems.some(item => 
+        item.textContent.includes(data.username)
+    );
+    
+    if (!alreadyExists) {
+        const subItem = document.createElement('div');
+        subItem.className = 'user-item glass-panel rounded-xl p-4 slide-in';
+        subItem.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-2 h-2 rounded-full bg-green-500 ${data.autoSubmitted ? 'animate-pulse' : ''}"></div>
+                    <div>
+                        <div class="font-medium">${data.username}</div>
+                        <div class="text-xs text-gray-500">${data.team}</div>
+                        ${data.autoSubmitted ? '<div class="text-xs text-yellow-500 mt-1">Auto-submitted</div>' : ''}
+                        <!-- Show retained players -->
+                        ${data.players && data.players.length > 0 ? 
+                            `<div class="text-xs text-green-400 mt-1">
+                                Players: ${data.players.map(p => p.name).join(', ')}
+                            </div>` : 
+                            data.count > 0 ?
+                            `<div class="text-xs text-blue-400 mt-1">
+                                ${data.count} players retained
+                            </div>` :
+                            `<div class="text-xs text-gray-400 mt-1">
+                                No players retained
+                            </div>`
+                        }
+                    </div>
+                </div>
+                <div class="px-3 py-1 ${data.count > 0 ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-500/20 text-gray-300'} rounded-full text-sm font-semibold">
+                    ${data.count} players
+                </div>
+            </div>
+        `;
+        submissionList.appendChild(subItem);
+    }
+    
+    // Get total users count
+    const userListItems = document.querySelectorAll('#userList .user-item');
+    const totalUsers = userListItems.length;
+    const submittedCount = submissionList.children.length;
+    
+    console.log(`📊 Retention progress: ${submittedCount}/${totalUsers}`);
+    
+    // If all users submitted, enable auction pool button
+    if (totalUsers > 0 && submittedCount >= totalUsers) {
+        console.log('🎯 All users have submitted retention!');
+        
+        // Enable auction pool button
+        startAuctionPoolBtn.disabled = false;
+        
+        // Add visual feedback
+        const allCompleteItem = document.createElement('div');
+        allCompleteItem.className = 'user-item glass-panel rounded-xl p-4 slide-in border-2 border-green-500/30 bg-green-900/10';
+        allCompleteItem.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <div>
+                        <div class="font-medium text-green-400">READY FOR AUCTION</div>
+                        <div class="text-xs text-gray-500">All users submitted retention</div>
+                    </div>
+                </div>
+                <div class="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full text-sm font-semibold animate-pulse">
+                    ✅ Complete
+                </div>
+            </div>
+        `;
+        submissionList.appendChild(allCompleteItem);
+        
+        // Show alert
+        showAlert('Ready for Auction Pool', 
+            `All ${totalUsers} users have submitted their retention selections. You can now start the auction pool.`, 
+            '✅');
+    }
+});
             // Current code in auctioneer.html (look for this):
 socket.on('retentionSubmitted', (data) => {
     retentionProgress.classList.remove('hidden');

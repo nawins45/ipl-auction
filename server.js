@@ -1603,6 +1603,8 @@ socket.on('retentionSubmitted', (data) => {
 
     // Submit retention
     // In the submitRetention handler, after saving the retention:
+    // Submit retention
+    // In the submitRetention handler, after saving the retention:
 socket.on('submitRetention', (data) => {
     try {
         console.log('📥 Received retention submission:', data);
@@ -1687,6 +1689,7 @@ socket.on('submitRetention', (data) => {
 });
 
     // Start auction pool
+     // Start auction pool
     socket.on('startAuctionPool', (data) => {
         try {
             const { roomCode, sessionId } = data;
@@ -1715,16 +1718,37 @@ socket.on('submitRetention', (data) => {
                 roomCode: roomCode
             });
             
-            io.to(roomCode).emit('redirectToAuctionPool', {
-                message: 'Auction pool phase has begun',
-                roomCode: roomCode,
-                timestamp: Date.now()
+            // FIX: Redirect ALL USERS (including auctioneer) to auction pool
+            Object.values(room.users).forEach(user => {
+                if (user.socketId && user.username !== room.auctioneer) {
+                    console.log(`📤 Redirecting ${user.username} to auction pool`);
+                    
+                    const squadData = getUserSquad(roomCode, user.username);
+                    
+                    io.to(user.socketId).emit('redirectToAuctionPool', {
+                        message: 'Auction pool phase has begun!',
+                        roomCode: roomCode,
+                        username: user.username,
+                        team: user.team,
+                        squadData: squadData,
+                        sessionId: user.sessionId,
+                        timestamp: Date.now(),
+                        redirectUrl: 'auctionpool.html'
+                    });
+                }
             });
             
-            socket.emit('redirectAuctioneerToAuction', {
-                roomCode: roomCode,
-                sessionId: sessionId
-            });
+            // Redirect auctioneer to auction control
+            if (room.auctioneerSocket) {
+                console.log(`🎤 Redirecting auctioneer to auction control`);
+                io.to(room.auctioneerSocket).emit('redirectAuctioneerToAuction', {
+                    roomCode: roomCode,
+                    sessionId: sessionId,
+                    redirectUrl: 'auctioneer-auction.html'
+                });
+            }
+            
+            console.log(`✅ Auction pool started and redirects sent for room ${roomCode}`);
             
         } catch (error) {
             console.error('❌ Error starting auction pool:', error);
