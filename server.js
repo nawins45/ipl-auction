@@ -1553,6 +1553,54 @@ socket.on('startRetention', (data) => {
     }
 });
 
+// Handle retention submission with player data
+socket.on('retentionSubmitted', (data) => {
+    const { roomCode, retainedPlayers, username, sessionId } = data;
+    const room = rooms[roomCode];
+    
+    console.log(`📥 Retention submitted by ${username}:`, {
+        playersCount: retainedPlayers?.length || 0,
+        players: retainedPlayers?.map(p => p.name) || []
+    });
+    
+    if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+    }
+    
+    const session = sessions[sessionId];
+    if (!session || session.username !== username) {
+        socket.emit('error', { message: 'Invalid session' });
+        return;
+    }
+    
+    // Update user retention status
+    const user = room.users[username];
+    if (user) {
+        user.retentionSubmitted = true;
+        user.retainedPlayers = retainedPlayers || [];
+        user.retentionTimestamp = Date.now();
+        
+        console.log(`✅ Retention submitted by ${username}:`, {
+            team: user.team?.name,
+            players: user.retainedPlayers.map(p => p.name),
+            count: user.retainedPlayers.length
+        });
+        
+        // Broadcast to auctioneer
+        io.to(roomCode).emit('retentionSubmitted', {
+            username: username,
+            team: user.team?.name,
+            count: user.retainedPlayers.length,
+            players: user.retainedPlayers,
+            autoSubmitted: false
+        });
+        
+        // Check if all users have submitted
+        checkAllRetentionSubmitted(roomCode);
+    }
+});
+
     // Submit retention
     // In the submitRetention handler, after saving the retention:
 socket.on('submitRetention', (data) => {
@@ -2583,7 +2631,51 @@ socket.on('submitRetention', (data) => {
             socket.emit('error', { message: 'Failed to publish results' });
         }
     });
-
+    // Manual retention status check from auctioneer
+socket.on('checkRetentionStatus', (data) => {
+    const { roomCode, sessionId } = data;
+    const room = rooms[roomCode];
+    
+    console.log(`🔍 Manual retention check for room ${roomCode}`);
+    
+    if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+    }
+    
+    const session = sessions[sessionId];
+    if (!session || session.role !== 'auctioneer' || 
+        session.username !== room.auctioneer || 
+        session.roomCode !== roomCode) {
+        socket.emit('error', { message: 'Invalid session' });
+        return;
+    }
+    
+    console.log(`🔍 Manual retention check triggered by auctioneer`);
+    
+    // Re-check all submissions
+    const allSubmitted = checkAllRetentionSubmitted(roomCode);
+    
+    // Send current status back
+    const users = Object.values(room.users);
+    const eligibleUsers = users.filter(user => 
+        user.username !== room.auctioneer && 
+        user.team !== null
+    );
+    const submittedUsers = users.filter(user => 
+        user.retentionSubmitted === true
+    );
+    
+    socket.emit('retentionStatusUpdate', {
+        roomCode: roomCode,
+        submitted: submittedUsers.length,
+        total: eligibleUsers.length,
+        allComplete: allSubmitted,
+        message: `${submittedUsers.length}/${eligibleUsers.length} users submitted retention`
+    });
+    
+    console.log(`📊 Retention status sent to auctioneer: ${submittedUsers.length}/${eligibleUsers.length}`);
+});
     // Get squad data
     socket.on('getSquadData', (data) => {
         try {
