@@ -384,7 +384,25 @@ localStorage.setItem('userSession', JSON.stringify({
             socket.on('error', (data) => {
                 showAlert('Error', data.message, '❌');
             });
-        }
+                // ... existing socket handlers ...
+
+    // ✅ ADD THESE NEW HANDLERS BEFORE THE CLOSING BRACE
+    socket.on('retentionSubmitSuccess', (data) => {
+        console.log('✅ Retention submit success:', data);
+        // Success is already handled in the callback
+    });
+
+    socket.on('retentionSubmitError', (data) => {
+        console.error('❌ Retention submit error:', data);
+        showAlert('Submission Error', data.message || 'Failed to submit retention', '❌');
+    });
+    
+    // Make socket available globally
+    window.socket = socket;
+    
+    console.log('🔌 Socket initialized for retention');
+} // This is the closing brace of initializeSocket()
+        
 
         // ========== PAGE FUNCTIONS ==========
         function initializePage() {
@@ -672,31 +690,50 @@ localStorage.setItem('userSession', JSON.stringify({
             }
         }
         
-        function autoSubmitRetention() {
-            if (autoSubmitted) {
-                console.log('Already auto-submitted');
-                return;
-            }
+        // Replace the autoSubmitRetention function in retention.html:
+function autoSubmitRetention() {
+    if (autoSubmitted) {
+        console.log('Already auto-submitted');
+        return;
+    }
+    
+    autoSubmitted = true;
+    clearInterval(countdownInterval);
+    
+    const selectedPlayersData = Array.from(selectedPlayers.values());
+    
+    console.log('📤 Auto-submitting retention:', {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        count: selectedPlayersData.length,
+        players: selectedPlayersData
+    });
+    
+    // Get session ID properly
+    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+    const sessionId = userSession.sessionId || currentSession.sessionId;
+    
+    if (!sessionId) {
+        console.error('❌ No session ID found for auto-submit');
+        showAlert('Session Error', 'Cannot submit without session. Please refresh.', '❌');
+        return;
+    }
+    
+    // Send to server with PROPER error handling
+    socket.emit('submitRetention', {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        selectedPlayers: selectedPlayersData,
+        sessionId: sessionId
+    }, (response) => {
+        // Add acknowledgment callback
+        if (response && response.success) {
+            console.log('✅ Auto-submit acknowledged by server');
             
-            autoSubmitted = true;
-            clearInterval(countdownInterval);
-            
-            const selectedPlayersData = Array.from(selectedPlayers.values());
-            
-            console.log('📤 Auto-submitting retention:', {
-                roomCode: currentRoomCode,
-                username: currentUsername,
-                count: selectedPlayersData.length,
-                players: selectedPlayersData
-            });
-            
-            // Send to server
-            socket.emit('submitRetention', {
-                roomCode: currentRoomCode,
-                username: currentUsername,
-                selectedPlayers: selectedPlayersData,
-                sessionId: JSON.parse(localStorage.getItem('userSession') || '{}').sessionId
-            });
+            // Store retention data in localStorage
+            localStorage.setItem('retentionSubmitted', 'true');
+            localStorage.setItem('retainedPlayers', JSON.stringify(selectedPlayersData));
             
             // Show auto-submitted message
             showAlert('Retention Auto-Submitted', 
@@ -711,10 +748,6 @@ localStorage.setItem('userSession', JSON.stringify({
                 card.style.opacity = '0.5';
             });
             
-            // Store retention data in localStorage
-            localStorage.setItem('retentionSubmitted', 'true');
-            localStorage.setItem('retainedPlayers', JSON.stringify(selectedPlayersData));
-            
             // Wait 3 seconds then show redirect message
             setTimeout(() => {
                 showAlert('Auction Pool Starting', 'Moving to auction pool in 5 seconds...', '💰');
@@ -722,7 +755,26 @@ localStorage.setItem('userSession', JSON.stringify({
                     window.location.href = 'auctionpool.html';
                 }, 5000);
             }, 3000);
+        } else {
+            console.error('❌ Auto-submit failed:', response?.message);
+            showAlert('Submission Failed', 'Failed to submit retention. Please refresh.', '❌');
         }
+    });
+    
+    // Fallback in case server doesn't respond
+    setTimeout(() => {
+        if (!autoSubmitted) return;
+        
+        // Even if server doesn't respond, store locally and redirect
+        localStorage.setItem('retentionSubmitted', 'true');
+        localStorage.setItem('retainedPlayers', JSON.stringify(selectedPlayersData));
+        
+        setTimeout(() => {
+            showAlert('Moving to Auction', 'Redirecting to auction pool...', '💰');
+            window.location.href = 'auctionpool.html';
+        }, 3000);
+    }, 5000);
+}
 
         // ========== STATS MODAL FUNCTIONS ==========
         function showPlayerStats(e, index) {

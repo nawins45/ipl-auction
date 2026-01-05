@@ -1293,6 +1293,83 @@ socket.on('userLeft', (data) => {
                 
                 updateStats();
             });
+
+            // Current code in auctioneer.html (look for this):
+socket.on('retentionSubmitted', (data) => {
+    retentionProgress.classList.remove('hidden');
+    
+    // Check if already added
+    const existingItems = Array.from(submissionList.children);
+    const alreadyExists = existingItems.some(item => 
+        item.textContent.includes(data.username)
+    );
+    
+    if (!alreadyExists) {
+        const subItem = document.createElement('div');
+        subItem.className = 'user-item glass-panel rounded-xl p-4 slide-in';
+        subItem.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                    <div>
+                        <div class="font-medium">${data.username}</div>
+                        <div class="text-xs text-gray-500">${data.team}</div>
+                    </div>
+                </div>
+                <div class="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-semibold">
+                    ${data.count} players
+                </div>
+            </div>
+        `;
+        submissionList.appendChild(subItem);
+    }
+    
+    // Enable auction pool button if all users submitted
+    const totalUsers = parseInt(userCount.textContent);
+    const submittedCount = submissionList.children.length;
+    
+    if (totalUsers > 0 && submittedCount >= totalUsers) {
+        startAuctionPoolBtn.disabled = false;
+        showAlert('All Submissions Received', 'All users have submitted retention. Ready to start auction pool.', '✅');
+    }
+    
+    updateStats();
+});
+
+// ✅ ADD THIS NEW HANDLER AFTER the retentionSubmitted handler
+socket.on('allRetentionSubmitted', (data) => {
+    console.log('✅ All retention submitted:', data);
+    
+    // Enable the auction pool button
+    startAuctionPoolBtn.disabled = false;
+    startAuctionPoolBtn.classList.remove('disabled:opacity-50', 'disabled:cursor-not-allowed');
+    
+    // Show success message
+    showAlert('Ready for Auction Pool', 
+        `All ${data.submittedCount} users have submitted retention! You can now start the auction pool.`, 
+        '✅');
+    
+    // Update retention progress
+    if (data.submittedCount === data.totalUsers) {
+        const progressItem = document.createElement('div');
+        progressItem.className = 'user-item glass-panel rounded-xl p-4 slide-in';
+        progressItem.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                    <div>
+                        <div class="font-medium text-green-400">ALL USERS</div>
+                        <div class="text-xs text-gray-500">Retention completed</div>
+                    </div>
+                </div>
+                <div class="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm font-semibold">
+                    ✅ Complete
+                </div>
+            </div>
+        `;
+        submissionList.appendChild(progressItem);
+    }
+});
             
             // Auction events
             socket.on('auctionStarted', (data) => {
