@@ -672,12 +672,37 @@
             });
             
             // Bid button delegation
-            document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('bid-btn')) {
-                    const increment = parseFloat(e.target.dataset.increment);
-                    placeBid(increment);
-                }
-            });
+            // ✅ FIXED: Bid button delegation
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('bid-btn')) {
+        console.log('🎯 Bid button clicked:', e.target);
+        const increment = parseFloat(e.target.dataset.increment);
+        
+        if (isNaN(increment)) {
+            console.error('❌ Invalid bid increment');
+            return;
+        }
+        
+        placeBid(increment);
+    }
+});
+
+// ✅ ADD: Also handle click on button content (span elements inside)
+document.addEventListener('click', function(e) {
+    // Check if clicked element is inside a bid button
+    const bidButton = e.target.closest('.bid-btn');
+    if (bidButton) {
+        console.log('🎯 Bid button (nested) clicked');
+        const increment = parseFloat(bidButton.dataset.increment);
+        
+        if (isNaN(increment)) {
+            console.error('❌ Invalid bid increment');
+            return;
+        }
+        
+        placeBid(increment);
+    }
+});
             
             // Setup periodic sync (every 30 seconds as backup)
             setInterval(() => {
@@ -1453,12 +1478,34 @@ socket.on('connect', () => {
 
         // ========== SQUAD FUNCTIONS ==========
         function openSquadModal() {
-            socket.emit('requestSquad', {
-                roomCode: currentRoomCode,
-                username: currentUsername,
-                sessionId: userSession.sessionId
-            });
+    console.log('👥 Opening squad modal...');
+    
+    // ✅ FIXED: Get session data properly
+    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+    const sessionId = userSession.sessionId || currentSession.sessionId;
+    
+    if (!sessionId) {
+        console.error('❌ No session ID for squad request');
+        showAlert('Session Error', 'Cannot load squad without session', '❌');
+        return;
+    }
+    
+    // Request squad data from server
+    socket.emit('requestSquad', {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        sessionId: sessionId
+    }, (response) => {
+        if (response && response.success) {
+            console.log('✅ Squad data received:', response.data);
+            updateSquadDisplay(response.data);
+        } else {
+            console.error('❌ Failed to get squad data');
+            showAlert('Error', 'Failed to load squad data', '❌');
         }
+    });
+}
         
         function updateSquadLimits() {
     squadSize.textContent = squadLimits.total || 0;

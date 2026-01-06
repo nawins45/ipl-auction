@@ -444,13 +444,17 @@ function formatPlayerForAuction(player) {
 
 function startAuctionForRoom(roomCode) {
     const auction = auctionStates[roomCode];
-    if (!auction) return;
+    const room = rooms[roomCode];
+    
+    if (!auction || !room) return;
     
     console.log(`\n🎬 STARTING AUCTION FOR ROOM ${roomCode}`);
+    console.log(`   Connected users: ${Object.keys(room.users).length}`);
     
     auction.currentCategoryIndex = 0;
     auction.currentCategory = playerCategories[0];
     auction.currentPlayerIndex = 0;
+    auction.auctionPhase = true;  // ✅ CRITICAL: Mark as active
     
     const players = auction.categorizedPlayers[auction.currentCategory];
     
@@ -465,10 +469,17 @@ function startAuctionForRoom(roomCode) {
         players[0].currentBid = players[0].basePrice;
         players[0].currentBidder = null;
         
-        // Broadcast to ALL users immediately
-        console.log(`📢 Broadcasting first player to all users in room ${roomCode}`);
+        // ✅ FIXED: Store in auction state for easy access
+        auction.currentPlayer = {
+            ...players[0],
+            currentBid: players[0].basePrice,
+            currentBidder: null
+        };
         
-        io.to(roomCode).emit('playerUpForAuction', {
+        console.log(`📢 Broadcasting first player to ALL users in room ${roomCode}`);
+        
+        // ✅ FIXED: Force broadcast to EVERYONE including newly joining users
+        const playerData = {
             player: {
                 id: players[0].id,
                 name: players[0].name,
@@ -490,11 +501,20 @@ function startAuctionForRoom(roomCode) {
                 economyRate: players[0].economyRate,
                 originalTeam: players[0].originalTeam
             },
-            category: auction.currentCategory
-        });
+            category: auction.currentCategory,
+            forceBroadcast: true  // ✅ Flag for forced update
+        };
         
-        // Also send state sync
-        broadcastAuctionState(roomCode);
+        // Broadcast to room AND store for new joiners
+        io.to(roomCode).emit('playerUpForAuction', playerData);
+        
+        // Also update room state
+        room.currentAuctionPlayer = playerData;
+        
+        // Also send state sync IMMEDIATELY
+        setTimeout(() => {
+            broadcastAuctionState(roomCode);
+        }, 100);
         
         console.log(`✅ First player auction started: ${players[0].name}`);
     } else {
@@ -897,34 +917,46 @@ function getUserSquad(roomCode, username) {
     let overseasCount = 0;
     let totalSpent = 0;
     
+    // Calculate from retained players
     if (user.retainedPlayers) {
         overseasCount += user.retainedPlayers.filter(p => p.isOverseas).length;
     }
+    
+    // Calculate from auction players
     if (user.auctionPlayers) {
         overseasCount += user.auctionPlayers.filter(p => p.isOverseas).length;
         totalSpent = user.auctionPlayers.reduce((sum, player) => sum + (player.price || 0), 0);
     }
     
     const indianCount = totalPlayers - overseasCount;
-    const budget = user.budget || 100;
+    const maxSquad = room.rules?.squadSize || 25;
+    const remainingSlots = Math.max(0, maxSquad - totalPlayers);
+    const totalBudget = room.rules?.totalPurse || 100;
+    const remainingBudget = totalBudget - totalSpent;
     
     return {
         team: user.team,
         username: username,
         retainedPlayers: user.retainedPlayers || [],
         auctionPlayers: user.auctionPlayers || [],
-        budget: budget,
+        budget: remainingBudget,  // ✅ This is REMAINING budget
         totalSpent: totalSpent,
+        totalBudget: totalBudget,  // ✅ Add this
+        remainingBudget: remainingBudget,  // ✅ Add this
         rtmCards: user.rtmCards || 2,
         squadLimits: {
             total: totalPlayers,
             indian: indianCount,
             overseas: overseasCount,
-            maxSquad: room.rules?.squadSize || 25
+            maxSquad: maxSquad
         },
-        squadLimit: room.rules?.squadSize || 25,
-        remainingSlots: Math.max(0, (room.rules?.squadSize || 25) - totalPlayers),
-        rules: room.rules || { impactPlayers: 1 }
+        squadLimit: maxSquad,  // ✅ Make sure this exists
+        remainingSlots: remainingSlots,
+        rules: room.rules || { 
+            totalPurse: 100, 
+            squadSize: 25,
+            impactPlayers: 1 
+        }
     };
 }
 
@@ -1942,9 +1974,11 @@ socket.on('startAuctionPool', (data) => {
 console.log('🎯 Initializing auction pool...');
 initializeAuction(roomCode);
 
-// ✅ FIXED: Start auction IMMEDIATELY
-console.log('🚀 Starting auction for first player...');
-startAuctionForRoom(roomCode);
+// ✅ FIXED: Wait 1 second for users to be redirected, THEN start auction
+setTimeout(() => {
+    console.log('🚀 Starting auction after user redirect...');
+    startAuctionForRoom(roomCode);
+}, 1000);
 
 // ✅ ADD: Immediately broadcast state to ALL users
 setTimeout(() => {
@@ -2329,6 +2363,14 @@ if (auction && auction.auctionPhase) {
 
 // Still request state sync for backup
 socket.emit('requestAuctionState', { roomCode, username });
+
+if (room.currentAuctionPlayer) {
+            console.log(`🎯 Sending existing auction player to ${username}`);
+            // Send after a short delay to ensure connection is ready
+            setTimeout(() => {
+                socket.emit('playerUpForAuction', room.currentAuctionPlayer);
+            }, 200);
+        }
         
         console.log(`✅ ${username} joined auction pool in room ${roomCode}`);
         socket.on('joinAuctionPool', (data) => {
@@ -2536,25 +2578,75 @@ socket.emit('requestAuctionState', { roomCode, username });
 });
 
     // Request squad
-    socket.on('requestSquad', (data) => {
-        try {
-            const { roomCode, username, sessionId } = data;
-            const user = rooms[roomCode]?.users[username];
-            
-            if (!user || user.sessionId !== sessionId) {
-                socket.emit('error', { message: 'Invalid session' });
-                return;
-            }
-            
-            const squad = getUserSquad(roomCode, username);
-            
-            if (squad) {
-                io.to(socket.id).emit('squadUpdate', squad);
-            }
-        } catch (error) {
-            console.error('❌ Error getting squad:', error);
+    // ✅ FIXED: Request squad - WITH CALLBACK
+socket.on('requestSquad', (data, callback) => {
+    try {
+        const { roomCode, username, sessionId } = data;
+        const room = rooms[roomCode];
+        
+        console.log(`📊 Squad request from ${username} in room ${roomCode}`);
+        
+        if (!room) {
+            if (callback) callback({ success: false, message: 'Room not found' });
+            return;
         }
-    });
+        
+        const user = room.users[username];
+        if (!user) {
+            if (callback) callback({ success: false, message: 'User not found' });
+            return;
+        }
+        
+        if (!user.sessionId || user.sessionId !== sessionId) {
+            if (callback) callback({ success: false, message: 'Session expired' });
+            return;
+        }
+        
+        const squadData = getUserSquad(roomCode, username);
+        
+        if (!squadData) {
+            if (callback) callback({ success: false, message: 'Failed to get squad data' });
+            return;
+        }
+        
+        // ✅ FIXED: Add missing calculations
+        const totalSpent = (user.auctionPlayers || []).reduce((sum, player) => sum + (player.price || 0), 0);
+        const totalBudget = room.rules?.totalPurse || 100;
+        const remainingBudget = totalBudget - totalSpent;
+        
+        // Complete squad data
+        const completeSquadData = {
+            ...squadData,
+            totalSpent: totalSpent,
+            totalBudget: totalBudget,
+            remainingBudget: remainingBudget,
+            maxSquad: room.rules?.squadSize || 25,
+            remainingSlots: Math.max(0, (room.rules?.squadSize || 25) - squadData.squadLimits.total),
+            rules: room.rules || { totalPurse: 100, squadSize: 25 }
+        };
+        
+        console.log(`✅ Sending squad data to ${username}:`, {
+            retained: completeSquadData.retainedPlayers?.length || 0,
+            auction: completeSquadData.auctionPlayers?.length || 0,
+            spent: completeSquadData.totalSpent,
+            remaining: completeSquadData.remainingBudget
+        });
+        
+        // Send to client
+        io.to(socket.id).emit('squadUpdate', completeSquadData);
+        
+        // Also send callback
+        if (callback) callback({ 
+            success: true, 
+            data: completeSquadData,
+            message: 'Squad data loaded successfully'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error getting squad:', error);
+        if (callback) callback({ success: false, message: 'Failed to get squad data' });
+    }
+});
 
     // Request squad update
     socket.on('requestSquadUpdate', (data) => {
