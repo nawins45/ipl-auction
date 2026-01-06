@@ -1695,19 +1695,22 @@ socket.on('startRetention', (data) => {
         
         room.retentionStarted = true;
         room.retentionSubmissions = {};
+        room.retentionStartTime = Date.now(); // ✅ Store start time
         
         console.log(`📢 Notifying ${Object.keys(room.users).length} users...`);
         
+        // ✅ FIX: Send timer start time with redirect
         io.to(roomCode).emit('redirectToRetention', { 
-            duration: 90,
-            roomCode: roomCode
+            duration: 60,
+            roomCode: roomCode,
+            startTime: Date.now() // ✅ Send server timestamp
         });
         
         console.log('✅ Redirect command sent to all users');
         
         // Set timeout to force check submissions after 90 seconds
         setTimeout(() => {
-            console.log(`\n⏰ 90-second retention timer ended for room ${roomCode}`);
+            console.log(`\n⏰ 60-second retention timer ended for room ${roomCode}`);
             
             // Force check all submissions
             const allSubmitted = checkAllRetentionSubmitted(roomCode);
@@ -1739,7 +1742,7 @@ socket.on('startRetention', (data) => {
                 }, 1000);
             }
             
-        }, 90000); // 90 seconds
+        }, 60000); // 60 seconds
         
         console.log('✅ Retention phase started successfully');
         

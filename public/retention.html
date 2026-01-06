@@ -258,7 +258,7 @@
         let retentionData = null;
         let selectedPlayers = new Map(); // Use Map to store player objects
         let countdownInterval = null;
-        let timeLeft = 90;
+        let timeLeft = 60;
         let autoSubmitted = false;
         let currentRoomCode = null;
         let currentUsername = null;
@@ -775,6 +775,9 @@ function submitRetention() {
 
         // ========== TIMER FUNCTIONS ==========
         function startTimer() {
+            console.log('⏰ startTimer() called');
+            console.log('timeLeft variable:', timeLeft);
+
             if (timeLeft < 0) timeLeft = 0;
             updateTimerDisplay();
             
@@ -792,22 +795,23 @@ function submitRetention() {
         }
         
         function updateTimerDisplay() {
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            
-            timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            remainingTime.textContent = `${timeLeft}s`;
-            
-            timer.classList.remove('text-red-400', 'text-yellow-400', 'text-white', 'pulse-timer', 'timer-warning');
-            
-            if (timeLeft <= 30) {
-                timer.classList.add('text-red-400', 'timer-warning');
-            } else if (timeLeft <= 60) {
-                timer.classList.add('text-yellow-400');
-            } else {
-                timer.classList.add('text-white', 'pulse-timer');
-            }
-        }
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    
+    timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    remainingTime.textContent = `${timeLeft}s`;
+    
+    // Update color based on time left (adjusted for 60 seconds)
+    timer.classList.remove('text-red-400', 'text-yellow-400', 'text-white', 'pulse-timer', 'timer-warning');
+    
+    if (timeLeft <= 15) { // Red warning in last 15 seconds
+        timer.classList.add('text-red-400', 'timer-warning');
+    } else if (timeLeft <= 30) { // Yellow warning from 30-16 seconds
+        timer.classList.add('text-yellow-400');
+    } else {
+        timer.classList.add('text-white', 'pulse-timer'); // Normal white for first 30 seconds
+    }
+}
         
         // Replace the autoSubmitRetention function in retention.html:
 function autoSubmitRetention() {
@@ -1036,6 +1040,15 @@ function autoSubmitRetention() {
         window.submitRetention = submitRetention;
 
         console.log('✅ Retention page loaded with auto-submission');
+        // Force start timer after 1 second if not started
+setTimeout(() => {
+    console.log('🔄 Checking if timer started...');
+    
+    if (!countdownInterval && timeLeft > 0) {
+        console.log('⚠️ Timer not started, starting now...');
+        startTimer();
+    }
+}, 1000);
     </script>
 </body>
 </html>
