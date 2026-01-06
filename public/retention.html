@@ -342,9 +342,32 @@
                     maxIndianLimit.textContent = maxIndian;
                     maxOverseasLimit.textContent = maxOverseas;
                 }
+
+                // ✅ ADD THIS: Get timer from server data
+    if (data.timeLeft !== undefined) {
+        timeLeft = data.timeLeft;
+        console.log(`⏰ Server sent timeLeft: ${timeLeft} seconds`);
+    } else {
+        // Default to 90 seconds if not provided
+        timeLeft = 90;
+    }
                 
                 initializePage();
             });
+
+            // Add this after the 'retentionData' socket handler:
+socket.on('timerUpdate', (data) => {
+    console.log('⏰ Timer update:', data);
+    if (data.timeLeft !== undefined) {
+        timeLeft = data.timeLeft;
+        updateTimerDisplay();
+        
+        // Auto-submit when timer reaches 0
+        if (timeLeft <= 0 && !autoSubmitted) {
+            autoSubmitRetention();
+        }
+    }
+});
             
             socket.on('redirectToAuctionPool', (data) => {
                 console.log('🚀 Redirecting to auction pool:', data);
@@ -412,6 +435,7 @@ localStorage.setItem('userSession', JSON.stringify({
     
     console.log(`🏆 User team: ${retentionData.team.name}`);
     console.log(`📊 Players received: ${retentionData.players?.length || 0}`);
+    console.log(`⏰ Time remaining: ${timeLeft} seconds`);
     
     // Hide loading state
     emptyState.classList.add('hidden');
@@ -426,7 +450,13 @@ localStorage.setItem('userSession', JSON.stringify({
     document.getElementById('manualSubmitSection').classList.remove('hidden');
     autoSubmitNotice.classList.remove('hidden');
     
-    // Start timer
+    // ✅ FIX: Clear any existing interval first
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+    
+    // Start timer immediately
     startTimer();
     
     // Update counts
@@ -775,24 +805,38 @@ function submitRetention() {
 
         // ========== TIMER FUNCTIONS ==========
         function startTimer() {
-            console.log('⏰ startTimer() called');
-            console.log('timeLeft variable:', timeLeft);
-
-            if (timeLeft < 0) timeLeft = 0;
-            updateTimerDisplay();
-            
-            countdownInterval = setInterval(() => {
-                if (timeLeft <= 0) {
-                    clearInterval(countdownInterval);
-                    timeLeft = 0;
-                    updateTimerDisplay();
-                    autoSubmitRetention();
-                    return;
-                }
-                timeLeft--;
-                updateTimerDisplay();
-            }, 1000);
+    console.log('⏰ Starting timer with timeLeft:', timeLeft);
+    
+    // Clear any existing timer
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+    
+    // Ensure timeLeft is valid
+    if (timeLeft < 0) timeLeft = 0;
+    
+    // Update display immediately
+    updateTimerDisplay();
+    
+    // Don't start if already at 0
+    if (timeLeft <= 0) {
+        autoSubmitRetention();
+        return;
+    }
+    
+    // Start countdown
+    countdownInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        
+        if (timeLeft <= 0) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            autoSubmitRetention();
         }
+    }, 1000);
+}
         
         function updateTimerDisplay() {
     const minutes = Math.floor(timeLeft / 60);
@@ -1040,15 +1084,33 @@ function autoSubmitRetention() {
         window.submitRetention = submitRetention;
 
         console.log('✅ Retention page loaded with auto-submission');
+
+        // Add this helper function at the end of your script:
+function debugTimerStatus() {
+    console.log('⏰ Timer Debug:', {
+        timeLeft: timeLeft,
+        hasInterval: !!countdownInterval,
+        autoSubmitted: autoSubmitted,
+        currentTime: new Date().toLocaleTimeString()
+    });
+}
+
+// Call it every 10 seconds for debugging
+setInterval(debugTimerStatus, 10000);
         // Force start timer after 1 second if not started
+// Force start timer after 2 seconds if not started
 setTimeout(() => {
-    console.log('🔄 Checking if timer started...');
+    console.log('🔄 Timer startup check:', {
+        timeLeft: timeLeft,
+        hasInterval: !!countdownInterval,
+        pageLoaded: true
+    });
     
     if (!countdownInterval && timeLeft > 0) {
-        console.log('⚠️ Timer not started, starting now...');
+        console.log('⚠️ Timer not started automatically, starting manually...');
         startTimer();
     }
-}, 1000);
+}, 2000);
     </script>
 </body>
 </html>
