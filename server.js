@@ -1486,6 +1486,29 @@ if (room.auctionPoolStarted && user.username !== room.auctioneer) {
                     roomCode: roomCode,
                     sessionId: sessionId
                 });
+                // ✅ CHECK IF AUCTION POOL ALREADY STARTED
+if (room.auctionPoolStarted) {
+    console.log(`⚠️ ${username} joining retention but auction pool already started`);
+    
+    setTimeout(() => {
+        const squadData = getUserSquad(roomCode, username);
+        
+        // Force redirect to auction pool
+        socket.emit('forceRedirectToAuctionPool', {
+            message: 'Auction pool is already active!',
+            roomCode: roomCode,
+            username: username,
+            team: user.team,
+            squadData: squadData,
+            sessionId: sessionId,
+            timestamp: Date.now(),
+            redirectUrl: 'auctionpool.html',
+            auctioneer: room.auctioneer,
+            success: true,
+            force: true
+        });
+    }, 1000);
+}
                 
                 console.log(`📤 Sent ${formattedPlayers.length} players to ${user.username}`);
             }
@@ -1624,6 +1647,34 @@ socket.on('retentionSubmitted', (data) => {
     }
 });
 
+// ✅ ADD THIS NEW HANDLER: Fix for retention submission state
+socket.on('retentionSubmittedSuccess', (data) => {
+    const { roomCode, username, sessionId, count } = data;
+    const room = rooms[roomCode];
+    
+    if (!room) return;
+    
+    const user = room.users[username];
+    if (user) {
+        user.retentionSubmitted = true;
+        user.retentionSuccess = true;
+        
+        // Notify auctioneer
+        if (room.auctioneerSocket) {
+            io.to(room.auctioneerSocket).emit('retentionSubmitted', {
+                username: username,
+                team: user.team?.name,
+                count: count || 0,
+                autoSubmitted: false,
+                success: true
+            });
+        }
+        
+        // Check if all users submitted
+        checkAllRetentionSubmitted(roomCode);
+    }
+});
+
     // Submit retention
     // In the submitRetention handler, after saving the retention:
     // Submit retention
@@ -1714,10 +1765,15 @@ socket.on('submitRetention', (data) => {
     // Start auction pool
      // Start auction pool
     // Start auction pool - FIXED VERSION
+// Start auction pool - UPDATED VERSION
 socket.on('startAuctionPool', (data) => {
     try {
         const { roomCode, sessionId } = data;
         const room = rooms[roomCode];
+        
+        console.log(`\n🚀 STARTING AUCTION POOL FOR ROOM ${roomCode}`);
+        console.log(`   Auctioneer: ${room?.auctioneer}`);
+        console.log(`   Users in room: ${Object.keys(room?.users || {}).length}`);
         
         if (!room) {
             socket.emit('error', { message: 'Room not found' });
@@ -1732,83 +1788,78 @@ socket.on('startAuctionPool', (data) => {
             return;
         }
         
-        console.log(`🚀 Starting auction pool for room ${roomCode}`);
-        
-        // Initialize auction and start it
+        // Initialize auction
+        console.log('🎯 Initializing auction pool...');
         initializeAuction(roomCode);
+        
+        // Start the auction
         startAuctionForRoom(roomCode);
-
-        // Also emit auctionStarted event
-io.to(roomCode).emit('auctionStarted', {
-    message: 'Auction pool has begun!',
-    roomCode: roomCode,
-    timestamp: Date.now()
-});
         
         // Mark that auction pool has started
         room.auctionPoolStarted = true;
         room.auctionPhase = true;
         
-        // Get user count for logging
-        const userCount = Object.keys(room.users).length - 1; // Exclude auctioneer
+        console.log(`✅ Auction pool initialized for room ${roomCode}`);
         
-        console.log(`📤 Sending redirects to ${userCount} users in room ${roomCode}`);
+        // Get user count for logging (excluding auctioneer)
+        const usersToRedirect = Object.values(room.users).filter(
+            user => user.username !== room.auctioneer
+        );
         
-        // CRITICAL FIX: Redirect ALL USERS (except auctioneer) to auction pool
-        let redirectedCount = 0;
-        Object.values(room.users).forEach(user => {
-            if (user.username !== room.auctioneer && user.team) {
-                console.log(`📤 Preparing redirect for ${user.username}`);
+        console.log(`📤 Preparing to redirect ${usersToRedirect.length} users...`);
+        
+        // ✅ FIXED: Send FORCE REDIRECT to ALL USERS (except auctioneer)
+        usersToRedirect.forEach(user => {
+            if (user.team && user.socketId) {
+                console.log(`   ↳ FORCE redirecting ${user.username} (${user.team.name})`);
+                
+                // Mark user for auction pool
+                user.auctionPoolStarted = true;
+                user.auctionPoolRedirected = true;
                 
                 const squadData = getUserSquad(roomCode, user.username);
                 
-                // Check if user has socket connection
-                if (user.socketId) {
-                    console.log(`   ↳ User ${user.username} is connected, sending redirect...`);
-                    
-                    io.to(user.socketId).emit('redirectToAuctionPool', {
-                        message: 'Auction pool phase has begun!',
-                        roomCode: roomCode,
-                        username: user.username,
-                        team: user.team,
-                        squadData: squadData,
-                        sessionId: user.sessionId,
-                        timestamp: Date.now(),
-                        redirectUrl: 'auctionpool.html',
-                        auctioneer: room.auctioneer,
-                        success: true
-                    });
-                    redirectedCount++;
-                } else {
-                    console.log(`   ↳ User ${user.username} is not connected (no socketId)`);
-                    // Store the redirect intent for when they reconnect
-                    user.pendingRedirect = {
-                        type: 'auctionPool',
-                        timestamp: Date.now(),
-                        roomCode: roomCode
-                    };
-                }
+                // Send IMMEDIATE redirect command
+                io.to(user.socketId).emit('forceRedirectToAuctionPool', {
+                    message: 'Auction pool has started!',
+                    roomCode: roomCode,
+                    username: user.username,
+                    team: user.team,
+                    squadData: squadData,
+                    sessionId: user.sessionId,
+                    timestamp: Date.now(),
+                    redirectUrl: 'auctionpool.html',
+                    auctioneer: room.auctioneer,
+                    success: true,
+                    force: true  // ✅ ADD FORCE FLAG
+                });
             }
         });
         
-        console.log(`✅ Sent redirects to ${redirectedCount}/${userCount} users`);
+        console.log(`✅ Sent force redirects to ${usersToRedirect.length} users`);
         
-        // Send SUCCESS response to auctioneer with option to go to auction control
+        // Send success to auctioneer
         socket.emit('auctionPoolStarted', {
             success: true,
             roomCode: roomCode,
-            message: `Auction pool started! ${redirectedCount} users are being redirected.`,
-            userCount: userCount,
-            redirectedCount: redirectedCount,
+            message: `Auction pool started! ${usersToRedirect.length} users redirected.`,
+            userCount: usersToRedirect.length,
+            redirectedCount: usersToRedirect.length,
             timestamp: Date.now(),
-            // Add this flag to tell client to show "Go to Auction Control" button
             auctioneerCanJoin: true
         });
         
-        console.log(`✅ Auction pool started for room ${roomCode}`);
+        // Also send to auctioneer to update UI
+        io.to(room.auctioneerSocket).emit('forceRedirectUsers', {
+            success: true,
+            message: `Force redirected ${usersToRedirect.length} users to auction pool`,
+            redirectedCount: usersToRedirect.length
+        });
+        
+        console.log(`🎉 AUCTION POOL STARTED SUCCESSFULLY`);
         
     } catch (error) {
-        console.error('❌ Error starting auction pool:', error);
+        console.error('❌ CRITICAL ERROR starting auction pool:', error);
         socket.emit('error', { message: 'Failed to start auction pool: ' + error.message });
     }
 });
@@ -2097,7 +2148,39 @@ socket.on('joinAuctionPool', (data) => {
         socket.emit('requestAuctionState', { roomCode, username });
         
         console.log(`✅ ${username} joined auction pool in room ${roomCode}`);
+        socket.on('joinAuctionPool', (data) => {
+    try {
+        // ... existing code ...
         
+        // ✅ ADD: Check if auction pool has started
+        if (room.auctionPoolStarted && user.socketId) {
+            console.log(`⚠️ ${username} joining auction pool but already redirected`);
+            
+            // Send immediate force redirect
+            const squadData = getUserSquad(roomCode, username);
+            
+            io.to(user.socketId).emit('forceRedirectToAuctionPool', {
+                message: 'Auction pool is active!',
+                roomCode: roomCode,
+                username: username,
+                team: user.team,
+                squadData: squadData,
+                sessionId: user.sessionId,
+                timestamp: Date.now(),
+                redirectUrl: 'auctionpool.html',
+                auctioneer: room.auctioneer,
+                success: true,
+                force: true
+            });
+            
+            return;
+        }
+        
+        // ... rest of existing code ...
+    } catch (error) {
+        // ... error handling ...
+    }
+});
     } catch (error) {
         console.error('❌ Error joining auction pool:', error);
         socket.emit('error', { message: 'Failed to join auction pool' });
@@ -2829,6 +2912,57 @@ socket.on('checkRetentionStatus', (data) => {
             socket.emit('error', { message: 'Failed to get squad data' });
         }
     });
+    // Force redirect users to auction pool
+// ========== FORCE REDIRECT TO AUCTION POOL ==========
+socket.on('requestAuctionPoolRedirect', (data) => {
+    try {
+        const { roomCode, username, sessionId } = data;
+        const room = rooms[roomCode];
+        
+        console.log(`📤 Requesting auction pool redirect for ${username}`);
+        
+        if (!room) {
+            socket.emit('error', { message: 'Room not found' });
+            return;
+        }
+        
+        const user = room.users[username];
+        if (!user) {
+            socket.emit('error', { message: 'User not found' });
+            return;
+        }
+        
+        if (user.sessionId !== sessionId) {
+            socket.emit('error', { message: 'Session mismatch' });
+            return;
+        }
+        
+        // Check if auction pool has started
+        if (room.auctionPoolStarted) {
+            const squadData = getUserSquad(roomCode, username);
+            
+            console.log(`✅ Sending redirect to ${username}`);
+            
+            io.to(socket.id).emit('forceRedirectToAuctionPool', {
+                roomCode: roomCode,
+                username: username,
+                team: user.team,
+                squadData: squadData,
+                sessionId: user.sessionId,
+                message: 'Auction pool is active! Redirecting...',
+                redirectUrl: 'auctionpool.html',
+                timestamp: Date.now(),
+                success: true
+            });
+        } else {
+            socket.emit('error', { message: 'Auction pool not started yet' });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error in requestAuctionPoolRedirect:', error);
+        socket.emit('error', { message: 'Redirect request failed' });
+    }
+});
 });
 
 // Global error handlers

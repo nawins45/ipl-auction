@@ -700,9 +700,10 @@ function submitRetention() {
         return;
     }
     
-    const selectedPlayersArray = getSelectedPlayers();
+    // Get selected players
+    const selectedPlayersArray = Array.from(selectedPlayers.values());
     
-    // Get session ID properly
+    // Get session
     const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
     const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
     const sessionId = userSession.sessionId || currentSession.sessionId;
@@ -717,42 +718,61 @@ function submitRetention() {
         roomCode: currentRoomCode,
         username: currentUsername,
         count: selectedPlayersArray.length,
-        sessionId: sessionId,
-        players: selectedPlayersArray
+        sessionId: sessionId
     });
     
     // Show loading state
     const submitBtn = document.querySelector('#manualSubmitSection button');
+    const originalHTML = submitBtn ? submitBtn.innerHTML : null;
+    
     if (submitBtn) {
         submitBtn.innerHTML = '<span class="flex items-center justify-center space-x-2"><span class="animate-spin">⏳</span><span>Submitting...</span></span>';
         submitBtn.disabled = true;
     }
     
-    // Send with acknowledgment callback
+    // Format players for submission
+    const formattedPlayers = selectedPlayersArray.map(player => ({
+        id: player.id || `player_${player.index}`,
+        name: player.name || 'Unknown Player',
+        role: player.role || 'Player',
+        nationality: player.nationality || 'Indian',
+        basePrice: player.basePrice || 2.00,
+        isOverseas: player.isOverseas || false,
+        index: player.index
+    }));
+    
+    // Send with acknowledgment
     socket.emit('submitRetention', {
         roomCode: currentRoomCode,
         username: currentUsername,
-        selectedPlayers: selectedPlayersArray,
+        selectedPlayers: formattedPlayers,
         sessionId: sessionId
     }, (response) => {
+        console.log('📨 Server response:', response);
+        
         if (response && response.success) {
-            console.log('✅ Manual submit successful:', response);
-            
+            console.log('✅ Submit successful');
             autoSubmitted = true;
-            clearInterval(countdownInterval);
             
-            // Store in localStorage
-            localStorage.setItem('retentionSubmitted', 'true');
-            localStorage.setItem('retainedPlayers', JSON.stringify(selectedPlayersArray));
-            
-            // Update UI
+            // Update button to show success
+            submitBtn = document.querySelector('#manualSubmitSection button');
             if (submitBtn) {
                 submitBtn.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>✅</span><span>Submitted Successfully!</span></span>';
+                submitBtn.disabled=true;
                 submitBtn.classList.remove('bg-gradient-to-r', 'from-green-500', 'to-emerald-600');
                 submitBtn.classList.add('bg-gradient-to-r', 'from-green-900/20', 'to-emerald-900/20', 'border', 'border-green-500/30');
             }
+            socket.emit('retentionSubmittedSuccess', {
+                username: currentUsername,
+                roomCode: currentRoomCode,
+                sessionId: sessionId,
+                count: formattedPlayers.length
+            });
+            // Store locally
+            localStorage.setItem('retentionSubmitted', 'true');
+            localStorage.setItem('retainedPlayers', JSON.stringify(formattedPlayers));
             
-            // Disable all player cards
+            // Disable player selection
             document.querySelectorAll('.player-card').forEach(card => {
                 card.style.pointerEvents = 'none';
                 card.style.opacity = '0.5';
@@ -762,25 +782,17 @@ function submitRetention() {
             autoSubmitNotice.classList.add('hidden');
             
             showAlert('Success!', 
-                selectedPlayersArray.length > 0 
-                    ? `Your ${selectedPlayersArray.length} selected players have been retained.` 
-                    : 'You submitted with zero retained players. You will enter auction with no retained players.',
-                selectedPlayersArray.length > 0 ? '✅' : '⚠️');
-            
-            // Wait 3 seconds then show redirect
-            setTimeout(() => {
-                showAlert('Moving to Auction Pool', 'Redirecting in 3 seconds...', '💰');
-                setTimeout(() => {
-                    window.location.href = 'auctionpool.html';
-                }, 3000);
-            }, 3000);
+                formattedPlayers.length > 0 
+                    ? `Your ${formattedPlayers.length} selected players have been retained.` 
+                    : 'You submitted with zero retained players.',
+                formattedPlayers.length > 0 ? '✅' : '⚠️');
             
         } else {
-            console.error('❌ Manual submit failed:', response?.message);
+            console.error('❌ Submit failed:', response?.message);
             
-            // Reset button
-            if (submitBtn) {
-                submitBtn.innerHTML = '✅ Submit Retention Selections';
+            // Reset button on error
+            if (submitBtn && originalHTML) {
+                submitBtn.innerHTML = originalHTML;
                 submitBtn.disabled = false;
             }
             

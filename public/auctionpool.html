@@ -624,7 +624,13 @@
             
             // Check for user session
             userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-            
+            // ✅ ADD: Check if we have force redirect data
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('forceRedirect') || !userSession.sessionId) {
+        console.log('⚠️ No valid session or force redirect detected');
+        showSessionCheckModal();
+        return;
+    }
             if (userSession.sessionId) {
                 currentUsername = userSession.username;
                 currentRoomCode = userSession.roomCode;
@@ -1014,6 +1020,108 @@ socket.on('forceRedirectToPlaying11', (data) => {
                 showAlert('Error', data.message, '❌');
             });
         }
+
+        // ========== NEW REDIRECT HANDLERS ==========
+
+socket.on('forceRedirectToAuctionPool', (data) => {
+    console.log('🚀 FORCE REDIRECT RECEIVED:', data);
+    
+    if (data.success) {
+        // ✅ FIXED: Store session data properly
+        const userSession = {
+            username: data.username,
+            roomCode: data.roomCode,
+            team: data.team,
+            sessionId: data.sessionId,
+            squadData: data.squadData || {}
+        };
+        
+        localStorage.setItem('userSession', JSON.stringify(userSession));
+        localStorage.setItem('currentSession', JSON.stringify(userSession));
+        localStorage.setItem('auctionUser', JSON.stringify(userSession));
+        
+        // Show immediate redirect message
+        const waitingAuction = document.getElementById('waitingAuction');
+        if (waitingAuction) {
+            waitingAuction.classList.remove('hidden');
+            waitingAuction.innerHTML = `
+                <div class="text-6xl mb-4">🚀</div>
+                <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Pool Starting!</h3>
+                <p class="text-gray-300 mb-4">${data.message || 'Redirecting to auction pool...'}</p>
+                <div class="mt-6 flex items-center justify-center space-x-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                </div>
+            `;
+        }
+        
+        // Hide current player if showing
+        currentPlayerCard.classList.add('hidden');
+        biddingControls.classList.add('hidden');
+        
+        // ✅ FIXED: Redirect immediately without delay
+        console.log('🔗 Force redirecting to auctionpool.html');
+        window.location.href = 'auctionpool.html';
+    }
+});
+
+socket.on('redirectToAuctionPool', (data) => {
+    console.log('📤 Redirect received:', data);
+    
+    // Update localStorage
+    localStorage.setItem('userSession', JSON.stringify({
+        username: data.username,
+        roomCode: data.roomCode,
+        team: data.team,
+        sessionId: data.sessionId
+    }));
+    
+    // Store squad data
+    if (data.squadData) {
+        localStorage.setItem('squadData', JSON.stringify(data.squadData));
+    }
+    
+    // Show redirect message
+    showAlert('Auction Pool', data.message || 'Moving to auction pool...', '💰');
+    
+    // Clear any intervals
+    if (countdownInterval) clearInterval(countdownInterval);
+    
+    // Redirect after delay
+    setTimeout(() => {
+        window.location.href = 'auctionpool.html';
+    }, 2000);
+});
+
+// Check for pending redirect on page load
+socket.on('connect', () => {
+    console.log('✅ Connected to auction pool');
+    
+    // Check if we have session data
+    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+    if (userSession.sessionId && userSession.roomCode) {
+        console.log('🔄 Rejoining auction pool with session:', userSession.username);
+        
+        // Join auction pool first
+        socket.emit('joinAuctionPool', {
+            roomCode: userSession.roomCode,
+            username: userSession.username,
+            sessionId: userSession.sessionId
+        });
+        
+        // Then request redirect if needed
+        setTimeout(() => {
+            socket.emit('requestAuctionPoolRedirect', {
+                roomCode: userSession.roomCode,
+                username: userSession.username,
+                sessionId: userSession.sessionId
+            });
+        }, 500);
+    } else {
+        showSessionCheckModal();
+    }
+});
 
         // ========== PAGE FUNCTIONS ==========
         function initializePage() {

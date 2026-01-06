@@ -1046,33 +1046,64 @@ select option:hover {
             }
         }
         
-        function startAuctionPool() {
-            if (!currentSessionId || !currentRoomCode) {
-                showAlert('Session Error', 'Please create a room first', '❌');
-                return;
+       function startAuctionPool() {
+    if (!currentSessionId || !currentRoomCode) {
+        showAlert('Session Error', 'Please create a room first', '❌');
+        return;
+    }
+    
+    // First check if all users have submitted retention
+    const submissionList = document.getElementById('submissionList');
+    const userList = document.querySelectorAll('#userList .user-item');
+    const totalUsers = userList.length;
+    const submittedCount = submissionList.querySelectorAll('.user-item').length;
+    
+    if (totalUsers > 0 && submittedCount < totalUsers) {
+        showAlert('Not Ready', `${submittedCount}/${totalUsers} users submitted retention. Wait for all submissions.`, '⚠️');
+        return;
+    }
+    
+    // ADD THIS FORCE REDIRECT LOGIC HERE
+    if (confirm('Start auction pool phase?\n\nThis will:\n1. Initialize auction with non-retained players\n2. Redirect all users to auctionpool.html\n3. Enable your auction control')) {
+        
+        // Disable button immediately
+        startAuctionPoolBtn.disabled = true;
+        startAuctionPoolBtn.innerHTML = `
+            <span class="flex items-center justify-center space-x-2">
+                <span class="animate-spin">⏳</span>
+                <span>Starting...</span>
+            </span>
+        `;
+        
+        // ✅ ADD THIS: FIRST SETUP SOCKET LISTENERS FOR REDIRECT
+        socket.once('forceRedirectUsers', (data) => {
+            console.log('🎯 Force redirecting all users to auction pool');
+            if (data.success) {
+                showAlert('Success', 'All users redirected to auction pool!', '✅');
+                
+                // Enable auction pool controls
+                setTimeout(() => {
+                    auctionPoolControls.classList.remove('hidden');
+                    document.getElementById('auctionNotStarted').classList.add('hidden');
+                    
+                    // Update button text
+                    startAuctionPoolBtn.innerHTML = `
+                        <span class="flex items-center justify-center space-x-2">
+                            <span>✅</span>
+                            <span>Auction Started</span>
+                        </span>
+                    `;
+                }, 1000);
             }
-            
-            if (confirm('Start auction pool phase? All non-retained players will go into auction.')) {
-                socket.emit('startAuctionPool', { 
-                    roomCode: currentRoomCode,
-                    sessionId: currentSessionId 
-                });
-                
-                startAuctionPoolBtn.disabled = true;
-                startAuctionPoolBtn.innerHTML = `
-                    <span class="flex items-center justify-center space-x-2">
-                        <span>✅</span>
-                        <span>Auction Started</span>
-                    </span>
-                `;
-                
-                // Show auction controls
-                auctionPoolControls.classList.remove('hidden');
-                document.getElementById('auctionNotStarted').classList.add('hidden');
-                
-                showAlert('Auction Pool Started', 'Auction pool has started! Click "Go to Auction Control" to manage the auction.', '🚀');
-            }
-        }
+        });
+        
+        // Now send the start auction pool request
+        socket.emit('startAuctionPool', { 
+            roomCode: currentRoomCode,
+            sessionId: currentSessionId 
+        });
+    }
+}
         
         function gotoAuction() {
             if (!currentRoomCode) {
