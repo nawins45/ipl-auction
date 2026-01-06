@@ -168,22 +168,32 @@ function checkAllRetentionSubmitted(roomCode) {
         user.retentionSubmitted === true
     );
     
-    console.log(`📊 Retention Status: ${submittedUsers.length}/${eligibleUsers.length} users submitted`);
+    console.log(`📊 Retention Status for ${roomCode}: ${submittedUsers.length}/${eligibleUsers.length} users submitted`);
     
-    // If all eligible users have submitted
+    // ✅ CRITICAL FIX: Always enable auction pool button when all submissions received
     if (eligibleUsers.length > 0 && submittedUsers.length >= eligibleUsers.length) {
         console.log(`✅ ALL RETENTION SUBMISSIONS RECEIVED for room ${roomCode}`);
         
-        // Enable auction pool button for auctioneer
+        // Enable auction pool button for auctioneer IMMEDIATELY
         if (auctioneerSocket) {
+            console.log(`🎯 Enabling auction pool button for auctioneer`);
+            
             io.to(auctioneerSocket).emit('allRetentionSubmitted', {
                 roomCode: roomCode,
                 message: 'All users have submitted retention! You can now start the auction pool.',
                 submittedCount: submittedUsers.length,
-                totalUsers: eligibleUsers.length
+                totalUsers: eligibleUsers.length,
+                immediateEnable: true  // ✅ NEW FLAG
             });
             
-            console.log(`🎯 Enabled auction pool button for auctioneer in room ${roomCode}`);
+            // ✅ ALSO send retention status update
+            io.to(auctioneerSocket).emit('retentionStatusUpdate', {
+                roomCode: roomCode,
+                submitted: submittedUsers.length,
+                total: eligibleUsers.length,
+                allComplete: true,
+                message: `ALL ${submittedUsers.length}/${eligibleUsers.length} users submitted retention. Auction pool can start now!`
+            });
         }
         
         return true;
@@ -829,20 +839,26 @@ function getUserSquad(roomCode, username) {
     const totalPlayers = retainedCount + auctionCount;
     
     let overseasCount = 0;
+    let totalSpent = 0;
+    
     if (user.retainedPlayers) {
         overseasCount += user.retainedPlayers.filter(p => p.isOverseas).length;
     }
     if (user.auctionPlayers) {
         overseasCount += user.auctionPlayers.filter(p => p.isOverseas).length;
+        totalSpent = user.auctionPlayers.reduce((sum, player) => sum + (player.price || 0), 0);
     }
     
     const indianCount = totalPlayers - overseasCount;
+    const budget = user.budget || 100;
     
     return {
         team: user.team,
+        username: username,
         retainedPlayers: user.retainedPlayers || [],
         auctionPlayers: user.auctionPlayers || [],
-        budget: user.budget || 100,
+        budget: budget,
+        totalSpent: totalSpent,
         rtmCards: user.rtmCards || 2,
         squadLimits: {
             total: totalPlayers,
@@ -850,6 +866,8 @@ function getUserSquad(roomCode, username) {
             overseas: overseasCount,
             maxSquad: room.rules?.squadSize || 25
         },
+        squadLimit: room.rules?.squadSize || 25,
+        remainingSlots: Math.max(0, (room.rules?.squadSize || 25) - totalPlayers),
         rules: room.rules || { impactPlayers: 1 }
     };
 }
@@ -897,6 +915,51 @@ io.on('connection', (socket) => {
         
         console.log(`✅ State synced for ${username}`);
     });
+
+    // ✅ ADD THIS: State sync acknowledgment
+socket.on('requestAuctionState', (data, callback) => {
+    const { roomCode, username } = data;
+    
+    console.log(`🔄 State sync requested by ${username} in room ${roomCode}`);
+    
+    const auction = auctionStates[roomCode];
+    const room = rooms[roomCode];
+    
+    if (!auction || !room) {
+        console.log('⚠️ No auction state available yet');
+        if (callback) callback({ success: false, message: 'Auction not started' });
+        return;
+    }
+    
+    // Send current player if available
+    const players = auction.categorizedPlayers[auction.currentCategory] || [];
+    const currentPlayer = players[auction.currentPlayerIndex];
+    
+    if (currentPlayer) {
+        console.log(`🎯 Syncing player ${currentPlayer.name} for ${username}`);
+        
+        socket.emit('playerUpForAuction', {
+            player: {
+                ...currentPlayer,
+                currentBid: auction.currentBid,
+                currentBidder: auction.currentBidder
+            },
+            category: auction.currentCategory
+        });
+    }
+    
+    // Send state sync
+    broadcastAuctionState(roomCode, socket.id);
+    
+    // ✅ Acknowledge sync
+    if (callback) callback({ 
+        success: true, 
+        message: 'State synced',
+        hasPlayer: !!currentPlayer 
+    });
+    
+    console.log(`✅ State synced for ${username}`);
+});
 
     // Handle login
     // Handle login - FIXED FOR AUCTIONEER
@@ -1736,8 +1799,17 @@ socket.on('submitRetention', (data) => {
         socket.emit('retentionSubmitSuccess', {
             success: true,
             message: 'Retention submitted successfully',
-            count: user.retainedPlayers.length
+            count: user.retainedPlayers.length,
+            immediateUpdate: true  // ✅ NEW: Tell client to update button immediately
         });
+        if (room.auctioneerSocket) {
+            io.to(room.auctioneerSocket).emit('retentionSubmitted', {
+                username: user.username,
+                team: user.team?.name || 'Unknown',
+                count: user.retainedPlayers.length,
+                autoSubmitted: false
+            });
+        }
 
         console.log('\n================================');
         console.log(`RETENTION SUBMITTED by ${username}`);
@@ -1785,6 +1857,28 @@ socket.on('startAuctionPool', (data) => {
             session.username !== room.auctioneer || 
             session.roomCode !== roomCode) {
             socket.emit('error', { message: 'Invalid session' });
+            return;
+        }
+         // ✅ FIXED: Check if ALL users have submitted retention
+        const users = Object.values(room.users);
+        const eligibleUsers = users.filter(user => 
+            user.username !== room.auctioneer && 
+            user.team !== null
+        );
+        const submittedUsers = users.filter(user => 
+            user.retentionSubmitted === true
+        );
+        
+        if (eligibleUsers.length > 0 && submittedUsers.length < eligibleUsers.length) {
+            console.log(`❌ Not all users submitted: ${submittedUsers.length}/${eligibleUsers.length}`);
+            
+            // Send specific error
+            socket.emit('error', { 
+                message: `Cannot start auction pool. ${submittedUsers.length}/${eligibleUsers.length} users submitted retention. Wait for all submissions.` 
+            });
+            
+            // Reset auctioneer button
+            io.to(socket.id).emit('resetAuctionPoolButton');
             return;
         }
         

@@ -741,7 +741,7 @@ function submitRetention() {
         index: player.index
     }));
     
-    // Send with acknowledgment
+    // ✅ FIXED: Use socket.emit with callback
     socket.emit('submitRetention', {
         roomCode: currentRoomCode,
         username: currentUsername,
@@ -754,20 +754,14 @@ function submitRetention() {
             console.log('✅ Submit successful');
             autoSubmitted = true;
             
-            // Update button to show success
-            submitBtn = document.querySelector('#manualSubmitSection button');
+            // ✅ FIXED: Update button IMMEDIATELY
             if (submitBtn) {
                 submitBtn.innerHTML = '<span class="flex items-center justify-center space-x-2"><span>✅</span><span>Submitted Successfully!</span></span>';
-                submitBtn.disabled=true;
+                submitBtn.disabled = false;
                 submitBtn.classList.remove('bg-gradient-to-r', 'from-green-500', 'to-emerald-600');
                 submitBtn.classList.add('bg-gradient-to-r', 'from-green-900/20', 'to-emerald-900/20', 'border', 'border-green-500/30');
             }
-            socket.emit('retentionSubmittedSuccess', {
-                username: currentUsername,
-                roomCode: currentRoomCode,
-                sessionId: sessionId,
-                count: formattedPlayers.length
-            });
+            
             // Store locally
             localStorage.setItem('retentionSubmitted', 'true');
             localStorage.setItem('retainedPlayers', JSON.stringify(formattedPlayers));
@@ -790,7 +784,7 @@ function submitRetention() {
         } else {
             console.error('❌ Submit failed:', response?.message);
             
-            // Reset button on error
+            // ✅ FIXED: Reset button on error
             if (submitBtn && originalHTML) {
                 submitBtn.innerHTML = originalHTML;
                 submitBtn.disabled = false;

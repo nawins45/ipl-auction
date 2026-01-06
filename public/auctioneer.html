@@ -1632,6 +1632,18 @@ socket.on('auctionPoolStarted', (data) => {
                 }, 3000);
             });
 
+            socket.on('resetAuctionPoolButton', () => {
+    console.log('🔄 Resetting auction pool button');
+    
+    startAuctionPoolBtn.disabled = false;
+    startAuctionPoolBtn.innerHTML = `
+        <span class="flex items-center justify-center space-x-2">
+            <span>🚀</span>
+            <span>START AUCTION POOL</span>
+        </span>
+    `;
+});
+
             socket.on('retentionStatusUpdate', (data) => {
     console.log('📊 Retention status update:', data);
     showAlert('Retention Status', 
@@ -1643,6 +1655,18 @@ socket.on('auctionPoolStarted', (data) => {
                 console.log('🔄 Force shuffle result:', data);
                 showAlert('Force Shuffle', `${data.username} shuffled from ${data.oldTeam} to ${data.team}`, '🔄');
             });
+            // ✅ ADD THIS: Reset auction pool button
+socket.on('resetAuctionPoolButton', () => {
+    console.log('🔄 Resetting auction pool button');
+    
+    startAuctionPoolBtn.disabled = false;
+    startAuctionPoolBtn.innerHTML = `
+        <span class="flex items-center justify-center space-x-2">
+            <span>🚀</span>
+            <span>START AUCTION POOL</span>
+        </span>
+    `;
+});
         }
         
         // Click on individual shuffle button

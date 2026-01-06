@@ -514,22 +514,39 @@
         const currentPlayerCount = document.getElementById('currentPlayerCount');
 
         // ========== STATE SYNCHRONIZATION SYSTEM ==========
-        function requestStateSync() {
-            if (!socket || !socket.connected || !currentUsername || !currentRoomCode) {
-                console.log('❌ Cannot sync: Missing connection or credentials');
-                return false;
+       function requestStateSync() {
+    if (!socket || !socket.connected || !currentUsername || !currentRoomCode) {
+        console.log('❌ Cannot sync: Missing connection or credentials');
+        updateSyncStatus('error', 'Not connected');
+        setTimeout(() => {
+            if (socket && !socket.connected) {
+                console.log('🔄 Attempting to reconnect...');
+                socket.connect();
             }
-            
-            console.log('🔄 Requesting auction state sync...');
-            updateSyncStatus('syncing', 'Syncing state...');
-            
-            socket.emit('requestAuctionState', {
-                roomCode: currentRoomCode,
-                username: currentUsername
-            });
-            
-            return true;
+        }, 1000);
+        return false;
+    }
+    
+    console.log('🔄 Requesting auction state sync...');
+    updateSyncStatus('syncing', 'Syncing state...');
+    
+    // ✅ FIXED: Use emit with callback for reliable sync
+    socket.emit('requestAuctionState', {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        timestamp: Date.now()
+    }, (response) => {
+        if (response && response.success) {
+            console.log('✅ State sync confirmed by server');
+            updateSyncStatus('synced', 'Live Auction State');
+        } else {
+            console.log('⚠️ State sync not confirmed, retrying...');
+            setTimeout(requestStateSync, 2000);
         }
+    });
+    
+    return true;
+}
         
         function updateSyncStatus(status, message = '') {
             const dot = syncStatus.querySelector('.w-2');
@@ -1433,71 +1450,114 @@ socket.on('connect', () => {
 }
         
         function updateSquadDisplay(data) {
-            // Create a simple squad modal
-            const squadModal = document.createElement('div');
-            squadModal.className = 'fixed inset-0 flex items-center justify-center z-50';
-            squadModal.innerHTML = `
-                <div class="absolute inset-0 bg-black/80"></div>
-                <div class="glass-panel rounded-2xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto z-10">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-yellow-400">My Squad</h2>
-                        <button onclick="this.parentElement.parentElement.parentElement.remove()" 
-                                class="text-2xl hover:text-yellow-400">✕</button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <h3 class="text-xl font-bold mb-4 text-green-400">Retained Players (${data.retainedPlayers?.length || 0})</h3>
-                            <div class="space-y-3 max-h-[300px] overflow-y-auto">
-                                ${(data.retainedPlayers || []).map(player => `
-                                    <div class="p-3 bg-gray-800/30 rounded-lg">
+    console.log('👥 Updating squad display:', data);
+    
+    // Create squad modal with LIVE data
+    const squadModal = document.createElement('div');
+    squadModal.className = 'fixed inset-0 flex items-center justify-center z-50';
+    squadModal.innerHTML = `
+        <div class="absolute inset-0 bg-black/80"></div>
+        <div class="glass-panel rounded-2xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto z-10">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-yellow-400">My Squad - ${data.team?.name || 'Team'}</h2>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                        class="text-2xl hover:text-yellow-400">✕</button>
+            </div>
+            
+            <!-- Budget Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="text-center p-4 rounded-lg bg-gray-800/30">
+                    <div class="text-sm text-gray-400">Total Budget</div>
+                    <div class="text-2xl font-bold text-green-400">₹${(data.budget + data.totalSpent || 100).toFixed(2)} Cr</div>
+                </div>
+                <div class="text-center p-4 rounded-lg bg-gray-800/30">
+                    <div class="text-sm text-gray-400">Amount Spent</div>
+                    <div class="text-2xl font-bold text-red-400">₹${data.totalSpent || 0} Cr</div>
+                </div>
+                <div class="text-center p-4 rounded-lg bg-gray-800/30">
+                    <div class="text-sm text-gray-400">Remaining Purse</div>
+                    <div class="text-2xl font-bold text-yellow-400">₹${data.budget || 100} Cr</div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Retained Players -->
+                <div>
+                    <h3 class="text-xl font-bold mb-4 text-green-400 flex items-center justify-between">
+                        <span>Retained Players (${data.retainedPlayers?.length || 0})</span>
+                        <span class="text-sm text-gray-400">Free</span>
+                    </h3>
+                    <div class="space-y-3 max-h-[300px] overflow-y-auto">
+                        ${(data.retainedPlayers || []).map(player => `
+                            <div class="p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors">
+                                <div class="flex justify-between items-center">
+                                    <div>
                                         <div class="font-medium">${player.name}</div>
-                                        <div class="text-sm text-gray-400">${player.role}</div>
+                                        <div class="text-sm text-gray-400">${player.role} • ${player.isOverseas ? '✈️ Overseas' : '🇮🇳 Indian'}</div>
                                     </div>
-                                `).join('')}
-                                ${(!data.retainedPlayers || data.retainedPlayers.length === 0) ? 
-                                    '<div class="text-gray-500 text-center py-4">No retained players</div>' : ''}
+                                    <div class="text-green-400 font-bold">FREE</div>
+                                </div>
                             </div>
-                        </div>
-                        <div>
-                            <h3 class="text-xl font-bold mb-4 text-blue-400">Auction Buys (${data.auctionPlayers?.length || 0})</h3>
-                            <div class="space-y-3 max-h-[300px] overflow-y-auto">
-                                ${(data.auctionPlayers || []).map(player => `
-                                    <div class="p-3 bg-gray-800/30 rounded-lg">
-                                        <div class="flex justify-between items-center">
-                                            <div>
-                                                <div class="font-medium">${player.name}</div>
-                                                <div class="text-sm text-gray-400">${player.role}</div>
-                                            </div>
-                                            <div class="text-yellow-400 font-bold">₹${player.price || 0} Cr</div>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                                ${(!data.auctionPlayers || data.auctionPlayers.length === 0) ? 
-                                    '<div class="text-gray-500 text-center py-4">No players bought yet</div>' : ''}
-                            </div>
-                        </div>
+                        `).join('')}
+                        ${(!data.retainedPlayers || data.retainedPlayers.length === 0) ? 
+                            '<div class="text-gray-500 text-center py-4">No retained players</div>' : ''}
                     </div>
-                    <div class="mt-6 pt-6 border-t border-gray-700">
-                        <div class="grid grid-cols-3 gap-4">
-                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                                <div class="text-sm text-gray-400">Total Players</div>
-                                <div class="text-2xl font-bold">${(data.retainedPlayers?.length || 0) + (data.auctionPlayers?.length || 0)}</div>
+                </div>
+                
+                <!-- Auction Buys -->
+                <div>
+                    <h3 class="text-xl font-bold mb-4 text-blue-400 flex items-center justify-between">
+                        <span>Auction Buys (${data.auctionPlayers?.length || 0})</span>
+                        <span class="text-sm text-gray-400">Total: ₹${(data.auctionPlayers || []).reduce((sum, p) => sum + (p.price || 0), 0).toFixed(2)} Cr</span>
+                    </h3>
+                    <div class="space-y-3 max-h-[300px] overflow-y-auto">
+                        ${(data.auctionPlayers || []).map(player => `
+                            <div class="p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <div class="font-medium">${player.name}</div>
+                                        <div class="text-sm text-gray-400">${player.role} • ${player.isOverseas ? '✈️ Overseas' : '🇮🇳 Indian'}</div>
+                                    </div>
+                                    <div class="text-yellow-400 font-bold">₹${player.price || 0} Cr</div>
+                                </div>
                             </div>
-                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                                <div class="text-sm text-gray-400">Purse Remaining</div>
-                                <div class="text-2xl font-bold text-green-400">₹${data.budget || 0} Cr</div>
-                            </div>
-                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                                <div class="text-sm text-gray-400">Squad Limit</div>
-                                <div class="text-2xl font-bold text-purple-400">${data.squadLimit || 25}</div>
-                            </div>
+                        `).join('')}
+                        ${(!data.auctionPlayers || data.auctionPlayers.length === 0) ? 
+                            '<div class="text-gray-500 text-center py-4">No players bought yet</div>' : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Squad Summary -->
+            <div class="mt-6 pt-6 border-t border-gray-700">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                        <div class="text-sm text-gray-400">Total Players</div>
+                        <div class="text-2xl font-bold">${(data.retainedPlayers?.length || 0) + (data.auctionPlayers?.length || 0)}</div>
+                    </div>
+                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                        <div class="text-sm text-gray-400">Squad Limit</div>
+                        <div class="text-2xl font-bold text-purple-400">${data.squadLimit || 25}</div>
+                    </div>
+                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                        <div class="text-sm text-gray-400">Remaining Slots</div>
+                        <div class="text-2xl font-bold text-blue-400">${Math.max(0, (data.squadLimit || 25) - ((data.retainedPlayers?.length || 0) + (data.auctionPlayers?.length || 0)))}</div>
+                    </div>
+                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                        <div class="text-sm text-gray-400">Overseas/Indian</div>
+                        <div class="text-lg font-bold">
+                            <span class="text-purple-400">${(data.auctionPlayers || []).filter(p => p.isOverseas).length + (data.retainedPlayers || []).filter(p => p.isOverseas).length}</span>
+                            <span class="text-gray-400">/</span>
+                            <span class="text-green-400">${(data.auctionPlayers || []).filter(p => !p.isOverseas).length + (data.retainedPlayers || []).filter(p => !p.isOverseas).length}</span>
                         </div>
                     </div>
                 </div>
-            `;
-            
-            document.body.appendChild(squadModal);
-        }
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(squadModal);
+}
 
         // ========== HELPER FUNCTIONS ==========
         function showAlert(title, message, icon = 'ℹ️') {
