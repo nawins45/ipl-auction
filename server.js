@@ -391,6 +391,17 @@ function initializeAuction(roomCode) {
     
     console.log(`✅ Auction initialized for room ${roomCode}`);
     console.log(`   Total players available: ${auctionPool.length}`);
+     // ✅ ADD: Immediately prepare first player for auction
+    const firstCategoryPlayers = categorizedPlayers['MARQUEE'];
+    if (firstCategoryPlayers.length > 0) {
+        console.log(`🎯 First player ready: ${firstCategoryPlayers[0].name}`);
+        
+        // Set up first player
+        auctionStates[roomCode].currentBid = firstCategoryPlayers[0].basePrice;
+        auctionStates[roomCode].currentPlayer = firstCategoryPlayers[0];
+        firstCategoryPlayers[0].currentBid = firstCategoryPlayers[0].basePrice;
+        firstCategoryPlayers[0].currentBidder = null;
+    }
     return auctionStates[roomCode];
 }
 
@@ -435,14 +446,59 @@ function startAuctionForRoom(roomCode) {
     const auction = auctionStates[roomCode];
     if (!auction) return;
     
+    console.log(`\n🎬 STARTING AUCTION FOR ROOM ${roomCode}`);
+    
     auction.currentCategoryIndex = 0;
     auction.currentCategory = playerCategories[0];
     auction.currentPlayerIndex = 0;
     
     const players = auction.categorizedPlayers[auction.currentCategory];
+    
     if (players.length > 0) {
-        startPlayerAuction(roomCode, players[0]);
+        console.log(`🎯 First player: ${players[0].name} (₹${players[0].basePrice} Cr)`);
+        
+        // ✅ FIXED: Set player data BEFORE broadcasting
+        auction.currentBid = players[0].basePrice;
+        auction.currentBidder = null;
+        auction.currentPlayer = players[0];
+        
+        players[0].currentBid = players[0].basePrice;
+        players[0].currentBidder = null;
+        
+        // Broadcast to ALL users immediately
+        console.log(`📢 Broadcasting first player to all users in room ${roomCode}`);
+        
+        io.to(roomCode).emit('playerUpForAuction', {
+            player: {
+                id: players[0].id,
+                name: players[0].name,
+                role: players[0].role,
+                bowlingType: players[0].bowlingType,
+                nationality: players[0].nationality,
+                basePrice: players[0].basePrice,
+                currentBid: players[0].basePrice,
+                currentBidder: null,
+                totalRuns: players[0].totalRuns,
+                highestScore: players[0].highestScore,
+                strikeRate: players[0].strikeRate,
+                fours: players[0].fours,
+                sixes: players[0].sixes,
+                fifties: players[0].fifties,
+                hundreds: players[0].hundreds,
+                wickets: players[0].wickets,
+                bestBowling: players[0].bestBowling,
+                economyRate: players[0].economyRate,
+                originalTeam: players[0].originalTeam
+            },
+            category: auction.currentCategory
+        });
+        
+        // Also send state sync
+        broadcastAuctionState(roomCode);
+        
+        console.log(`✅ First player auction started: ${players[0].name}`);
     } else {
+        console.log(`⚠️ No players in first category, moving to next`);
         moveToNextCategory(roomCode);
     }
 }
@@ -1883,11 +1939,18 @@ socket.on('startAuctionPool', (data) => {
         }
         
         // Initialize auction
-        console.log('🎯 Initializing auction pool...');
-        initializeAuction(roomCode);
-        
-        // Start the auction
-        startAuctionForRoom(roomCode);
+console.log('🎯 Initializing auction pool...');
+initializeAuction(roomCode);
+
+// ✅ FIXED: Start auction IMMEDIATELY
+console.log('🚀 Starting auction for first player...');
+startAuctionForRoom(roomCode);
+
+// ✅ ADD: Immediately broadcast state to ALL users
+setTimeout(() => {
+    console.log('📢 Broadcasting initial auction state to all users');
+    broadcastAuctionState(roomCode);
+}, 500);
         
         // Mark that auction pool has started
         room.auctionPoolStarted = true;
@@ -2226,20 +2289,46 @@ socket.on('joinAuctionPool', (data) => {
         }
         
         const squadData = getUserSquad(roomCode, username);
-        socket.emit('auctionData', {
-            team: user.team,
-            purse: user.budget || 100,
-            squadLimits: squadData?.squadLimits || {
-                total: 0,
-                indian: 0,
-                overseas: 0,
-                maxSquad: room.rules?.squadSize || 25
-            },
-            sessionId: sessionId
-        });
-        
-        // Request state sync
-        socket.emit('requestAuctionState', { roomCode, username });
+socket.emit('auctionData', {
+    team: user.team,
+    purse: user.budget || 100,
+    squadLimits: squadData?.squadLimits || {
+        total: 0,
+        indian: 0,
+        overseas: 0,
+        maxSquad: room.rules?.squadSize || 25
+    },
+    sessionId: sessionId
+});
+
+// ✅ FIXED: IMMEDIATE state sync with auction data
+const auction = auctionStates[roomCode];
+if (auction && auction.auctionPhase) {
+    console.log(`🎯 User ${username} joining active auction, sending immediate player data`);
+    
+    const players = auction.categorizedPlayers[auction.currentCategory] || [];
+    const currentPlayer = players[auction.currentPlayerIndex];
+    
+    if (currentPlayer) {
+        // Send player data immediately
+        setTimeout(() => {
+            socket.emit('playerUpForAuction', {
+                player: {
+                    ...currentPlayer,
+                    currentBid: auction.currentBid,
+                    currentBidder: auction.currentBidder
+                },
+                category: auction.currentCategory
+            });
+            
+            // Also send state sync
+            broadcastAuctionState(roomCode, socket.id);
+        }, 100);
+    }
+}
+
+// Still request state sync for backup
+socket.emit('requestAuctionState', { roomCode, username });
         
         console.log(`✅ ${username} joined auction pool in room ${roomCode}`);
         socket.on('joinAuctionPool', (data) => {
@@ -3057,6 +3146,46 @@ socket.on('requestAuctionPoolRedirect', (data) => {
         socket.emit('error', { message: 'Redirect request failed' });
     }
 });
+
+// ✅ ADD THIS: Check auction status
+    socket.on('checkAuctionStatus', (data, callback) => {
+        const { roomCode } = data;
+        const auction = auctionStates[roomCode];
+        
+        if (callback) {
+            callback({
+                isActive: !!auction,
+                hasPlayer: auction && auction.currentPlayer ? true : false,
+                roomCode: roomCode
+            });
+        }
+    });
+    
+    // ✅ ADD THIS: Request current player
+    socket.on('requestCurrentPlayer', (data) => {
+        const { roomCode } = data;
+        const auction = auctionStates[roomCode];
+        
+        if (auction && auction.currentPlayer) {
+            const players = auction.categorizedPlayers[auction.currentCategory] || [];
+            const currentPlayer = players[auction.currentPlayerIndex];
+            
+            if (currentPlayer) {
+                socket.emit('playerUpForAuction', {
+                    player: {
+                        ...currentPlayer,
+                        currentBid: auction.currentBid,
+                        currentBidder: auction.currentBidder
+                    },
+                    category: auction.currentCategory
+                });
+                
+                // Also send state sync
+                broadcastAuctionState(roomCode, socket.id);
+            }
+        }
+    });
+
 });
 
 // Global error handlers

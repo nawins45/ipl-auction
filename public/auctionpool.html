@@ -801,24 +801,41 @@
             });
             
             socket.on('playerUpForAuction', (data) => {
-                console.log('👤 Player up for auction:', data);
-                currentPlayer = data.player;
-                waitingAuction.classList.add('hidden');
-                currentPlayerCard.classList.remove('hidden');
-                displayCurrentPlayer();
-                biddingControls.classList.remove('hidden');
-                updateBidButtons();
-                
-                // Reset stats display
-                playerStats.classList.add('hidden');
-                currentPlayerCard.classList.remove('expanded');
-                showStatsBtn.innerHTML = '📊 Show Full Player Stats';
-                
-                updateBidIncrement(currentPlayer.currentBid || currentPlayer.basePrice || 2);
-                
-                // Update sync status
-                updateSyncStatus('synced', 'Live Player Updated');
-            });
+    console.log('👤 Player up for auction:', data);
+    currentPlayer = data.player;
+    
+    // ✅ FIXED: Hide waiting and show player immediately
+    if (waitingAuction) {
+        waitingAuction.classList.add('hidden');
+    }
+    if (currentPlayerCard) {
+        currentPlayerCard.classList.remove('hidden');
+    }
+    
+    displayCurrentPlayer();
+    
+    if (biddingControls) {
+        biddingControls.classList.remove('hidden');
+    }
+    
+    updateBidButtons();
+    
+    // Reset stats display
+    if (playerStats) {
+        playerStats.classList.add('hidden');
+    }
+    if (currentPlayerCard) {
+        currentPlayerCard.classList.remove('expanded');
+    }
+    if (showStatsBtn) {
+        showStatsBtn.innerHTML = '📊 Show Full Player Stats';
+    }
+    
+    updateBidIncrement(currentPlayer.currentBid || currentPlayer.basePrice || 2);
+    
+    // ✅ FIXED: Update sync status to show live
+    updateSyncStatus('synced', 'Live Auction');
+});
             
             socket.on('bidUpdate', (data) => {
                 console.log('💰 Bid update:', data);
@@ -1114,30 +1131,37 @@ socket.on('redirectToAuctionPool', (data) => {
 // Check for pending redirect on page load
 socket.on('connect', () => {
     console.log('✅ Connected to auction pool');
+    updateSyncStatus('syncing', 'Connecting...');
     
-    // Check if we have session data
-    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-    if (userSession.sessionId && userSession.roomCode) {
-        console.log('🔄 Rejoining auction pool with session:', userSession.username);
+    // Join auction pool with session
+    socket.emit('joinAuctionPool', {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        sessionId: userSession.sessionId
+    });
+    
+    // ✅ FIXED: Request immediate player data
+    setTimeout(() => {
+        console.log('🎯 Requesting immediate auction state...');
         
-        // Join auction pool first
-        socket.emit('joinAuctionPool', {
-            roomCode: userSession.roomCode,
-            username: userSession.username,
-            sessionId: userSession.sessionId
+        // First check if auction is already active
+        socket.emit('checkAuctionStatus', {
+            roomCode: currentRoomCode,
+            username: currentUsername
+        }, (response) => {
+            if (response && response.isActive) {
+                console.log('✅ Auction is active, requesting player data');
+                // Request player data immediately
+                socket.emit('requestCurrentPlayer', {
+                    roomCode: currentRoomCode,
+                    username: currentUsername
+                });
+            }
         });
         
-        // Then request redirect if needed
-        setTimeout(() => {
-            socket.emit('requestAuctionPoolRedirect', {
-                roomCode: userSession.roomCode,
-                username: userSession.username,
-                sessionId: userSession.sessionId
-            });
-        }, 500);
-    } else {
-        showSessionCheckModal();
-    }
+        // Request state sync after join
+        requestStateSync();
+    }, 300);
 });
 
         // ========== PAGE FUNCTIONS ==========
