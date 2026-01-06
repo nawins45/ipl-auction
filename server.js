@@ -2423,7 +2423,8 @@ if (room.currentAuctionPlayer) {
     });
 
     // End auction
-    socket.on('endAuction', (data) => {
+    // In the endAuction handler, update the redirect part:
+socket.on('endAuction', (data) => {
     try {
         const { roomCode, sessionId } = data;
         const room = rooms[roomCode];
@@ -2447,11 +2448,6 @@ if (room.currentAuctionPlayer) {
         
         console.log(`🏁 Auction forcefully ended by auctioneer for room ${roomCode}`);
         
-        // Clear any auction state
-        if (auctionStates[roomCode]) {
-            delete auctionStates[roomCode];
-        }
-        
         // Build teams data for auctioneer
         const teamsData = [];
         for (const username in room.users) {
@@ -2465,12 +2461,18 @@ if (room.currentAuctionPlayer) {
                 retainedPlayers: user.retainedPlayers || [],
                 auctionPlayers: user.auctionPlayers || [],
                 squadLimits: squadData?.squadLimits || {},
-                playing11Submitted: false
+                playing11Submitted: false,
+                rating: null,
+                ratingComments: '',
+                // ✅ ADD THESE for validation page
+                totalSpent: squadData?.totalSpent || 0,
+                remainingBudget: squadData?.remainingBudget || 100,
+                totalPlayers: (user.retainedPlayers?.length || 0) + (user.auctionPlayers?.length || 0)
             });
         }
         
         // ✅ CRITICAL FIX: Redirect ALL REGULAR USERS to playing11.html WITH SQUAD DATA
-        Object.values(room.users).forEach(user => {
+Object.values(room.users).forEach(user => {
     if (user.socketId && user.username !== room.auctioneer) {
         const squadData = getUserSquad(roomCode, user.username);
         
@@ -2483,87 +2485,109 @@ if (room.currentAuctionPlayer) {
             squadDataFromFunction: squadData ? 'Yes' : 'No'
         });
         
+        let completeSquadData;
+        
         if (!squadData) {
             console.log(`❌ No squad data for ${user.username}, creating default...`);
             // Create a basic squad structure
-            const defaultSquad = {
+            completeSquadData = {
                 team: user.team,
                 username: user.username,
                 retainedPlayers: user.retainedPlayers || [],
                 auctionPlayers: user.auctionPlayers || [],
                 budget: user.budget || 100,
-                rtmCards: user.rtmCards || 2,
-                rules: room.rules || { impactPlayers: 1 },
-                squadLimits: {
-                    total: (user.retainedPlayers?.length || 0) + (user.auctionPlayers?.length || 0),
-                    indian: 0,
-                    overseas: 0,
-                    maxSquad: room.rules?.squadSize || 25
-                }
+                totalBudget: room.rules?.totalPurse || 100,
+                totalSpent: (user.auctionPlayers || []).reduce((sum, p) => sum + (p.price || 0), 0),
+                remainingBudget: user.budget || 100,
+                squadSize: (user.retainedPlayers?.length || 0) + (user.auctionPlayers?.length || 0),
+                maxSquad: room.rules?.squadSize || 25,
+                rules: room.rules || { 
+                    totalPurse: 100, 
+                    squadSize: 25,
+                    impactPlayers: 1,
+                    maxOverseasPlaying11: 4, // ✅ NEW: Max overseas in playing 11
+                    requireWicketKeeper: true // ✅ NEW: Require at least 1 WK
+                },
+                sessionId: user.sessionId,
+                roomCode: roomCode
             };
             
             console.log(`✅ Created default squad for ${user.username}:`, {
-                retained: defaultSquad.retainedPlayers.length,
-                auction: defaultSquad.auctionPlayers.length,
-                budget: defaultSquad.budget
-            });
-            
-            io.to(user.socketId).emit('redirectToPlaying11', {
-                roomCode: roomCode,
-                username: user.username,
-                team: user.team,
-                squadData: defaultSquad, // Use default squad
-                message: 'Auction completed! Please select your Playing 11 and Impact Players.',
-                sessionId: user.sessionId,
-                timestamp: new Date().toISOString()
+                retained: completeSquadData.retainedPlayers.length,
+                auction: completeSquadData.auctionPlayers.length,
+                budget: completeSquadData.budget
             });
         } else {
             // Ensure squadData has all required fields
-            const completeSquadData = {
+            completeSquadData = {
                 ...squadData,
                 username: user.username,
                 team: user.team,
                 budget: user.budget || 100,
-                rtmCards: user.rtmCards || 2,
-                rules: room.rules || { impactPlayers: 1 },
-                sessionId: user.sessionId
+                totalBudget: room.rules?.totalPurse || 100,
+                totalSpent: (user.auctionPlayers || []).reduce((sum, p) => sum + (p.price || 0), 0),
+                remainingBudget: user.budget || 100,
+                squadSize: (user.retainedPlayers?.length || 0) + (user.auctionPlayers?.length || 0),
+                maxSquad: room.rules?.squadSize || 25,
+                rules: room.rules || { 
+                    totalPurse: 100, 
+                    squadSize: 25,
+                    impactPlayers: 1,
+                    maxOverseasPlaying11: 4, // ✅ NEW: Max overseas in playing 11
+                    requireWicketKeeper: true // ✅ NEW: Require at least 1 WK
+                },
+                sessionId: user.sessionId,
+                roomCode: roomCode
             };
             
             console.log(`✅ Sending squad to ${user.username}:`, {
                 retained: completeSquadData.retainedPlayers?.length || 0,
                 auction: completeSquadData.auctionPlayers?.length || 0,
-                total: (completeSquadData.retainedPlayers?.length || 0) + (completeSquadData.auctionPlayers?.length || 0)
+                total: completeSquadData.squadSize
             });
-            
+        }
+        
+        // ✅ CRITICAL FIX 1: First store squad data in localStorage
+        io.to(user.socketId).emit('storePlaying11Data', {
+            squadData: completeSquadData,
+            roomCode: roomCode,
+            username: user.username,
+            timestamp: Date.now()
+        });
+        
+        // ✅ CRITICAL FIX 2: Then redirect with a small delay to ensure data is stored
+        setTimeout(() => {
             io.to(user.socketId).emit('redirectToPlaying11', {
                 roomCode: roomCode,
                 username: user.username,
                 team: user.team,
                 squadData: completeSquadData,
-                message: 'Auction completed! Please select your Playing 11 and Impact Players.',
+                message: 'Auction completed! Please select your Playing 11, Impact Players, and Captain.',
                 sessionId: user.sessionId,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                requireCaptain: true // ✅ NEW: Require captain selection
             });
-        }
+        }, 100);
     }
 });
         
-        console.log(`✅ Sent redirect to playing11.html to all users`);
+        console.log(`✅ Sent redirect to playing11.html to all users with squad data`);
         
-        // ✅ Redirect AUCTIONEER to validation.html
+        // ✅ Redirect AUCTIONEER to validation.html WITH TEAMS DATA
         if (room.auctioneerSocket) {
             io.to(room.auctioneerSocket).emit('redirectAuctioneerToValidation', {
                 roomCode: roomCode,
                 teams: teamsData,
                 message: 'Auction completed. Please wait for teams to submit their Playing 11.',
                 sessionId: sessionId,
-                redirectUrl: 'validation.html'
+                redirectUrl: 'validation.html',
+                totalTeams: teamsData.length
             });
             
             console.log(`✅ Auctioneer redirected to validation.html with ${teamsData.length} teams`);
         }
         
-        // ✅ Reset END button state for auctioneer
+        // Reset END button state for auctioneer
         if (room.auctioneerSocket) {
             io.to(room.auctioneerSocket).emit('endAuctionComplete', {
                 roomCode: roomCode,
@@ -2576,7 +2600,6 @@ if (room.currentAuctionPlayer) {
         socket.emit('error', { message: 'Failed to end auction' });
     }
 });
-
     // Request squad
     // ✅ FIXED: Request squad - WITH CALLBACK
 socket.on('requestSquad', (data, callback) => {

@@ -1015,6 +1015,16 @@ document.addEventListener('click', function(e) {
                 console.log('📊 Auction update:', data);
                 updateAuctionStatus(data);
             });
+            socket.on('storePlaying11Data', (data) => {
+    console.log('💾 Storing playing 11 data:', data);
+    localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+    localStorage.setItem('userSession', JSON.stringify({
+        username: data.username,
+        roomCode: data.roomCode,
+        team: data.squadData.team,
+        sessionId: data.squadData.sessionId
+    }));
+});
             
             socket.on('squadUpdate', (data) => {
                 console.log('👥 Squad update:', data);
@@ -1074,26 +1084,33 @@ socket.on('forceRedirectToPlaying11', (data) => {
     }, 1000);
 });
             socket.on('redirectToPlaying11', (data) => {
-                console.log('🚀 Redirecting to playing 11:', data);
-                
-                // Store session data for playing11 page
-                const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-                userSession.roomCode = data.roomCode;
-                localStorage.setItem('userSession', JSON.stringify(userSession));
-                
-                // Store current session
-                const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
-                if (currentSession.sessionId === userSession.sessionId) {
-                    currentSession.roomCode = data.roomCode;
-                    localStorage.setItem('currentSession', JSON.stringify(currentSession));
-                }
-                
-                // Redirect after short delay
-                setTimeout(() => {
-                    console.log('🔗 Redirecting to playing11.html');
-                    window.location.href = 'playing11.html';
-                }, 2000);
-            });
+    console.log('🚀 Redirecting to playing 11:', data);
+    
+    // Show redirect message
+    showAlert('Auction Complete', data.message || 'Redirecting to Playing 11 selection...', '🏏');
+    
+    // Make sure data is stored (backup in case storePlaying11Data didn't fire)
+    if (data.squadData) {
+        localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+    }
+    
+    // Also update user session
+    localStorage.setItem('userSession', JSON.stringify({
+        username: data.username,
+        roomCode: data.roomCode,
+        team: data.team,
+        sessionId: data.sessionId
+    }));
+    
+    // Clear any auction intervals
+    if (countdownInterval) clearInterval(countdownInterval);
+    
+    // Redirect after short delay (give time for localStorage to update)
+    setTimeout(() => {
+        console.log('🔗 Redirecting to playing11.html');
+        window.location.href = 'playing11.html';
+    }, 1000);
+});
             
             socket.on('bidError', (data) => {
                 console.error('❌ Bid error:', data);
@@ -1402,6 +1419,11 @@ socket.on('connect', () => {
             const roundedBid = Math.round(newBid * 100) / 100;
             
             console.log(`🎯 Bid attempt: ${userTeam.id} bidding ₹${roundedBid} Cr`);
+             // ✅ ADD THIS CHECK: Make sure the bid is actually higher
+    if (roundedBid <= currentBidValue) {
+        console.log('⚠️ Bid is not higher than current bid');
+        return; // Don't send bid
+    }
             
             sendBidToServer(roundedBid);
         }

@@ -253,7 +253,28 @@
                         </div>
                     </div>
                 </div>
-                
+                <!-- Captain Selection -->
+<div class="glass-panel rounded-2xl p-6" id="captainSection">
+    <h2 class="text-xl font-bold text-green-400 mb-4">Captain Selection</h2>
+    <div id="captainSelection" class="text-center p-4 bg-gray-800/30 rounded-lg">
+        <p class="text-gray-400 mb-3">Select your captain from Playing 11:</p>
+        <div id="captainCandidates" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <!-- Captain candidates will appear here -->
+        </div>
+        <div class="mt-4">
+            <div id="selectedCaptainDisplay" class="hidden">
+                <div class="flex items-center justify-center space-x-3">
+                    <span class="text-green-400">✅</span>
+                    <span class="text-yellow-400 font-bold" id="captainName">Captain Name</span>
+                    <span class="text-green-400">(Captain)</span>
+                </div>
+            </div>
+            <div id="noCaptainWarning" class="text-red-400 text-sm mt-2 hidden">
+                ⚠️ Please select a captain
+            </div>
+        </div>
+    </div>
+</div>
                 <!-- Role Distribution -->
                 <div class="glass-panel rounded-2xl p-6">
                     <h2 class="text-xl font-bold text-cyan-400 mb-4">Role Distribution</h2>
@@ -407,6 +428,7 @@
         let draggedPlayer = null;
         let maxImpactPlayers = 1;
         let userSessionId = null;
+        window.selectedCaptain = null; // ✅ Initialize captain variable
 
         // ========== DOM ELEMENTS ==========
         const teamHeader = document.getElementById('teamHeader');
@@ -1109,6 +1131,67 @@ function initializeWithData() {
             `;
             slot.classList.add('has-player');
         }
+
+        function updateCaptainSelection() {
+    const captainCandidates = document.getElementById('captainCandidates');
+    const selectedCaptainDisplay = document.getElementById('selectedCaptainDisplay');
+    const captainName = document.getElementById('captainName');
+    
+    if (!captainCandidates) return;
+    
+    captainCandidates.innerHTML = '';
+    
+    // Get all players in playing11
+    const playing11Players = playing11.filter(p => p !== null);
+    
+    if (playing11Players.length === 0) {
+        captainCandidates.innerHTML = '<p class="text-gray-500 text-center col-span-full py-4">Add players to Playing 11 first</p>';
+        selectedCaptainDisplay.classList.add('hidden');
+        return;
+    }
+    
+    // Create captain selection cards
+    playing11Players.forEach((player, index) => {
+        const isCurrentCaptain = window.selectedCaptain?.id === player.id;
+        const captainCard = document.createElement('div');
+        captainCard.className = `text-center p-3 rounded-lg cursor-pointer transition-all ${
+            isCurrentCaptain ? 'bg-green-900/30 border-2 border-green-500' : 'bg-gray-800/30 hover:bg-gray-800/50'
+        }`;
+        captainCard.innerHTML = `
+            <div class="text-2xl mb-2">${getPlayerEmoji(player.role)}</div>
+            <div class="font-medium text-sm truncate">${player.name.split(' ')[0]}</div>
+            <div class="text-xs text-gray-400">${player.role?.substring(0, 3) || 'Play'}</div>
+            ${isCurrentCaptain ? '<div class="text-green-400 text-xs mt-1 font-bold">CAPTAIN</div>' : ''}
+        `;
+        
+        captainCard.addEventListener('click', () => selectCaptain(player));
+        captainCandidates.appendChild(captainCard);
+    });
+    
+    // Update selected captain display
+    if (window.selectedCaptain) {
+        captainName.textContent = window.selectedCaptain.name;
+        selectedCaptainDisplay.classList.remove('hidden');
+    } else {
+        selectedCaptainDisplay.classList.add('hidden');
+    }
+}
+
+function selectCaptain(player) {
+    window.selectedCaptain = player;
+    updateCaptainSelection();
+    validateSelection();
+    showAlert('Captain Selected', `${player.name} is now your team captain!`, '⭐');
+}
+
+function getPlayerEmoji(role) {
+    if (!role) return '🏏';
+    const roleLower = role.toLowerCase();
+    if (roleLower.includes('wk') || roleLower.includes('keep')) return '🧤';
+    if (roleLower.includes('bowl')) return '🎯';
+    if (roleLower.includes('all')) return '⚡';
+    return '🏏';
+}
         
         function clearSlotDisplay(slotType, slotIndex) {
             const slots = slotType === 'playing11' ? playing11Slots : impactPlayerSlots;
@@ -1162,6 +1245,9 @@ function initializeWithData() {
             
             // Update role distribution
             updateRoleDistribution();
+
+            // ✅ ADD THIS LINE: Update captain selection
+            updateCaptainSelection();
             
             // Validate and update submit button
             validateSelection();
@@ -1192,65 +1278,106 @@ function initializeWithData() {
         }
         
         function validateSelection() {
-            const playing11CountValue = playing11.filter(player => player !== null).length;
-            const impactPlayersCountValue = impactPlayers.filter(player => player !== null).length;
-            
-            let isValid = true;
-            let messages = [];
-            
-            // Check playing11 count
-            if (playing11CountValue !== 11) {
-                isValid = false;
-                messages.push(`Need exactly 11 players in Playing 11 (currently ${playing11CountValue})`);
-            }
-            
-            // Check for duplicate players
-            const playing11Ids = playing11.filter(p => p).map(p => p.id);
-            const impactIds = impactPlayers.filter(p => p).map(p => p.id);
-            const duplicates = playing11Ids.filter(id => impactIds.includes(id));
-            
-            if (duplicates.length > 0) {
-                isValid = false;
-                messages.push('Players cannot be in both Playing 11 and Impact Players');
-            }
-            
-            // Check impact players limit
-            if (impactPlayersCountValue > maxImpactPlayers) {
-                isValid = false;
-                messages.push(`Maximum ${maxImpactPlayers} impact players allowed`);
-            }
-            
-            // Update validation UI
-            if (isValid) {
-                validationStatus.classList.remove('hidden');
-                statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-900/30';
-                statusBadge.innerHTML = `
-                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span class="text-sm font-medium text-green-400">Ready to Submit</span>
-                `;
-                submitPlaying11Btn.disabled = false;
-                playing11Validation.classList.add('hidden');
-            } else {
-                validationStatus.classList.remove('hidden');
-                statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-900/30';
-                statusBadge.innerHTML = `
-                    <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                    <span class="text-sm font-medium text-red-400">Needs Fixes</span>
-                `;
-                submitPlaying11Btn.disabled = true;
-                
-                // Show validation messages
-                playing11Validation.classList.remove('hidden');
-                playing11Validation.innerHTML = messages.map(msg => 
-                    `<div class="text-red-400 text-sm flex items-center space-x-2">
-                        <span>❌</span>
-                        <span>${msg}</span>
-                    </div>`
-                ).join('');
-            }
-            
-            return isValid;
+    const playing11CountValue = playing11.filter(player => player !== null).length;
+    const impactPlayersCountValue = impactPlayers.filter(player => player !== null).length;
+    
+    // Get selected captain
+    const hasCaptain = window.selectedCaptain !== undefined && window.selectedCaptain !== null;
+    
+    // Check overseas count (max 4)
+    const overseasCount = playing11.filter(player => 
+        player && player.isOverseas
+    ).length;
+    
+    // Check wicket keeper count (min 1)
+    const wkCount = playing11.filter(player => 
+        player && player.role && (player.role.toLowerCase().includes('wk') || player.role.toLowerCase().includes('keep'))
+    ).length;
+    
+    let isValid = true;
+    let messages = [];
+    
+    // Check playing11 count
+    if (playing11CountValue !== 11) {
+        isValid = false;
+        messages.push(`Need exactly 11 players in Playing 11 (currently ${playing11CountValue})`);
+    }
+    
+    // Check overseas limit (max 4)
+    if (overseasCount > 4) {
+        isValid = false;
+        messages.push(`Maximum 4 overseas players allowed in Playing 11 (currently ${overseasCount})`);
+    }
+    
+    // Check wicket keeper (min 1)
+    if (wkCount < 1) {
+        isValid = false;
+        messages.push(`At least 1 wicket keeper required in Playing 11 (currently ${wkCount})`);
+    }
+    
+    // Check captain selection
+    if (!hasCaptain) {
+        isValid = false;
+        messages.push(`Please select a captain from your Playing 11`);
+    }
+    
+    // Check for duplicate players
+    const playing11Ids = playing11.filter(p => p).map(p => p.id);
+    const impactIds = impactPlayers.filter(p => p).map(p => p.id);
+    const duplicates = playing11Ids.filter(id => impactIds.includes(id));
+    
+    if (duplicates.length > 0) {
+        isValid = false;
+        messages.push('Players cannot be in both Playing 11 and Impact Players');
+    }
+    
+    // Check impact players limit
+    if (impactPlayersCountValue > maxImpactPlayers) {
+        isValid = false;
+        messages.push(`Maximum ${maxImpactPlayers} impact players allowed`);
+    }
+    
+    // Update validation UI
+    if (isValid) {
+        validationStatus.classList.remove('hidden');
+        statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-900/30';
+        statusBadge.innerHTML = `
+            <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            <span class="text-sm font-medium text-green-400">Ready to Submit</span>
+        `;
+        submitPlaying11Btn.disabled = false;
+        playing11Validation.classList.add('hidden');
+        
+        // Hide captain warning
+        document.getElementById('noCaptainWarning')?.classList.add('hidden');
+    } else {
+        validationStatus.classList.remove('hidden');
+        statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-900/30';
+        statusBadge.innerHTML = `
+            <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+            <span class="text-sm font-medium text-red-400">Needs Fixes</span>
+        `;
+        submitPlaying11Btn.disabled = true;
+        
+        // Show captain warning if no captain
+        if (!hasCaptain) {
+            document.getElementById('noCaptainWarning')?.classList.remove('hidden');
+        } else {
+            document.getElementById('noCaptainWarning')?.classList.add('hidden');
         }
+        
+        // Show validation messages
+        playing11Validation.classList.remove('hidden');
+        playing11Validation.innerHTML = messages.map(msg => 
+            `<div class="text-red-400 text-sm flex items-center space-x-2">
+                <span>❌</span>
+                <span>${msg}</span>
+            </div>`
+        ).join('');
+    }
+    
+    return isValid;
+}
 
         // ========== SUBMISSION FUNCTIONS ==========
         submitPlaying11Btn.addEventListener('click', () => {
@@ -1279,22 +1406,28 @@ function initializeWithData() {
         });
         
         function submitPlaying11(playing11Data, impactPlayersData) {
-            socket.emit('submitPlaying11', {
-                roomCode: currentRoomCode,
-                username: currentUsername,
-                playing11: playing11Data,
-                impactPlayers: impactPlayersData,
-                sessionId: userSessionId
-            });
-            
-            submitPlaying11Btn.disabled = true;
-            submitPlaying11Btn.innerHTML = `
-                <div class="flex items-center justify-center space-x-2">
-                    <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    <span>Submitting...</span>
-                </div>
-            `;
-        }
+    // Include captain in submission
+    const submissionData = {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        playing11: playing11Data,
+        impactPlayers: impactPlayersData,
+        captain: window.selectedCaptain, // ✅ Include captain
+        sessionId: userSessionId
+    };
+    
+    console.log('📤 Submitting with captain:', window.selectedCaptain);
+    
+    socket.emit('submitPlaying11', submissionData);
+    
+    submitPlaying11Btn.disabled = true;
+    submitPlaying11Btn.innerHTML = `
+        <div class="flex items-center justify-center space-x-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            <span>Submitting...</span>
+        </div>
+    `;
+}
 
         // ========== DISPLAY FUNCTIONS ==========
         function displayTeamInfo() {
