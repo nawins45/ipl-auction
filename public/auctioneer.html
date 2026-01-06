@@ -1465,11 +1465,92 @@ socket.on('allRetentionSubmitted', (data) => {
     }
 });
             
-            // Auction events
-            socket.on('auctionStarted', (data) => {
-                console.log('🚀 Auction pool started:', data);
-                showAlert('Auction Pool Started', data.message, '🚀');
-            });
+           // Auction events
+// Auction events
+socket.on('auctionStarted', (data) => {
+    console.log('🚀 Auction pool started:', data);
+    
+    showAlert('Auction Pool Started', 
+        `${data.message}\n\nClick "Go to Auction Control" to manage the auction.`, 
+        '🚀');
+    
+    // Show auction controls section
+    auctionPoolControls.classList.remove('hidden');
+    document.getElementById('auctionNotStarted').classList.add('hidden');
+    
+    // Update button text to be more clear
+    startAuctionPoolBtn.disabled = true;
+    startAuctionPoolBtn.innerHTML = `
+        <span class="flex items-center justify-center space-x-2">
+            <span>✅</span>
+            <span>Auction Started</span>
+        </span>
+    `;
+    
+    // Also update the "Go to Auction Control" button to include room info
+    if (gotoAuctionBtn) {
+        gotoAuctionBtn.innerHTML = `
+            🎤 Go to Auction Control (Room: ${currentRoomCode})
+        `;
+    }
+});
+
+socket.on('auctionPoolStarted', (data) => {
+    console.log('📡 Received auctionPoolStarted event:', data);
+    
+    showAlert('Auction Pool Started', 
+        `${data.message}\n\nClick "Go to Auction Control" to manage the auction.`, 
+        '🚀');
+    
+    // Show auction controls section
+    auctionPoolControls.classList.remove('hidden');
+    document.getElementById('auctionNotStarted').classList.add('hidden');
+    
+    // Update button text to be more clear
+    startAuctionPoolBtn.disabled = true;
+    startAuctionPoolBtn.innerHTML = `
+        <span class="flex items-center justify-center space-x-2">
+            <span>✅</span>
+            <span>Auction Started</span>
+        </span>
+    `;
+    
+    // Also update the "Go to Auction Control" button to include room info
+    if (gotoAuctionBtn) {
+        gotoAuctionBtn.innerHTML = `
+            🎤 Go to Auction Control (Room: ${currentRoomCode})
+        `;
+    }
+});
+
+// ADD THIS NEW HANDLER TOO:
+socket.on('auctionPoolStarted', (data) => {
+    console.log('📡 Received auctionPoolStarted event:', data);
+    
+    showAlert('Auction Pool Started', 
+        `${data.message}\n\nClick "Go to Auction Control" to manage the auction.`, 
+        '🚀');
+    
+    // Show auction controls section
+    auctionPoolControls.classList.remove('hidden');
+    document.getElementById('auctionNotStarted').classList.add('hidden');
+    
+    // Update button text to be more clear
+    startAuctionPoolBtn.disabled = true;
+    startAuctionPoolBtn.innerHTML = `
+        <span class="flex items-center justify-center space-x-2">
+            <span>✅</span>
+            <span>Auction Started</span>
+        </span>
+    `;
+    
+    // Also update the "Go to Auction Control" button to include room info
+    if (gotoAuctionBtn) {
+        gotoAuctionBtn.innerHTML = `
+            🎤 Go to Auction Control (Room: ${currentRoomCode})
+        `;
+    }
+});
             
             socket.on('auctionUpdate', (data) => {
                 console.log('📊 Auction update:', data);
