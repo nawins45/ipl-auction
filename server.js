@@ -2300,30 +2300,41 @@ setTimeout(() => {
 });
 
     // Join auctioneer to auction - UPDATED WITH FORCE RECONNECT
-socket.on('joinAuctioneer', (data) => {
+// ✅ FIXED: Join auctioneer to auction - WITH BETTER SESSION HANDLING
+socket.on('joinAuctioneer', (data, callback) => {
     try {
-        const { roomCode, sessionId, username, forceReconnect } = data;
-        const room = rooms[roomCode];
+        console.log('\n🎤 AUCTIONEER JOIN REQUEST:');
+        console.log('   Room Code:', data.roomCode);
+        console.log('   Username:', data.username);
+        console.log('   Session ID:', data.sessionId ? data.sessionId.substring(0, 8) + '...' : 'none');
+        console.log('   Role:', data.role);
         
-        console.log('\n🎤 AUCTIONEER JOIN ATTEMPT:', {
-            roomCode,
-            sessionId: sessionId ? sessionId.substring(0, 8) + '...' : 'none',
-            username,
-            forceReconnect,
-            roomExists: !!room
-        });
+        const { roomCode, sessionId, username, role, forceReconnect } = data;
+        const room = rooms[roomCode];
         
         if (!room) {
             console.log('❌ Room not found:', roomCode);
-            socket.emit('error', { 
+            if (callback) callback({ 
+                success: false, 
                 message: 'Room not found. Please check the room code.' 
             });
             return;
         }
         
-        // For auctioneer reconnection, be more flexible with session validation
-        let sessionValid = false;
+        // Check if user is the auctioneer for this room
+        if (username !== room.auctioneer) {
+            console.log('❌ User is not the auctioneer for this room');
+            if (callback) callback({ 
+                success: false, 
+                message: 'Only the auctioneer can join the auction control panel.' 
+            });
+            return;
+        }
         
+        let sessionValid = false;
+        let finalSessionId = sessionId;
+        
+        // Check session validity
         if (sessionId && sessions[sessionId]) {
             const session = sessions[sessionId];
             if (session.username === username && 
@@ -2334,13 +2345,13 @@ socket.on('joinAuctioneer', (data) => {
             }
         }
         
-        // Allow auctioneer to reconnect even if session expired (for critical auction)
-        if (forceReconnect && username === room.auctioneer) {
-            console.log(`⚠️ Force reconnecting auctioneer: ${username}`);
-            
-            // Create new session if needed
-            if (!sessionValid) {
-                const newSessionId = createSession({
+        // If session not valid, check for force reconnect or create new session
+        if (!sessionValid) {
+            if (forceReconnect) {
+                console.log(`⚠️ Force reconnecting auctioneer: ${username}`);
+                
+                // Create new session
+                finalSessionId = createSession({
                     username: username,
                     role: 'auctioneer',
                     roomCode: roomCode,
@@ -2350,69 +2361,98 @@ socket.on('joinAuctioneer', (data) => {
                     active: true
                 });
                 
-                currentSessionId = newSessionId;
-                console.log(`🆕 Created new session for auctioneer: ${newSessionId}`);
+                console.log(`🆕 Created new session for auctioneer: ${finalSessionId}`);
                 sessionValid = true;
+            } else {
+                // Check if there's any existing session for this auctioneer
+                for (const existingSessionId in sessions) {
+                    const existingSession = sessions[existingSessionId];
+                    if (existingSession.username === username && 
+                        existingSession.roomCode === roomCode &&
+                        existingSession.role === 'auctioneer' &&
+                        existingSession.active) {
+                        
+                        finalSessionId = existingSessionId;
+                        sessionValid = true;
+                        console.log(`✅ Found existing active session: ${finalSessionId}`);
+                        break;
+                    }
+                }
             }
         }
         
         if (!sessionValid) {
-            console.log('❌ Invalid session for auctioneer');
-            socket.emit('error', { 
+            console.log('❌ No valid session found');
+            if (callback) callback({ 
+                success: false, 
                 message: 'Invalid auctioneer session. Please return to control panel.' 
             });
             return;
         }
         
-        // Update session
-        if (sessions[sessionId]) {
-            sessions[sessionId].socketId = socket.id;
-            sessions[sessionId].lastActivity = Date.now();
-            sessions[sessionId].active = true;
+        // Update session with new socket connection
+        if (sessions[finalSessionId]) {
+            sessions[finalSessionId].socketId = socket.id;
+            sessions[finalSessionId].lastActivity = Date.now();
+            sessions[finalSessionId].active = true;
         }
         
         // Update room with auctioneer connection
         room.auctioneerSocket = socket.id;
         room.auctioneerConnected = true;
+        room.auctioneerSessionId = finalSessionId;
         socket.join(roomCode);
         
         console.log(`✅ Auctioneer ${username} successfully joined auction room ${roomCode}`);
         
         const auction = auctionStates[roomCode];
-        if (auction) {
-            const players = auction.categorizedPlayers[auction.currentCategory];
-            const player = players[auction.currentPlayerIndex];
+        
+        // Send success response with session info
+        if (callback) {
+            callback({ 
+                success: true, 
+                message: 'Auctioneer joined successfully',
+                sessionId: finalSessionId,
+                roomCode: roomCode
+            });
+        }
+        
+        // Send auctioneer confirmation
+        socket.emit('auctioneerJoined', {
+            success: true,
+            message: `You are now controlling room ${roomCode}`,
+            sessionId: finalSessionId,
+            roomCode: roomCode,
+            username: username
+        });
+        
+        // Send current auction state if available
+        if (auction && auction.auctionPhase) {
+            console.log(`📊 Current auction state found, sending to auctioneer`);
             
-            console.log(`📊 Current auction state:`);
-            console.log(`   Category: ${auction.currentCategory}`);
-            console.log(`   Player Index: ${auction.currentPlayerIndex}`);
-            console.log(`   Current Bid: ${auction.currentBid}`);
-            console.log(`   Current Bidder: ${auction.currentBidder}`);
+            const players = auction.categorizedPlayers[auction.currentCategory] || [];
+            const currentPlayer = players[auction.currentPlayerIndex];
             
-            if (player) {
-                // Send COMPLETE player data with current bid
-                const playerData = {
+            if (currentPlayer) {
+                socket.emit('playerUpForAuction', {
                     player: {
-                        ...player,
-                        currentBid: auction.currentBid || player.basePrice,
+                        ...currentPlayer,
+                        currentBid: auction.currentBid,
                         currentBidder: auction.currentBidder
                     },
                     category: auction.currentCategory,
-                    forceUpdate: true  // Force client to update
-                };
-                
-                console.log(`🎯 Sending current player to auctioneer: ${player.name}`);
-                console.log(`   Current bid: ₹${auction.currentBid || player.basePrice} Cr`);
-                console.log(`   Current bidder: ${auction.currentBidder || 'None'}`);
-                
-                socket.emit('playerUpForAuction', playerData);
-                
-                // Also store in room for backup
-                room.currentAuctionPlayer = playerData;
+                    auctionInfo: {
+                        category: auction.currentCategory,
+                        playersLeft: players.length - auction.currentPlayerIndex - 1,
+                        unsoldCount: auction.unsoldPlayers.length,
+                        playerPosition: `${auction.currentPlayerIndex + 1}/${players.length}`
+                    }
+                });
             }
             
-            // Send state sync
+            // Also send state sync
             broadcastAuctionState(roomCode, socket.id);
+            
         } else {
             console.log(`⚠️ No active auction found for room ${roomCode}`);
             socket.emit('auctionStateSync', {
@@ -2423,7 +2463,8 @@ socket.on('joinAuctioneer', (data) => {
         
     } catch (error) {
         console.error('❌ Error joining auctioneer:', error);
-        socket.emit('error', { 
+        if (callback) callback({ 
+            success: false, 
             message: 'Failed to join as auctioneer: ' + error.message 
         });
     }
@@ -3692,6 +3733,81 @@ socket.on('reconnectToAuction', (data, callback) => {
         if (callback) callback({ 
             success: false, 
             message: 'Reconnection failed: ' + error.message 
+        });
+    }
+});
+
+// ✅ ADD THIS: Get current auction state for auctioneer
+socket.on('getCurrentAuctionState', (data, callback) => {
+    try {
+        const { roomCode, sessionId } = data;
+        const room = rooms[roomCode];
+        const auction = auctionStates[roomCode];
+        
+        console.log(`📊 getCurrentAuctionState for room ${roomCode}`);
+        
+        if (!room) {
+            if (callback) callback({ success: false, message: 'Room not found' });
+            return;
+        }
+        
+        // Validate auctioneer session
+        if (!sessionId || !sessions[sessionId] || 
+            sessions[sessionId].username !== room.auctioneer) {
+            if (callback) callback({ success: false, message: 'Invalid auctioneer session' });
+            return;
+        }
+        
+        if (!auction) {
+            console.log('⚠️ No auction state found');
+            if (callback) callback({ 
+                success: true, 
+                auctionActive: false,
+                message: 'No active auction found' 
+            });
+            return;
+        }
+        
+        const players = auction.categorizedPlayers[auction.currentCategory] || [];
+        const currentPlayer = players[auction.currentPlayerIndex];
+        
+        const response = {
+            success: true,
+            auctionActive: true,
+            currentPlayer: currentPlayer ? {
+                ...currentPlayer,
+                currentBid: auction.currentBid,
+                currentBidder: auction.currentBidder
+            } : null,
+            auctionInfo: {
+                category: auction.currentCategory,
+                currentPlayerIndex: auction.currentPlayerIndex,
+                playersLeft: players.length - auction.currentPlayerIndex - 1,
+                unsoldCount: auction.unsoldPlayers.length,
+                totalPlayers: players.length,
+                playerPosition: `${auction.currentPlayerIndex + 1}/${players.length}`
+            },
+            stats: {
+                totalPlayers: Object.values(auction.categorizedPlayers).reduce((sum, cat) => sum + cat.length, 0),
+                soldPlayers: 0, // You'll need to track this
+                unsoldPlayers: auction.unsoldPlayers.length,
+                totalValue: 0 // You'll need to track this
+            }
+        };
+        
+        console.log(`✅ Sending current auction state:`, {
+            player: currentPlayer?.name || 'none',
+            category: auction.currentCategory,
+            bid: auction.currentBid
+        });
+        
+        if (callback) callback(response);
+        
+    } catch (error) {
+        console.error('❌ Error getting auction state:', error);
+        if (callback) callback({ 
+            success: false, 
+            message: 'Failed to get auction state: ' + error.message 
         });
     }
 });

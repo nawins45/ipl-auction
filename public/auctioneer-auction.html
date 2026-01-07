@@ -455,55 +455,60 @@
         });
         
         function checkSession() {
-            console.log('🎯 Checking auctioneer session...');
-            
-            // Try multiple session storage locations
-            const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
-            const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
-            const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
-            
-            // Also check URL parameters for room code
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlRoomCode = urlParams.get('roomCode');
-            
-            // Priority: URL > auctioneerSession > currentSession > auctionUser
-            currentRoomCode = urlRoomCode || 
-                             auctioneerSession.roomCode || 
-                             currentSession.roomCode || 
-                             auctionUser.roomCode;
-            
-            currentUsername = auctioneerSession.username || currentSession.username || auctionUser.username;
-            currentSessionId = auctioneerSession.sessionId || currentSession.sessionId || auctionUser.sessionId;
-            
-            console.log('🔍 Session check results:', {
-                urlRoomCode,
-                auctioneerSession,
-                currentSession,
-                auctionUser,
-                finalRoomCode: currentRoomCode,
-                finalUsername: currentUsername,
-                finalSessionId: currentSessionId
-            });
-            
-            if (currentRoomCode && currentSessionId) {
-                console.log(`✅ Valid auctioneer session found for room ${currentRoomCode}`);
-                roomCodeDisplay.textContent = currentRoomCode;
-                
-                // Store session properly
-                localStorage.setItem('auctioneerSession', JSON.stringify({
-                    username: currentUsername,
-                    roomCode: currentRoomCode,
-                    sessionId: currentSessionId,
-                    role: 'auctioneer',
-                    timestamp: Date.now()
-                }));
-                
-                initializeSocket();
-            } else {
-                console.log('❌ No valid auctioneer session found');
-                showSessionModal();
-            }
-        }
+    console.log('🎯 Checking auctioneer session...');
+    
+    // Try multiple session storage locations
+    const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
+    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+    const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
+    
+    // Also check URL parameters for room code
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRoomCode = urlParams.get('roomCode');
+    const urlSessionId = urlParams.get('sessionId');
+    
+    // Priority: URL > auctioneerSession > currentSession > auctionUser
+    currentRoomCode = urlRoomCode || 
+                     auctioneerSession.roomCode || 
+                     currentSession.roomCode || 
+                     auctionUser.roomCode;
+    
+    currentUsername = auctioneerSession.username || currentSession.username || auctionUser.username;
+    currentSessionId = urlSessionId || 
+                      auctioneerSession.sessionId || 
+                      currentSession.sessionId || 
+                      auctionUser.sessionId;
+    
+    console.log('🔍 Session check results:', {
+        urlRoomCode,
+        urlSessionId,
+        auctioneerSession,
+        currentSession,
+        auctionUser,
+        finalRoomCode: currentRoomCode,
+        finalUsername: currentUsername,
+        finalSessionId: currentSessionId
+    });
+    
+    if (currentRoomCode && currentUsername) {
+        console.log(`✅ Found auctioneer credentials for room ${currentRoomCode}`);
+        roomCodeDisplay.textContent = currentRoomCode;
+        
+        // Always create/update session storage
+        localStorage.setItem('auctioneerSession', JSON.stringify({
+            username: currentUsername,
+            roomCode: currentRoomCode,
+            sessionId: currentSessionId,
+            role: 'auctioneer',
+            timestamp: Date.now()
+        }));
+        
+        initializeSocket();
+    } else {
+        console.log('❌ No valid auctioneer credentials found');
+        showSessionModal();
+    }
+}
 
         function showSessionModal() {
             document.getElementById('sessionModal').classList.remove('hidden');
@@ -566,21 +571,55 @@
         
         // ✅ NEW: Improved auctioneer join function
         function joinAsAuctioneer() {
-            console.log('🎤 Joining as auctioneer:', {
-                roomCode: currentRoomCode,
-                sessionId: currentSessionId,
-                username: currentUsername
-            });
+    console.log('🎤 Joining as auctioneer:', {
+        roomCode: currentRoomCode,
+        sessionId: currentSessionId,
+        username: currentUsername
+    });
+    
+    // Show loading state
+    updateConnectionStatus(false);
+    waitingPlayer.classList.remove('hidden');
+    waitingPlayer.innerHTML = `
+        <div class="text-6xl mb-4 animate-pulse">🔄</div>
+        <h3 class="text-2xl font-bold text-yellow-400 mb-2">Connecting...</h3>
+        <p class="text-gray-300 mb-4">Joining auction control panel...</p>
+        <div class="mt-6 flex items-center justify-center space-x-2">
+            <div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+        </div>
+    `;
+    
+    socket.emit('joinAuctioneer', {
+        roomCode: currentRoomCode,
+        sessionId: currentSessionId,
+        username: currentUsername,
+        role: 'auctioneer',
+        timestamp: Date.now(),
+        forceReconnect: true  // Allow force reconnection
+    }, (response) => {
+        console.log('📤 Join auctioneer response:', response);
+        
+        if (response && response.success) {
+            console.log('✅ Auctioneer joined successfully');
             
-            socket.emit('joinAuctioneer', {
-                roomCode: currentRoomCode,
-                sessionId: currentSessionId,
-                username: currentUsername,
-                role: 'auctioneer',
-                timestamp: Date.now()
-            });
+            // Update session ID if new one was created
+            if (response.sessionId && response.sessionId !== currentSessionId) {
+                currentSessionId = response.sessionId;
+                console.log('🆕 Updated session ID:', currentSessionId);
+                
+                // Update localStorage
+                localStorage.setItem('auctioneerSession', JSON.stringify({
+                    username: currentUsername,
+                    roomCode: currentRoomCode,
+                    sessionId: currentSessionId,
+                    role: 'auctioneer',
+                    timestamp: Date.now()
+                }));
+            }
             
-            // Also request current auction state
+            // Request current auction state
             setTimeout(() => {
                 if (socket.connected) {
                     console.log('🔄 Requesting current auction state...');
@@ -590,7 +629,30 @@
                     });
                 }
             }, 500);
+            
+        } else {
+            console.error('❌ Failed to join as auctioneer:', response?.message);
+            showAlert('Join Failed', response?.message || 'Failed to join auction control panel', '❌');
+            
+            // Show retry button
+            waitingPlayer.innerHTML = `
+                <div class="text-6xl mb-4">❌</div>
+                <h3 class="text-2xl font-bold text-red-400 mb-2">Connection Failed</h3>
+                <p class="text-gray-300 mb-4">${response?.message || 'Failed to join auction control panel'}</p>
+                <div class="space-y-3 mt-6">
+                    <button onclick="joinAsAuctioneer()" 
+                            class="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl font-semibold">
+                        🔄 Retry Connection
+                    </button>
+                    <button onclick="goToLogin()" 
+                            class="w-full py-3 bg-gradient-to-r from-gray-600 to-gray-700 rounded-xl font-semibold">
+                        ↩️ Go to Login
+                    </button>
+                </div>
+            `;
         }
+    });
+}
         
         function updateConnectionStatus(connected) {
             const connectionDot = document.getElementById('connectionDot');
