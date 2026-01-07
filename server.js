@@ -968,144 +968,6 @@ function calculateTotalSpent(user) {
     return (user.auctionPlayers || []).reduce((sum, player) => sum + (player.price || 0), 0);
 }
 
-// Handle playing 11 submission with captain
-socket.on('submitPlaying11WithCaptain', (data) => {
-    try {
-        const { roomCode, username, playing11, impactPlayers, captain, sessionId } = data;
-        const room = rooms[roomCode];
-        
-        console.log(`\n🎯 Playing 11 submission from ${username}:`, {
-            playing11Count: playing11.length,
-            impactPlayersCount: impactPlayers.length,
-            captain: captain?.name
-        });
-        
-        if (!room) {
-            socket.emit('error', { message: 'Room not found' });
-            return;
-        }
-        
-        const user = room.users[username];
-        if (!user) {
-            socket.emit('error', { message: 'User not found' });
-            return;
-        }
-        
-        if (!user.sessionId || user.sessionId !== sessionId) {
-            socket.emit('error', { message: 'Session expired' });
-            return;
-        }
-        
-        // Validation checks
-        if (playing11.length !== 11) {
-            socket.emit('playing11Error', { 
-                message: 'Playing 11 must have exactly 11 players' 
-            });
-            return;
-        }
-        
-        if (!captain) {
-            socket.emit('playing11Error', { 
-                message: 'Please select a captain' 
-            });
-            return;
-        }
-        
-        // Check if captain is in playing 11
-        const captainInPlaying11 = playing11.some(player => player.id === captain.id);
-        if (!captainInPlaying11) {
-            socket.emit('playing11Error', { 
-                message: 'Captain must be in Playing 11' 
-            });
-            return;
-        }
-        
-        const squadPlayers = [
-            ...(user.retainedPlayers || []),
-            ...(user.auctionPlayers || [])
-        ];
-        const squadPlayerIds = new Set(squadPlayers.map(p => p.id));
-        
-        // Validate all players are in squad
-        const allPlayers = [...playing11, ...impactPlayers];
-        const invalidPlayers = allPlayers.filter(p => !squadPlayerIds.has(p.id));
-        
-        if (invalidPlayers.length > 0) {
-            socket.emit('playing11Error', { 
-                message: `Invalid players: ${invalidPlayers.map(p => p.name).join(', ')}` 
-            });
-            return;
-        }
-        
-        // Check for duplicates between playing11 and impact players
-        const playing11Ids = playing11.map(p => p.id);
-        const impactPlayerIds = impactPlayers.map(p => p.id);
-        const duplicates = playing11Ids.filter(id => impactPlayerIds.includes(id));
-        
-        if (duplicates.length > 0) {
-            socket.emit('playing11Error', { 
-                message: 'Players cannot be in both Playing 11 and Impact Players' 
-            });
-            return;
-        }
-        
-        // Save playing 11 data
-        user.playing11 = playing11;
-        user.impactPlayers = impactPlayers;
-        user.captain = captain;
-        user.playing11Submitted = true;
-        user.playing11SubmittedAt = new Date().toISOString();
-        
-        console.log(`✅ Playing 11 submitted by ${username}`);
-        console.log(`   Playing 11: ${playing11.length} players`);
-        console.log(`   Impact Players: ${impactPlayers.length} players`);
-        console.log(`   Captain: ${captain.name}`);
-        
-        // Send success response
-        socket.emit('playing11SubmittedSuccess', {
-            message: 'Playing 11 submitted successfully! Waiting for other teams...',
-            username: username,
-            team: user.team.name
-        });
-        
-        // Notify auctioneer
-        if (room.auctioneerSocket) {
-            const squadData = getUserSquad(roomCode, username);
-            
-            io.to(room.auctioneerSocket).emit('playing11Submitted', {
-                username: username,
-                team: user.team.name,
-                playing11: playing11,
-                impactPlayers: impactPlayers,
-                captain: captain,
-                playing11Count: playing11.length,
-                impactPlayersCount: impactPlayers.length,
-                squadData: squadData,
-                timestamp: new Date().toISOString()
-            });
-        }
-        
-        // Check if all users have submitted
-        const allUsersSubmitted = Object.values(room.users).every(u => 
-            u.playing11Submitted === true && u.username !== room.auctioneer
-        );
-        
-        if (allUsersSubmitted) {
-            console.log(`🎉 All users have submitted playing 11 in room ${roomCode}`);
-            if (room.auctioneerSocket) {
-                io.to(room.auctioneerSocket).emit('allPlaying11Submitted', {
-                    message: 'All users have submitted their playing 11! You can now rate the teams.',
-                    roomCode: roomCode,
-                    userCount: Object.keys(room.users).length - 1 // Exclude auctioneer
-                });
-            }
-        }
-        
-    } catch (error) {
-        console.error('❌ Error submitting playing 11:', error);
-        socket.emit('playing11Error', { message: 'Failed to submit playing 11' });
-    }
-});
 
 function getUserSquad(roomCode, username) {
     const room = rooms[roomCode];
@@ -3809,6 +3671,145 @@ socket.on('getCurrentAuctionState', (data, callback) => {
             success: false, 
             message: 'Failed to get auction state: ' + error.message 
         });
+    }
+});
+
+// Handle playing 11 submission with captain
+socket.on('submitPlaying11WithCaptain', (data) => {
+    try {
+        const { roomCode, username, playing11, impactPlayers, captain, sessionId } = data;
+        const room = rooms[roomCode];
+        
+        console.log(`\n🎯 Playing 11 submission from ${username}:`, {
+            playing11Count: playing11.length,
+            impactPlayersCount: impactPlayers.length,
+            captain: captain?.name
+        });
+        
+        if (!room) {
+            socket.emit('error', { message: 'Room not found' });
+            return;
+        }
+        
+        const user = room.users[username];
+        if (!user) {
+            socket.emit('error', { message: 'User not found' });
+            return;
+        }
+        
+        if (!user.sessionId || user.sessionId !== sessionId) {
+            socket.emit('error', { message: 'Session expired' });
+            return;
+        }
+        
+        // Validation checks
+        if (playing11.length !== 11) {
+            socket.emit('playing11Error', { 
+                message: 'Playing 11 must have exactly 11 players' 
+            });
+            return;
+        }
+        
+        if (!captain) {
+            socket.emit('playing11Error', { 
+                message: 'Please select a captain' 
+            });
+            return;
+        }
+        
+        // Check if captain is in playing 11
+        const captainInPlaying11 = playing11.some(player => player.id === captain.id);
+        if (!captainInPlaying11) {
+            socket.emit('playing11Error', { 
+                message: 'Captain must be in Playing 11' 
+            });
+            return;
+        }
+        
+        const squadPlayers = [
+            ...(user.retainedPlayers || []),
+            ...(user.auctionPlayers || [])
+        ];
+        const squadPlayerIds = new Set(squadPlayers.map(p => p.id));
+        
+        // Validate all players are in squad
+        const allPlayers = [...playing11, ...impactPlayers];
+        const invalidPlayers = allPlayers.filter(p => !squadPlayerIds.has(p.id));
+        
+        if (invalidPlayers.length > 0) {
+            socket.emit('playing11Error', { 
+                message: `Invalid players: ${invalidPlayers.map(p => p.name).join(', ')}` 
+            });
+            return;
+        }
+        
+        // Check for duplicates between playing11 and impact players
+        const playing11Ids = playing11.map(p => p.id);
+        const impactPlayerIds = impactPlayers.map(p => p.id);
+        const duplicates = playing11Ids.filter(id => impactPlayerIds.includes(id));
+        
+        if (duplicates.length > 0) {
+            socket.emit('playing11Error', { 
+                message: 'Players cannot be in both Playing 11 and Impact Players' 
+            });
+            return;
+        }
+        
+        // Save playing 11 data
+        user.playing11 = playing11;
+        user.impactPlayers = impactPlayers;
+        user.captain = captain;
+        user.playing11Submitted = true;
+        user.playing11SubmittedAt = new Date().toISOString();
+        
+        console.log(`✅ Playing 11 submitted by ${username}`);
+        console.log(`   Playing 11: ${playing11.length} players`);
+        console.log(`   Impact Players: ${impactPlayers.length} players`);
+        console.log(`   Captain: ${captain.name}`);
+        
+        // Send success response
+        socket.emit('playing11SubmittedSuccess', {
+            message: 'Playing 11 submitted successfully! Waiting for other teams...',
+            username: username,
+            team: user.team.name
+        });
+        
+        // Notify auctioneer
+        if (room.auctioneerSocket) {
+            const squadData = getUserSquad(roomCode, username);
+            
+            io.to(room.auctioneerSocket).emit('playing11Submitted', {
+                username: username,
+                team: user.team.name,
+                playing11: playing11,
+                impactPlayers: impactPlayers,
+                captain: captain,
+                playing11Count: playing11.length,
+                impactPlayersCount: impactPlayers.length,
+                squadData: squadData,
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        // Check if all users have submitted
+        const allUsersSubmitted = Object.values(room.users).every(u => 
+            u.playing11Submitted === true && u.username !== room.auctioneer
+        );
+        
+        if (allUsersSubmitted) {
+            console.log(`🎉 All users have submitted playing 11 in room ${roomCode}`);
+            if (room.auctioneerSocket) {
+                io.to(room.auctioneerSocket).emit('allPlaying11Submitted', {
+                    message: 'All users have submitted their playing 11! You can now rate the teams.',
+                    roomCode: roomCode,
+                    userCount: Object.keys(room.users).length - 1 // Exclude auctioneer
+                });
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Error submitting playing 11:', error);
+        socket.emit('playing11Error', { message: 'Failed to submit playing 11' });
     }
 });
 
