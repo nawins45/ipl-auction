@@ -751,38 +751,43 @@
         }
         
         function endAuction() {
-            if (!currentSessionId || !currentRoomCode) {
-                showAlert('Error', 'No active session', '❌');
-                return;
-            }
-            
-            if (confirm('Are you sure you want to END the auction? This will complete the auction pool and redirect all users.')) {
-                console.log('🏁 Ending auction for room:', currentRoomCode);
+    if (!currentSessionId || !currentRoomCode) {
+        showAlert('Error', 'No active session', '❌');
+        return;
+    }
+    
+    if (confirm('Are you sure you want to END the auction? This will complete the auction pool and redirect all users.')) {
+        console.log('🏁 Ending auction for room:', currentRoomCode);
+        
+        // ✅ FIXED: Send complete auction end data
+        socket.emit('endAuction', {
+            roomCode: currentRoomCode,
+            sessionId: currentSessionId,
+            forceEnd: true,
+            timestamp: Date.now()
+        }, (response) => {
+            console.log('📤 End auction response:', response);
+            if (response && response.success) {
+                console.log('✅ End auction request acknowledged');
+                endAuctionBtn.disabled = true;
+                endAuctionBtn.innerHTML = 'ENDING...';
                 
-                // ✅ FIXED: Add proper validation
-                if (!socket.connected) {
-                    showAlert('Connection Error', 'Not connected to server', '❌');
-                    return;
-                }
+                // Show redirecting message
+                showAlert('Auction Ended', 'Redirecting to validation page...', '📋');
                 
-                socket.emit('endAuction', {
-                    roomCode: currentRoomCode,
-                    sessionId: currentSessionId
-                }, (response) => {
-                    console.log('📤 End auction response:', response);
-                    if (response && response.success) {
-                        console.log('✅ End auction request acknowledged');
-                        endAuctionBtn.disabled = true;
-                        endAuctionBtn.innerHTML = 'ENDING...';
-                    } else {
-                        console.error('❌ End auction failed:', response?.message);
-                        showAlert('Error', response?.message || 'Failed to end auction', '❌');
-                        endAuctionBtn.disabled = false;
-                        endAuctionBtn.innerHTML = '🏁 END';
-                    }
-                });
+                // Clear localStorage
+                localStorage.removeItem('auctioneerCurrentPlayer');
+                localStorage.removeItem('auctioneerAuctionInfo');
+                
+            } else {
+                console.error('❌ End auction failed:', response?.message);
+                showAlert('Error', response?.message || 'Failed to end auction', '❌');
+                endAuctionBtn.disabled = false;
+                endAuctionBtn.innerHTML = '🏁 END';
             }
-        }
+        });
+    }
+}
         
         function clearBidLog() {
             bidLog.innerHTML = '<div class="text-center text-gray-500 py-4">No bids yet</div>';
@@ -1038,6 +1043,29 @@
                 // Re-enable buttons on error
                 resetButtons();
             });
+            // ✅ ADD THIS HANDLER FOR AUCTION END CONFIRMATION
+socket.on('auctionEndConfirmed', (data) => {
+    console.log('✅ Auction end confirmed by server:', data);
+    
+    // Store session data for validation page
+    localStorage.setItem('auctioneerSession', JSON.stringify({
+        username: currentUsername,
+        roomCode: currentRoomCode,
+        sessionId: currentSessionId,
+        role: 'auctioneer',
+        timestamp: Date.now(),
+        auctionEnded: true
+    }));
+    
+    // Show redirect message
+    showAlert('Auction Complete', 'All players auctioned! Redirecting to validation...', '🏆');
+    
+    // Redirect after delay
+    setTimeout(() => {
+        console.log('🔗 Redirecting auctioneer to validation.html');
+        window.location.href = 'validation.html';
+    }, 2000);
+});
         }
         
         // ========== HELPER FUNCTIONS ==========

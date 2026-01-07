@@ -1291,28 +1291,83 @@
             });
             
             socket.on('auctionComplete', (data) => {
-                console.log('🏆 Auction complete:', data);
-                showAlert('Auction Complete', data.message, '🏆');
-                
-                addBidToLog('SYSTEM', 'Auction pool completed!', 'COMPLETE');
-                
-                document.getElementById('biddingControls')?.classList.add('hidden');
-                
-                if (waitingAuction) {
-                    waitingAuction.classList.remove('hidden');
-                    waitingAuction.innerHTML = `
-                        <div class="text-6xl mb-4">🎉</div>
-                        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
-                        <p class="text-gray-300 mb-4">${data.message}</p>
-                        <p class="text-gray-500">Redirecting to Playing 11 selection...</p>
-                        <div class="mt-6 flex items-center justify-center space-x-2">
-                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
-                        </div>
-                    `;
-                }
-            });
+    console.log('🏆 Auction complete:', data);
+    
+    // ✅ FIXED: Store COMPLETE squad data before redirecting
+    const completeSquadData = {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        team: userTeam,
+        budget: teamBudget,
+        squadLimits: squadLimits,
+        // Get retained players from localStorage
+        retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
+        // Get auction buys from localStorage or current data
+        auctionPlayers: getCurrentAuctionBuys(),
+        totalBudget: 100,
+        totalSpent: calculateTotalSpent(),
+        remainingBudget: teamBudget,
+        timestamp: Date.now()
+    };
+    
+    // Store in localStorage for playing11.html
+    localStorage.setItem('playing11SquadData', JSON.stringify(completeSquadData));
+    localStorage.setItem('auctionCompleted', 'true');
+    
+    // Show completion message
+    showAlert('Auction Complete', 'All players have been auctioned! Redirecting to Playing 11 selection...', '🏆');
+    
+    // Add to bid log
+    addBidToLog('SYSTEM', 'Auction pool completed!', 'COMPLETE');
+    
+    // Disable all buttons
+    document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+    
+    // Show redirecting message
+    waitingAuction.classList.remove('hidden');
+    waitingAuction.innerHTML = `
+        <div class="text-6xl mb-4">🎉</div>
+        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+        <p class="text-gray-300 mb-4">${data.message || 'Redirecting to Playing 11 selection...'}</p>
+        <div class="mobile-loader mx-auto my-4"></div>
+        <p class="text-gray-500">Loading your squad data...</p>
+        <div class="mt-6 flex items-center justify-center space-x-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+        </div>
+    `;
+    playerInfo.classList.add('hidden');
+    
+    // Wait 3 seconds to ensure data is saved, then redirect
+    setTimeout(() => {
+        console.log('🔗 Redirecting user to playing11.html with squad data');
+        window.location.href = 'playing11.html';
+    }, 3000);
+});
+
+// ✅ ADD THESE HELPER FUNCTIONS IN auctionpool.html
+function getCurrentAuctionBuys() {
+    // Try to get auction buys from localStorage
+    const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
+    
+    // If empty, create from current squad data
+    if (auctionBuys.length === 0 && squadLimits.total > 0) {
+        return [{
+            name: 'Player 1',
+            role: 'Batsman',
+            price: 2.00,
+            isOverseas: false
+        }]; // Default fallback
+    }
+    
+    return auctionBuys;
+}
+
+function calculateTotalSpent() {
+    const auctionBuys = getCurrentAuctionBuys();
+    return auctionBuys.reduce((total, player) => total + (player.price || 0), 0);
+}
             
             socket.on('forceRedirectToPlaying11', (data) => {
                 console.log('🚀 Force redirect received:', data);
@@ -1367,6 +1422,39 @@
                 console.error('❌ Auction error:', data);
                 showAlert('Error', data.message, '❌');
             });
+
+            // ✅ ADD THIS FORCE REDIRECT HANDLER
+socket.on('forceRedirectToPlaying11WithData', (data) => {
+    console.log('🚀 Force redirect with squad data:', data);
+    
+    if (data.squadData) {
+        // Store the complete squad data
+        localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+        
+        // Also update user session
+        localStorage.setItem('userSession', JSON.stringify({
+            username: data.squadData.username,
+            roomCode: data.squadData.roomCode,
+            team: data.squadData.team,
+            sessionId: data.squadData.sessionId,
+            squadData: data.squadData
+        }));
+        
+        // Mark auction as completed
+        localStorage.setItem('auctionCompleted', 'true');
+        
+        console.log('💾 Squad data stored:', data.squadData);
+    }
+    
+    // Show immediate redirect
+    showAlert('Auction Complete', 'Redirecting to Playing 11 selection...', '🏏');
+    
+    // Redirect immediately
+    setTimeout(() => {
+        window.location.href = 'playing11.html';
+    }, 1500);
+});
+
         }
 
         // ========== PAGE FUNCTIONS ==========

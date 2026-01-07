@@ -415,7 +415,74 @@
         }
     </style>
 
-        <script>
+    <script>
+        // ✅ FIX 5: Add Data Loading on Page Load - PASTE THIS AT THE BEGINNING
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🏏 Playing 11 page loading...');
+            
+            // Check if we have squad data from auction
+            const squadData = JSON.parse(localStorage.getItem('playing11SquadData') || '{}');
+            const auctionCompleted = localStorage.getItem('auctionCompleted') === 'true';
+            
+            if (!auctionCompleted || !squadData.roomCode) {
+                console.error('❌ No valid squad data found');
+                showAlert('Error', 'No squad data found. Please complete the auction first.', '❌');
+                
+                setTimeout(() => {
+                    // Redirect back to auction or login
+                    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+                    if (userSession.roomCode) {
+                        window.location.href = `auctionpool.html?roomCode=${userSession.roomCode}`;
+                    } else {
+                        window.location.href = 'login.html';
+                    }
+                }, 3000);
+                return;
+            }
+            
+            console.log('✅ Squad data loaded:', squadData);
+            
+            // Initialize page with squad data
+            initializePlaying11Page(squadData);
+        });
+
+        function initializePlaying11Page(squadData) {
+            console.log('🏆 Total squad players:', 
+                (squadData.retainedPlayers?.length || 0) + 
+                (squadData.auctionPlayers?.length || 0)
+            );
+            
+            // Set global variables
+            window.squadData = squadData;
+            window.currentRoomCode = squadData.roomCode;
+            window.currentUsername = squadData.username;
+            window.userTeam = squadData.team;
+            window.userSessionId = squadData.sessionId;
+            
+            // Display team info
+            if (squadData.team) {
+                displayTeamInfo(squadData.team);
+                roomCodeDisplay.textContent = squadData.roomCode;
+                usernameDisplay.textContent = squadData.username;
+            }
+            
+            // Process squad data
+            processSquadData(squadData);
+            
+            // Initialize UI components
+            initializeDragAndDrop();
+            createPlaying11Slots();
+            createImpactPlayerSlots();
+            
+            // Update statistics
+            updateStatistics(squadData);
+            
+            // Initialize socket connection
+            initializeSocket();
+            
+            console.log('✅ Playing 11 page initialized successfully');
+        }
+
         // ========== GLOBAL VARIABLES ==========
         let socket = null;
         let currentUsername = null;
@@ -428,7 +495,7 @@
         let draggedPlayer = null;
         let maxImpactPlayers = 1;
         let userSessionId = null;
-        window.selectedCaptain = null; // ✅ Initialize captain variable
+        window.selectedCaptain = null;
 
         // ========== DOM ELEMENTS ==========
         const teamHeader = document.getElementById('teamHeader');
@@ -453,249 +520,6 @@
         const bowlersCount = document.getElementById('bowlersCount');
         const allroundersCount = document.getElementById('allroundersCount');
         const keepersCount = document.getElementById('keepersCount');
-
-        // ========== INITIALIZATION ==========
-        
-            document.addEventListener('DOMContentLoaded', function() {
-    console.log('🏏 Playing 11 page loading...');
-    
-    // FIRST: Check for data in URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const dataParam = urlParams.get('data');
-    
-    if (dataParam) {
-        try {
-            const data = JSON.parse(decodeURIComponent(dataParam));
-            console.log('✅ Found data in URL parameters:', data);
-            
-            // Store in localStorage
-            localStorage.setItem('playing11Data', JSON.stringify(data));
-            
-            // Set variables
-            currentRoomCode = data.roomCode;
-            currentUsername = data.username;
-            userTeam = data.team;
-            userSessionId = data.sessionId;
-            squadData = data.squadData;
-            
-            // Display immediately
-            roomCodeDisplay.textContent = currentRoomCode;
-            usernameDisplay.textContent = currentUsername;
-            
-            // Initialize with the data we have
-            initializeWithData();
-            return;
-        } catch (e) {
-            console.error('Error parsing URL data:', e);
-        }
-    }
-    
-    // SECOND: Check localStorage for backup data
-    const localStorageData = localStorage.getItem('playing11Data');
-    if (localStorageData) {
-        try {
-            const data = JSON.parse(localStorageData);
-            console.log('✅ Found data in localStorage:', data);
-            
-            currentRoomCode = data.roomCode;
-            currentUsername = data.username;
-            userTeam = data.team;
-            userSessionId = data.sessionId;
-            squadData = data.squadData;
-            
-            roomCodeDisplay.textContent = currentRoomCode;
-            usernameDisplay.textContent = currentUsername;
-            
-            initializeWithData();
-            return;
-        } catch (e) {
-            console.error('Error parsing localStorage data:', e);
-        }
-    }
-    
-    // THIRD: Fallback to old method
-    console.log('⚠️ No data found in URL or localStorage, using fallback method');
-    const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
-    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
-    
-    currentRoomCode = auctionUser.roomCode || currentSession.roomCode;
-    currentUsername = auctionUser.username || currentSession.username;
-    userTeam = auctionUser.team || currentSession.team;
-    userSessionId = auctionUser.sessionId || currentSession.sessionId;
-    
-    console.log('📊 User data (fallback):', { 
-        roomCode: currentRoomCode, 
-        username: currentUsername,
-        team: userTeam
-    });
-    
-    if (!currentRoomCode || !currentUsername) {
-        showAlert('Session Error', 'No session found. Returning to auction.', '❌');
-        setTimeout(() => {
-            window.location.href = 'auctionpool.html';
-        }, 3000);
-        return;
-    }
-    
-    roomCodeDisplay.textContent = currentRoomCode;
-    usernameDisplay.textContent = currentUsername;
-    
-    initializeSocket();
-    initializeDragAndDrop();
-    createPlaying11Slots();
-    createImpactPlayerSlots();
-});
-
-function initializeWithData() {
-    console.log('🚀 Initializing with pre-loaded data');
-    
-    if (squadData) {
-        console.log('📊 Squad data available:', {
-            retained: squadData.retainedPlayers?.length || 0,
-            auction: squadData.auctionPlayers?.length || 0
-        });
-        
-        // Process squad data immediately
-        setTimeout(() => {
-            processSquadData(squadData);
-            displayTeamInfo();
-            updateStatistics();
-            updateImpactPlayerSlots();
-            
-            // Show success message
-            if (allPlayers.length > 0) {
-                showAlert('Squad Loaded', `Successfully loaded ${allPlayers.length} players!`, '✅');
-            }
-        }, 100);
-    }
-    
-    // Still initialize socket for submission
-    initializeSocket();
-    initializeDragAndDrop();
-    createPlaying11Slots();
-    createImpactPlayerSlots();
-}
-
-        function loadFromRedirectData(data) {
-            currentRoomCode = data.roomCode;
-            currentUsername = data.username;
-            userTeam = data.team;
-            userSessionId = data.sessionId;
-            squadData = data;
-            
-            // Store in localStorage
-            localStorage.setItem('auctionUser', JSON.stringify({
-                roomCode: currentRoomCode,
-                username: currentUsername,
-                team: userTeam,
-                sessionId: userSessionId
-            }));
-            
-            localStorage.setItem('userSquadData', JSON.stringify(squadData));
-            
-            console.log('✅ Loaded from redirect data');
-        }
-        
-        function loadFromLocalStorage() {
-            const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
-            const userSquadData = JSON.parse(localStorage.getItem('userSquadData') || '{}');
-            
-            currentRoomCode = auctionUser.roomCode || userSquadData.roomCode;
-            currentUsername = auctionUser.username || userSquadData.username;
-            userTeam = auctionUser.team || userSquadData.team;
-            userSessionId = auctionUser.sessionId || userSquadData.sessionId;
-            squadData = userSquadData;
-            
-            console.log('📊 Loaded from localStorage:', {
-                roomCode: currentRoomCode,
-                username: currentUsername,
-                hasSquadData: !!squadData.retainedPlayers
-            });
-        }
-
-        // ========== SOCKET FUNCTIONS ==========
-        function initializeSocket() {
-            console.log('🔌 Connecting to socket server...');
-            const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
-        );
-            
-            socket.on('connect', () => {
-                console.log('✅ Connected to server');
-                
-                // Join the playing11 room
-                socket.emit('joinPlaying11', {
-                    roomCode: currentRoomCode,
-                    username: currentUsername,
-                    sessionId: userSessionId
-                });
-            });
-            
-            socket.on('connect_error', (error) => {
-                console.error('❌ Connection error:', error);
-                showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
-            });
-            
-            socket.on('playing11Joined', (data) => {
-                console.log('✅ Joined playing11 room:', data);
-                
-                // Request squad data if we don't have it yet
-                if (!squadData || !squadData.retainedPlayers) {
-                    console.log('🔄 Requesting squad data from server...');
-                    socket.emit('requestSquad', {
-                        roomCode: currentRoomCode,
-                        username: currentUsername,
-                        sessionId: userSessionId
-                    });
-                } else {
-                    console.log('✅ Already have squad data, no need to request');
-                }
-            });
-            
-            socket.on('squadUpdate', (data) => {
-                console.log('👥 Received squad data from server:', data);
-                squadData = data;
-                userTeam = data.team;
-                maxImpactPlayers = data.rules?.impactPlayers || 1;
-                
-                // Store in localStorage for persistence
-                localStorage.setItem('userSquadData', JSON.stringify(data));
-                
-                // Process squad data
-                processSquadData(data);
-                
-                // Display team info
-                displayTeamInfo();
-                
-                // Update statistics
-                updateStatistics();
-                
-                // Update impact player slots based on rules
-                updateImpactPlayerSlots();
-                
-                showAlert('Squad Loaded', `Your squad of ${allPlayers.length} players is ready!`, '✅');
-            });
-            
-            socket.on('playing11SubmittedSuccess', (data) => {
-                console.log('✅ Playing 11 submitted successfully:', data);
-                showSuccessModal();
-                submitPlaying11Btn.innerHTML = '✅ Submitted!';
-            });
-            
-            socket.on('teamRated', (data) => {
-                console.log('Team rated by auctioneer:', data);
-                showAlert('Team Rated', `Your team has been rated: ${data.rating}/10`, '⭐');
-            });
-            
-            socket.on('error', (data) => {
-                console.error('❌ Error:', data);
-                showAlert('Error', data.message, '❌');
-            });
-            
-            socket.on('disconnect', () => {
-                console.log('🔌 Disconnected from server');
-                showAlert('Disconnected', 'Lost connection to server. Attempting to reconnect...', '⚠️');
-            });
-        }
 
         // ========== SQUAD DATA PROCESSING ==========
         function processSquadData(data) {
@@ -1133,65 +957,65 @@ function initializeWithData() {
         }
 
         function updateCaptainSelection() {
-    const captainCandidates = document.getElementById('captainCandidates');
-    const selectedCaptainDisplay = document.getElementById('selectedCaptainDisplay');
-    const captainName = document.getElementById('captainName');
-    
-    if (!captainCandidates) return;
-    
-    captainCandidates.innerHTML = '';
-    
-    // Get all players in playing11
-    const playing11Players = playing11.filter(p => p !== null);
-    
-    if (playing11Players.length === 0) {
-        captainCandidates.innerHTML = '<p class="text-gray-500 text-center col-span-full py-4">Add players to Playing 11 first</p>';
-        selectedCaptainDisplay.classList.add('hidden');
-        return;
-    }
-    
-    // Create captain selection cards
-    playing11Players.forEach((player, index) => {
-        const isCurrentCaptain = window.selectedCaptain?.id === player.id;
-        const captainCard = document.createElement('div');
-        captainCard.className = `text-center p-3 rounded-lg cursor-pointer transition-all ${
-            isCurrentCaptain ? 'bg-green-900/30 border-2 border-green-500' : 'bg-gray-800/30 hover:bg-gray-800/50'
-        }`;
-        captainCard.innerHTML = `
-            <div class="text-2xl mb-2">${getPlayerEmoji(player.role)}</div>
-            <div class="font-medium text-sm truncate">${player.name.split(' ')[0]}</div>
-            <div class="text-xs text-gray-400">${player.role?.substring(0, 3) || 'Play'}</div>
-            ${isCurrentCaptain ? '<div class="text-green-400 text-xs mt-1 font-bold">CAPTAIN</div>' : ''}
-        `;
-        
-        captainCard.addEventListener('click', () => selectCaptain(player));
-        captainCandidates.appendChild(captainCard);
-    });
-    
-    // Update selected captain display
-    if (window.selectedCaptain) {
-        captainName.textContent = window.selectedCaptain.name;
-        selectedCaptainDisplay.classList.remove('hidden');
-    } else {
-        selectedCaptainDisplay.classList.add('hidden');
-    }
-}
+            const captainCandidates = document.getElementById('captainCandidates');
+            const selectedCaptainDisplay = document.getElementById('selectedCaptainDisplay');
+            const captainName = document.getElementById('captainName');
+            
+            if (!captainCandidates) return;
+            
+            captainCandidates.innerHTML = '';
+            
+            // Get all players in playing11
+            const playing11Players = playing11.filter(p => p !== null);
+            
+            if (playing11Players.length === 0) {
+                captainCandidates.innerHTML = '<p class="text-gray-500 text-center col-span-full py-4">Add players to Playing 11 first</p>';
+                selectedCaptainDisplay.classList.add('hidden');
+                return;
+            }
+            
+            // Create captain selection cards
+            playing11Players.forEach((player, index) => {
+                const isCurrentCaptain = window.selectedCaptain?.id === player.id;
+                const captainCard = document.createElement('div');
+                captainCard.className = `text-center p-3 rounded-lg cursor-pointer transition-all ${
+                    isCurrentCaptain ? 'bg-green-900/30 border-2 border-green-500' : 'bg-gray-800/30 hover:bg-gray-800/50'
+                }`;
+                captainCard.innerHTML = `
+                    <div class="text-2xl mb-2">${getPlayerEmoji(player.role)}</div>
+                    <div class="font-medium text-sm truncate">${player.name.split(' ')[0]}</div>
+                    <div class="text-xs text-gray-400">${player.role?.substring(0, 3) || 'Play'}</div>
+                    ${isCurrentCaptain ? '<div class="text-green-400 text-xs mt-1 font-bold">CAPTAIN</div>' : ''}
+                `;
+                
+                captainCard.addEventListener('click', () => selectCaptain(player));
+                captainCandidates.appendChild(captainCard);
+            });
+            
+            // Update selected captain display
+            if (window.selectedCaptain) {
+                captainName.textContent = window.selectedCaptain.name;
+                selectedCaptainDisplay.classList.remove('hidden');
+            } else {
+                selectedCaptainDisplay.classList.add('hidden');
+            }
+        }
 
-function selectCaptain(player) {
-    window.selectedCaptain = player;
-    updateCaptainSelection();
-    validateSelection();
-    showAlert('Captain Selected', `${player.name} is now your team captain!`, '⭐');
-}
+        function selectCaptain(player) {
+            window.selectedCaptain = player;
+            updateCaptainSelection();
+            validateSelection();
+            showAlert('Captain Selected', `${player.name} is now your team captain!`, '⭐');
+        }
 
-function getPlayerEmoji(role) {
-    if (!role) return '🏏';
-    const roleLower = role.toLowerCase();
-    if (roleLower.includes('wk') || roleLower.includes('keep')) return '🧤';
-    if (roleLower.includes('bowl')) return '🎯';
-    if (roleLower.includes('all')) return '⚡';
-    return '🏏';
-}
+        function getPlayerEmoji(role) {
+            if (!role) return '🏏';
+            const roleLower = role.toLowerCase();
+            if (roleLower.includes('wk') || roleLower.includes('keep')) return '🧤';
+            if (roleLower.includes('bowl')) return '🎯';
+            if (roleLower.includes('all')) return '⚡';
+            return '🏏';
+        }
         
         function clearSlotDisplay(slotType, slotIndex) {
             const slots = slotType === 'playing11' ? playing11Slots : impactPlayerSlots;
@@ -1246,7 +1070,7 @@ function getPlayerEmoji(role) {
             // Update role distribution
             updateRoleDistribution();
 
-            // ✅ ADD THIS LINE: Update captain selection
+            // Update captain selection
             updateCaptainSelection();
             
             // Validate and update submit button
@@ -1278,106 +1102,106 @@ function getPlayerEmoji(role) {
         }
         
         function validateSelection() {
-    const playing11CountValue = playing11.filter(player => player !== null).length;
-    const impactPlayersCountValue = impactPlayers.filter(player => player !== null).length;
-    
-    // Get selected captain
-    const hasCaptain = window.selectedCaptain !== undefined && window.selectedCaptain !== null;
-    
-    // Check overseas count (max 4)
-    const overseasCount = playing11.filter(player => 
-        player && player.isOverseas
-    ).length;
-    
-    // Check wicket keeper count (min 1)
-    const wkCount = playing11.filter(player => 
-        player && player.role && (player.role.toLowerCase().includes('wk') || player.role.toLowerCase().includes('keep'))
-    ).length;
-    
-    let isValid = true;
-    let messages = [];
-    
-    // Check playing11 count
-    if (playing11CountValue !== 11) {
-        isValid = false;
-        messages.push(`Need exactly 11 players in Playing 11 (currently ${playing11CountValue})`);
-    }
-    
-    // Check overseas limit (max 4)
-    if (overseasCount > 4) {
-        isValid = false;
-        messages.push(`Maximum 4 overseas players allowed in Playing 11 (currently ${overseasCount})`);
-    }
-    
-    // Check wicket keeper (min 1)
-    if (wkCount < 1) {
-        isValid = false;
-        messages.push(`At least 1 wicket keeper required in Playing 11 (currently ${wkCount})`);
-    }
-    
-    // Check captain selection
-    if (!hasCaptain) {
-        isValid = false;
-        messages.push(`Please select a captain from your Playing 11`);
-    }
-    
-    // Check for duplicate players
-    const playing11Ids = playing11.filter(p => p).map(p => p.id);
-    const impactIds = impactPlayers.filter(p => p).map(p => p.id);
-    const duplicates = playing11Ids.filter(id => impactIds.includes(id));
-    
-    if (duplicates.length > 0) {
-        isValid = false;
-        messages.push('Players cannot be in both Playing 11 and Impact Players');
-    }
-    
-    // Check impact players limit
-    if (impactPlayersCountValue > maxImpactPlayers) {
-        isValid = false;
-        messages.push(`Maximum ${maxImpactPlayers} impact players allowed`);
-    }
-    
-    // Update validation UI
-    if (isValid) {
-        validationStatus.classList.remove('hidden');
-        statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-900/30';
-        statusBadge.innerHTML = `
-            <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-            <span class="text-sm font-medium text-green-400">Ready to Submit</span>
-        `;
-        submitPlaying11Btn.disabled = false;
-        playing11Validation.classList.add('hidden');
-        
-        // Hide captain warning
-        document.getElementById('noCaptainWarning')?.classList.add('hidden');
-    } else {
-        validationStatus.classList.remove('hidden');
-        statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-900/30';
-        statusBadge.innerHTML = `
-            <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-            <span class="text-sm font-medium text-red-400">Needs Fixes</span>
-        `;
-        submitPlaying11Btn.disabled = true;
-        
-        // Show captain warning if no captain
-        if (!hasCaptain) {
-            document.getElementById('noCaptainWarning')?.classList.remove('hidden');
-        } else {
-            document.getElementById('noCaptainWarning')?.classList.add('hidden');
+            const playing11CountValue = playing11.filter(player => player !== null).length;
+            const impactPlayersCountValue = impactPlayers.filter(player => player !== null).length;
+            
+            // Get selected captain
+            const hasCaptain = window.selectedCaptain !== undefined && window.selectedCaptain !== null;
+            
+            // Check overseas count (max 4)
+            const overseasCount = playing11.filter(player => 
+                player && player.isOverseas
+            ).length;
+            
+            // Check wicket keeper count (min 1)
+            const wkCount = playing11.filter(player => 
+                player && player.role && (player.role.toLowerCase().includes('wk') || player.role.toLowerCase().includes('keep'))
+            ).length;
+            
+            let isValid = true;
+            let messages = [];
+            
+            // Check playing11 count
+            if (playing11CountValue !== 11) {
+                isValid = false;
+                messages.push(`Need exactly 11 players in Playing 11 (currently ${playing11CountValue})`);
+            }
+            
+            // Check overseas limit (max 4)
+            if (overseasCount > 4) {
+                isValid = false;
+                messages.push(`Maximum 4 overseas players allowed in Playing 11 (currently ${overseasCount})`);
+            }
+            
+            // Check wicket keeper (min 1)
+            if (wkCount < 1) {
+                isValid = false;
+                messages.push(`At least 1 wicket keeper required in Playing 11 (currently ${wkCount})`);
+            }
+            
+            // Check captain selection
+            if (!hasCaptain) {
+                isValid = false;
+                messages.push(`Please select a captain from your Playing 11`);
+            }
+            
+            // Check for duplicate players
+            const playing11Ids = playing11.filter(p => p).map(p => p.id);
+            const impactIds = impactPlayers.filter(p => p).map(p => p.id);
+            const duplicates = playing11Ids.filter(id => impactIds.includes(id));
+            
+            if (duplicates.length > 0) {
+                isValid = false;
+                messages.push('Players cannot be in both Playing 11 and Impact Players');
+            }
+            
+            // Check impact players limit
+            if (impactPlayersCountValue > maxImpactPlayers) {
+                isValid = false;
+                messages.push(`Maximum ${maxImpactPlayers} impact players allowed`);
+            }
+            
+            // Update validation UI
+            if (isValid) {
+                validationStatus.classList.remove('hidden');
+                statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-900/30';
+                statusBadge.innerHTML = `
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-sm font-medium text-green-400">Ready to Submit</span>
+                `;
+                submitPlaying11Btn.disabled = false;
+                playing11Validation.classList.add('hidden');
+                
+                // Hide captain warning
+                document.getElementById('noCaptainWarning')?.classList.add('hidden');
+            } else {
+                validationStatus.classList.remove('hidden');
+                statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-900/30';
+                statusBadge.innerHTML = `
+                    <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                    <span class="text-sm font-medium text-red-400">Needs Fixes</span>
+                `;
+                submitPlaying11Btn.disabled = true;
+                
+                // Show captain warning if no captain
+                if (!hasCaptain) {
+                    document.getElementById('noCaptainWarning')?.classList.remove('hidden');
+                } else {
+                    document.getElementById('noCaptainWarning')?.classList.add('hidden');
+                }
+                
+                // Show validation messages
+                playing11Validation.classList.remove('hidden');
+                playing11Validation.innerHTML = messages.map(msg => 
+                    `<div class="text-red-400 text-sm flex items-center space-x-2">
+                        <span>❌</span>
+                        <span>${msg}</span>
+                    </div>`
+                ).join('');
+            }
+            
+            return isValid;
         }
-        
-        // Show validation messages
-        playing11Validation.classList.remove('hidden');
-        playing11Validation.innerHTML = messages.map(msg => 
-            `<div class="text-red-400 text-sm flex items-center space-x-2">
-                <span>❌</span>
-                <span>${msg}</span>
-            </div>`
-        ).join('');
-    }
-    
-    return isValid;
-}
 
         // ========== SUBMISSION FUNCTIONS ==========
         submitPlaying11Btn.addEventListener('click', () => {
@@ -1406,51 +1230,51 @@ function getPlayerEmoji(role) {
         });
         
         function submitPlaying11(playing11Data, impactPlayersData) {
-    // Include captain in submission
-    const submissionData = {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        playing11: playing11Data,
-        impactPlayers: impactPlayersData,
-        captain: window.selectedCaptain, // ✅ Include captain
-        sessionId: userSessionId
-    };
-    
-    console.log('📤 Submitting with captain:', window.selectedCaptain);
-    
-    socket.emit('submitPlaying11', submissionData);
-    
-    submitPlaying11Btn.disabled = true;
-    submitPlaying11Btn.innerHTML = `
-        <div class="flex items-center justify-center space-x-2">
-            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-            <span>Submitting...</span>
-        </div>
-    `;
-}
+            // Include captain in submission
+            const submissionData = {
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                playing11: playing11Data,
+                impactPlayers: impactPlayersData,
+                captain: window.selectedCaptain, // Include captain
+                sessionId: userSessionId
+            };
+            
+            console.log('📤 Submitting with captain:', window.selectedCaptain);
+            
+            socket.emit('submitPlaying11', submissionData);
+            
+            submitPlaying11Btn.disabled = true;
+            submitPlaying11Btn.innerHTML = `
+                <div class="flex items-center justify-center space-x-2">
+                    <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>Submitting...</span>
+                </div>
+            `;
+        }
 
         // ========== DISPLAY FUNCTIONS ==========
-        function displayTeamInfo() {
-            if (!userTeam) return;
+        function displayTeamInfo(team) {
+            if (!team) return;
             
             teamHeader.innerHTML = `
                 <div class="flex items-center space-x-4">
                     <div class="w-16 h-16 rounded-full flex items-center justify-center relative shadow-xl" 
-                         style="background: ${userTeam.color}20; border: 2px solid ${userTeam.color}">
+                         style="background: ${team.color}20; border: 2px solid ${team.color}">
                         <div class="w-12 h-12 rounded-full bg-gray-900/80 flex items-center justify-center overflow-hidden p-1">
-                            ${userTeam.logo ? 
-                                `<img src="${userTeam.logo}" 
-                                      alt="${userTeam.name}" 
+                            ${team.logo ? 
+                                `<img src="${team.logo}" 
+                                      alt="${team.name}" 
                                       class="w-full h-full object-contain"
-                                      onerror="this.onerror=null; this.src='https://via.placeholder.com/48/1e293b/ffffff?text=${userTeam.name.charAt(0)}';">` :
-                                `<div class="w-full h-full flex items-center justify-center font-bold text-lg" style="color: ${userTeam.color}">
-                                    ${userTeam.name.charAt(0)}
+                                      onerror="this.onerror=null; this.src='https://via.placeholder.com/48/1e293b/ffffff?text=${team.name.charAt(0)}';">` :
+                                `<div class="w-full h-full flex items-center justify-center font-bold text-lg" style="color: ${team.color}">
+                                    ${team.name.charAt(0)}
                                 </div>`
                             }
                         </div>
                     </div>
                     <div>
-                        <h2 class="text-2xl font-bold team-name-gradient">${userTeam.name}</h2>
+                        <h2 class="text-2xl font-bold team-name-gradient">${team.name}</h2>
                         <p class="text-gray-400 text-sm">Playing 11 Selection Phase</p>
                         <p class="text-gray-500 text-xs mt-1">Player: ${currentUsername}</p>
                     </div>
@@ -1458,18 +1282,102 @@ function getPlayerEmoji(role) {
             `;
         }
         
-        function updateStatistics() {
-            if (!squadData) return;
+        function updateStatistics(data) {
+            if (!data) return;
             
             const totalPlayersValue = allPlayers.length;
-            const totalSpentValue = squadData.auctionPlayers?.reduce((sum, player) => sum + (player.price || 0), 0) || 0;
-            const rtmCardsValue = squadData.rtmCards || 0;
-            const remainingBudgetValue = squadData.budget || 100;
+            const totalSpentValue = data.auctionPlayers?.reduce((sum, player) => sum + (player.price || 0), 0) || 0;
+            const rtmCardsValue = data.rtmCards || 0;
+            const remainingBudgetValue = data.budget || 100;
             
             totalPlayers.textContent = totalPlayersValue;
             totalSpent.textContent = `₹${totalSpentValue.toFixed(2)} Cr`;
             rtmCards.textContent = rtmCardsValue;
             remainingBudget.textContent = `₹${remainingBudgetValue.toFixed(2)} Cr`;
+        }
+
+        // ========== SOCKET FUNCTIONS ==========
+        function initializeSocket() {
+            console.log('🔌 Connecting to socket server...');
+            socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
+        );
+            
+            socket.on('connect', () => {
+                console.log('✅ Connected to server');
+                
+                // Join the playing11 room
+                socket.emit('joinPlaying11', {
+                    roomCode: currentRoomCode,
+                    username: currentUsername,
+                    sessionId: userSessionId
+                });
+            });
+            
+            socket.on('connect_error', (error) => {
+                console.error('❌ Connection error:', error);
+                showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
+            });
+            
+            socket.on('playing11Joined', (data) => {
+                console.log('✅ Joined playing11 room:', data);
+                
+                // Request squad data if we don't have it yet
+                if (!squadData || !squadData.retainedPlayers) {
+                    console.log('🔄 Requesting squad data from server...');
+                    socket.emit('requestSquad', {
+                        roomCode: currentRoomCode,
+                        username: currentUsername,
+                        sessionId: userSessionId
+                    });
+                } else {
+                    console.log('✅ Already have squad data, no need to request');
+                }
+            });
+            
+            socket.on('squadUpdate', (data) => {
+                console.log('👥 Received squad data from server:', data);
+                squadData = data;
+                userTeam = data.team;
+                maxImpactPlayers = data.rules?.impactPlayers || 1;
+                
+                // Store in localStorage for persistence
+                localStorage.setItem('userSquadData', JSON.stringify(data));
+                
+                // Process squad data
+                processSquadData(data);
+                
+                // Display team info
+                displayTeamInfo(data.team);
+                
+                // Update statistics
+                updateStatistics(data);
+                
+                // Update impact player slots based on rules
+                updateImpactPlayerSlots();
+                
+                showAlert('Squad Loaded', `Your squad of ${allPlayers.length} players is ready!`, '✅');
+            });
+            
+            socket.on('playing11SubmittedSuccess', (data) => {
+                console.log('✅ Playing 11 submitted successfully:', data);
+                showSuccessModal();
+                submitPlaying11Btn.innerHTML = '✅ Submitted!';
+            });
+            
+            socket.on('teamRated', (data) => {
+                console.log('Team rated by auctioneer:', data);
+                showAlert('Team Rated', `Your team has been rated: ${data.rating}/10`, '⭐');
+            });
+            
+            socket.on('error', (data) => {
+                console.error('❌ Error:', data);
+                showAlert('Error', data.message, '❌');
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('🔌 Disconnected from server');
+                showAlert('Disconnected', 'Lost connection to server. Attempting to reconnect...', '⚠️');
+            });
         }
 
         // ========== MODAL FUNCTIONS ==========
@@ -1492,41 +1400,6 @@ function getPlayerEmoji(role) {
         function closeAlertModal() {
             document.getElementById('alertModal').classList.add('hidden');
         }
-        // Add this function to show a manual load button
-function showManualLoadButton() {
-    availablePlayers.innerHTML = `
-        <div class="text-center text-gray-500 py-12">
-            <div class="text-4xl mb-4">😕</div>
-            <p>No squad data found</p>
-            <div class="mt-4 space-y-2">
-                <button onclick="loadFromLocalStorage()" 
-                        class="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
-                    🔄 Try Loading from LocalStorage
-                </button>
-                <button onclick="window.location.href = 'auctionpool.html'" 
-                        class="px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-700 rounded-lg font-semibold">
-                    ↩️ Return to Auction
-                </button>
-            </div>
-        </div>
-    `;
-}
-
-function loadFromLocalStorage() {
-    const data = localStorage.getItem('playing11Data');
-    if (data) {
-        try {
-            const parsed = JSON.parse(data);
-            squadData = parsed.squadData;
-            processSquadData(squadData);
-            showAlert('Success', 'Squad loaded from localStorage!', '✅');
-        } catch (e) {
-            showAlert('Error', 'Failed to load from localStorage', '❌');
-        }
-    } else {
-        showAlert('No Data', 'No squad data found in localStorage', '❌');
-    }
-}
         
         // Expose functions to global scope
         window.closeSuccessModal = closeSuccessModal;
