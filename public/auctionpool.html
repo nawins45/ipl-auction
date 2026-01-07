@@ -1419,11 +1419,11 @@ socket.on('connect', () => {
             const roundedBid = Math.round(newBid * 100) / 100;
             
             console.log(`🎯 Bid attempt: ${userTeam.id} bidding ₹${roundedBid} Cr`);
-             // ✅ ADD THIS CHECK: Make sure the bid is actually higher
-    if (roundedBid <= currentBidValue) {
-        console.log('⚠️ Bid is not higher than current bid');
-        return; // Don't send bid
-    }
+    //          // ✅ ADD THIS CHECK: Make sure the bid is actually higher
+    // if (roundedBid <= currentBidValue) {
+    //     console.log('⚠️ Bid is not higher than current bid');
+    //     return; // Don't send bid
+    // }
             
             sendBidToServer(roundedBid);
         }
