@@ -1419,30 +1419,54 @@ socket.on('connect', () => {
             const roundedBid = Math.round(newBid * 100) / 100;
             
             console.log(`🎯 Bid attempt: ${userTeam.id} bidding ₹${roundedBid} Cr`);
-    //          // ✅ ADD THIS CHECK: Make sure the bid is actually higher
-    // if (roundedBid <= currentBidValue) {
-    //     console.log('⚠️ Bid is not higher than current bid');
-    //     return; // Don't send bid
-    // }
+            
+            // ✅ ADD THIS CHECK: Make sure the bid is actually higher
+            if (roundedBid <= currentBidValue) {
+                console.log('⚠️ Bid is not higher than current bid');
+                showAlert('Bid Too Low', `Bid must be higher than current bid (₹${currentBidValue} Cr)`, '⚠️');
+                return; // Don't send bid
+            }
             
             sendBidToServer(roundedBid);
         }
         
         function sendBidToServer(bidAmount) {
-            // ✅ ADD THIS CHECK
-    if (!socket || !socket.connected) {
-        console.error('❌ Socket not connected');
-        showAlert('Connection Error', 'Not connected to server. Please refresh.', '❌');
-        return;
-    }
-
-            // Validate bid
+            // ✅ FIXED: ADD PROPER VALIDATION CHECKS BEFORE SOCKET EMIT
+            console.log('🎯 Sending bid to server:', bidAmount);
+            
+            // Check 1: Socket connection
+            if (!socket || !socket.connected) {
+                console.error('❌ Socket not connected');
+                showAlert('Connection Error', 'Not connected to server. Please refresh.', '❌');
+                return;
+            }
+            
+            // Check 2: Required data
+            if (!currentPlayer || !currentPlayer.id) {
+                console.error('❌ No current player selected');
+                showAlert('Error', 'No player selected for bidding', '❌');
+                return;
+            }
+            
+            if (!userTeam || !userTeam.id) {
+                console.error('❌ No user team');
+                showAlert('Error', 'No team assigned', '❌');
+                return;
+            }
+            
+            if (!currentRoomCode || !currentUsername) {
+                console.error('❌ Missing session data');
+                showAlert('Session Error', 'Session expired. Please refresh.', '❌');
+                return;
+            }
+            
+            // Check 3: Budget validation
             if (bidAmount > teamBudget) {
                 showAlert('Insufficient Funds', `Your purse is only ₹${teamBudget.toFixed(2)} Cr`, '❌');
                 return;
             }
             
-            // Check squad size limit
+            // Check 4: Squad size limit
             const totalSquadSize = squadLimits.total;
             const maxSquadValue = squadLimits.maxSquad || 25;
             
@@ -1451,15 +1475,53 @@ socket.on('connect', () => {
                 return;
             }
             
-            // Send bid to server
-            socket.emit('placeBid', {
+            // ✅ FIXED: Get session ID properly
+            const sessionData = JSON.parse(localStorage.getItem('userSession') || '{}');
+            const sessionId = sessionData.sessionId || Date.now().toString();
+            
+            console.log('📤 Sending bid with data:', {
                 roomCode: currentRoomCode,
+                username: currentUsername,
                 playerId: currentPlayer.id,
                 team: userTeam.id,
-                bid: bidAmount
+                bid: bidAmount,
+                sessionId: sessionId
             });
             
-            console.log(`📤 Bid sent: ₹${bidAmount} Cr`);
+            // ✅ FIXED: Use emit with callback to handle response
+            socket.emit('placeBid', {
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                playerId: currentPlayer.id,
+                team: userTeam.id,
+                bid: bidAmount,
+                sessionId: sessionId
+            }, (response) => {
+                if (response && response.success) {
+                    console.log('✅ Bid successfully placed');
+                    // Update UI immediately with optimistic update
+                    currentBid.textContent = `₹${bidAmount} Cr`;
+                    currentBid.classList.add('bounce');
+                    setTimeout(() => currentBid.classList.remove('bounce'), 500);
+                    
+                    if (userTeam && userTeam.id) {
+                        highestBidder.textContent = userTeam.id.toUpperCase();
+                        const teamColors = {
+                            'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
+                            'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
+                            'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
+                        };
+                        highestBidder.style.color = teamColors[userTeam.id] || '#FFFFFF';
+                    }
+                    
+                    // Add to bid log
+                    addBidToLog(userTeam.id, bidAmount);
+                    
+                } else {
+                    console.error('❌ Bid placement failed:', response?.message);
+                    showAlert('Bid Failed', response?.message || 'Failed to place bid. Please try again.', '❌');
+                }
+            });
         }
         
         function addBidToLog(team, bid, type = 'BID') {
@@ -1532,202 +1594,229 @@ socket.on('connect', () => {
         }
 
         // ========== SQUAD FUNCTIONS ==========
-    function openSquadModal() {
-    console.log('👥 Opening squad modal...');
-    
-    // ✅ ADD THIS CHECK
-    if (!socket || !socket.connected) {
-        console.error('❌ Socket not connected for squad request');
-        showAlert('Connection Error', 'Not connected to server. Please refresh.', '❌');
-        return;
-    }
-    
-    // ✅ FIXED: Get session data properly
-    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
-    const sessionId = userSession.sessionId || currentSession.sessionId;
-    
-    if (!sessionId) {
-        console.error('❌ No session ID for squad request');
-        showAlert('Session Error', 'Cannot load squad without session', '❌');
-        return;
-    }
-    
-    // Request squad data from server with callback
-    socket.emit('requestSquad', {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        sessionId: sessionId
-    }, (response) => {
-        if (response && response.success && response.data) {
-            console.log('✅ Squad data received:', response.data);
-            updateSquadDisplay(response.data);
-        } else {
-            console.error('❌ Failed to get squad data:', response?.message);
-            showAlert('Error', response?.message || 'Failed to load squad data', '❌');
+        function openSquadModal() {
+            console.log('👥 Opening squad modal...');
+            
+            // ✅ FIXED: ADD PROPER VALIDATION CHECKS
+            if (!socket || !socket.connected) {
+                console.error('❌ Socket not connected for squad request');
+                showAlert('Connection Error', 'Not connected to server. Please refresh.', '❌');
+                return;
+            }
+            
+            // ✅ FIXED: Get session data properly
+            const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+            const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+            const sessionId = userSession.sessionId || currentSession.sessionId;
+            
+            if (!sessionId) {
+                console.error('❌ No session ID for squad request');
+                showAlert('Session Error', 'Cannot load squad without session', '❌');
+                return;
+            }
+            
+            if (!currentRoomCode || !currentUsername) {
+                console.error('❌ Missing room code or username');
+                showAlert('Error', 'Missing user information', '❌');
+                return;
+            }
+            
+            console.log('📤 Requesting squad data:', {
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                sessionId: sessionId
+            });
+            
+            // ✅ FIXED: Use emit with callback
+            socket.emit('requestSquad', {
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                sessionId: sessionId
+            }, (response) => {
+                if (response && response.success && response.data) {
+                    console.log('✅ Squad data received:', response.data);
+                    updateSquadDisplay(response.data);
+                } else {
+                    console.error('❌ Failed to get squad data:', response?.message);
+                    showAlert('Error', response?.message || 'Failed to load squad data', '❌');
+                    
+                    // Show offline squad data as fallback
+                    const offlineSquadData = {
+                        team: userTeam,
+                        retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
+                        auctionPlayers: JSON.parse(localStorage.getItem('auctionBuys') || '[]'),
+                        budget: teamBudget,
+                        totalSpent: 0,
+                        totalBudget: 100,
+                        remainingBudget: teamBudget,
+                        squadLimit: squadLimits.maxSquad || 25,
+                        remainingSlots: Math.max(0, (squadLimits.maxSquad || 25) - squadLimits.total)
+                    };
+                    
+                    updateSquadDisplay(offlineSquadData);
+                }
+            });
         }
-    });
-}
         
         function updateSquadLimits() {
-    squadSize.textContent = squadLimits.total || 0;
-    
-    // FIX: Use actual max squad from rules, not hardcoded 25
-    const max = squadLimits.maxSquad || 25;
-    maxSquad.textContent = max;
-    
-    remainingSlots.textContent = max - squadLimits.total;
-    canBuy.textContent = max - squadLimits.total;
-    indianCount.textContent = squadLimits.indian || 0;
-    overseasCount.textContent = squadLimits.overseas || 0;
-}
+            squadSize.textContent = squadLimits.total || 0;
+            
+            // FIX: Use actual max squad from rules, not hardcoded 25
+            const max = squadLimits.maxSquad || 25;
+            maxSquad.textContent = max;
+            
+            remainingSlots.textContent = max - squadLimits.total;
+            canBuy.textContent = max - squadLimits.total;
+            indianCount.textContent = squadLimits.indian || 0;
+            overseasCount.textContent = squadLimits.overseas || 0;
+        }
         
         function updateSquadDisplay(data) {
-    console.log('👥 Updating squad display:', data);
-    
-    // Ensure we have all required data with defaults
-    const squadData = {
-        team: data.team || userTeam || { name: 'Team' },
-        retainedPlayers: data.retainedPlayers || [],
-        auctionPlayers: data.auctionPlayers || [],
-        budget: data.budget || teamBudget || 100,
-        totalSpent: data.totalSpent || 0,
-        totalBudget: data.totalBudget || 100,
-        remainingBudget: data.remainingBudget || data.budget || 100,
-        squadLimit: data.squadLimit || data.maxSquad || 25,
-        remainingSlots: data.remainingSlots || 0,
-        rules: data.rules || { impactPlayers: 1 }
-    };
-    
-    // Calculate overseas/indian counts
-    let overseasCount = 0;
-    let indianCount = 0;
-    
-    squadData.retainedPlayers.forEach(p => {
-        if (p.isOverseas) overseasCount++;
-        else indianCount++;
-    });
-    
-    squadData.auctionPlayers.forEach(p => {
-        if (p.isOverseas) overseasCount++;
-        else indianCount++;
-    });
-    
-    const totalPlayers = squadData.retainedPlayers.length + squadData.auctionPlayers.length;
-    
-    // Create squad modal
-    const squadModal = document.createElement('div');
-    squadModal.className = 'fixed inset-0 flex items-center justify-center z-50';
-    squadModal.innerHTML = `
-        <div class="absolute inset-0 bg-black/80"></div>
-        <div class="glass-panel rounded-2xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto z-10">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-yellow-400">My Squad - ${squadData.team.name}</h2>
-                <button onclick="this.parentElement.parentElement.parentElement.remove()" 
-                        class="text-2xl hover:text-yellow-400">✕</button>
-            </div>
+            console.log('👥 Updating squad display:', data);
             
-            <!-- Budget Summary -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="text-center p-4 rounded-lg bg-gray-800/30">
-                    <div class="text-sm text-gray-400">Total Budget</div>
-                    <div class="text-2xl font-bold text-green-400">₹${squadData.totalBudget.toFixed(2)} Cr</div>
-                </div>
-                <div class="text-center p-4 rounded-lg bg-gray-800/30">
-                    <div class="text-sm text-gray-400">Amount Spent</div>
-                    <div class="text-2xl font-bold text-red-400">₹${squadData.totalSpent.toFixed(2)} Cr</div>
-                </div>
-                <div class="text-center p-4 rounded-lg bg-gray-800/30">
-                    <div class="text-sm text-gray-400">Remaining Purse</div>
-                    <div class="text-2xl font-bold text-yellow-400">₹${squadData.remainingBudget.toFixed(2)} Cr</div>
-                </div>
-            </div>
+            // Ensure we have all required data with defaults
+            const squadData = {
+                team: data.team || userTeam || { name: 'Team' },
+                retainedPlayers: data.retainedPlayers || [],
+                auctionPlayers: data.auctionPlayers || [],
+                budget: data.budget || teamBudget || 100,
+                totalSpent: data.totalSpent || 0,
+                totalBudget: data.totalBudget || 100,
+                remainingBudget: data.remainingBudget || data.budget || 100,
+                squadLimit: data.squadLimit || data.maxSquad || 25,
+                remainingSlots: data.remainingSlots || 0,
+                rules: data.rules || { impactPlayers: 1 }
+            };
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Retained Players -->
-                <div>
-                    <h3 class="text-xl font-bold mb-4 text-green-400 flex items-center justify-between">
-                        <span>Retained Players (${squadData.retainedPlayers.length})</span>
-                        <span class="text-sm text-gray-400">Free</span>
-                    </h3>
-                    <div class="space-y-3 max-h-[300px] overflow-y-auto">
-                        ${squadData.retainedPlayers.map(player => `
-                            <div class="p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors">
-                                <div class="flex justify-between items-center">
-                                    <div>
-                                        <div class="font-medium">${player.name}</div>
-                                        <div class="text-sm text-gray-400">${player.role} • ${player.isOverseas ? '✈️ Overseas' : '🇮🇳 Indian'}</div>
+            // Calculate overseas/indian counts
+            let overseasCount = 0;
+            let indianCount = 0;
+            
+            squadData.retainedPlayers.forEach(p => {
+                if (p.isOverseas) overseasCount++;
+                else indianCount++;
+            });
+            
+            squadData.auctionPlayers.forEach(p => {
+                if (p.isOverseas) overseasCount++;
+                else indianCount++;
+            });
+            
+            const totalPlayers = squadData.retainedPlayers.length + squadData.auctionPlayers.length;
+            
+            // Create squad modal
+            const squadModal = document.createElement('div');
+            squadModal.className = 'fixed inset-0 flex items-center justify-center z-50';
+            squadModal.innerHTML = `
+                <div class="absolute inset-0 bg-black/80"></div>
+                <div class="glass-panel rounded-2xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto z-10">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-yellow-400">My Squad - ${squadData.team.name}</h2>
+                        <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                                class="text-2xl hover:text-yellow-400">✕</button>
+                    </div>
+                    
+                    <!-- Budget Summary -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="text-center p-4 rounded-lg bg-gray-800/30">
+                            <div class="text-sm text-gray-400">Total Budget</div>
+                            <div class="text-2xl font-bold text-green-400">₹${squadData.totalBudget.toFixed(2)} Cr</div>
+                        </div>
+                        <div class="text-center p-4 rounded-lg bg-gray-800/30">
+                            <div class="text-sm text-gray-400">Amount Spent</div>
+                            <div class="text-2xl font-bold text-red-400">₹${squadData.totalSpent.toFixed(2)} Cr</div>
+                        </div>
+                        <div class="text-center p-4 rounded-lg bg-gray-800/30">
+                            <div class="text-sm text-gray-400">Remaining Purse</div>
+                            <div class="text-2xl font-bold text-yellow-400">₹${squadData.remainingBudget.toFixed(2)} Cr</div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Retained Players -->
+                        <div>
+                            <h3 class="text-xl font-bold mb-4 text-green-400 flex items-center justify-between">
+                                <span>Retained Players (${squadData.retainedPlayers.length})</span>
+                                <span class="text-sm text-gray-400">Free</span>
+                            </h3>
+                            <div class="space-y-3 max-h-[300px] overflow-y-auto">
+                                ${squadData.retainedPlayers.map(player => `
+                                    <div class="p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors">
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <div class="font-medium">${player.name}</div>
+                                                <div class="text-sm text-gray-400">${player.role} • ${player.isOverseas ? '✈️ Overseas' : '🇮🇳 Indian'}</div>
+                                            </div>
+                                            <div class="text-green-400 font-bold">FREE</div>
+                                        </div>
                                     </div>
-                                    <div class="text-green-400 font-bold">FREE</div>
+                                `).join('')}
+                                ${squadData.retainedPlayers.length === 0 ? 
+                                    '<div class="text-gray-500 text-center py-4">No retained players</div>' : ''}
+                            </div>
+                        </div>
+                        
+                        <!-- Auction Buys -->
+                        <div>
+                            <h3 class="text-xl font-bold mb-4 text-blue-400 flex items-center justify-between">
+                                <span>Auction Buys (${squadData.auctionPlayers.length})</span>
+                                <span class="text-sm text-gray-400">Total: ₹${squadData.auctionPlayers.reduce((sum, p) => sum + (p.price || 0), 0).toFixed(2)} Cr</span>
+                            </h3>
+                            <div class="space-y-3 max-h-[300px] overflow-y-auto">
+                                ${squadData.auctionPlayers.map(player => `
+                                    <div class="p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors">
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <div class="font-medium">${player.name}</div>
+                                                <div class="text-sm text-gray-400">${player.role} • ${player.isOverseas ? '✈️ Overseas' : '🇮🇳 Indian'}</div>
+                                                ${player.price ? `<div class="text-xs text-yellow-400">Price: ₹${player.price} Cr</div>` : ''}
+                                            </div>
+                                            <div class="text-yellow-400 font-bold">₹${player.price || 0} Cr</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                                ${squadData.auctionPlayers.length === 0 ? 
+                                    '<div class="text-gray-500 text-center py-4">No players bought yet</div>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Squad Summary -->
+                    <div class="mt-6 pt-6 border-t border-gray-700">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                                <div class="text-sm text-gray-400">Total Players</div>
+                                <div class="text-2xl font-bold">${totalPlayers}</div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                                <div class="text-sm text-gray-400">Squad Limit</div>
+                                <div class="text-2xl font-bold text-purple-400">${squadData.squadLimit}</div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                                <div class="text-sm text-gray-400">Remaining Slots</div>
+                                <div class="text-2xl font-bold text-blue-400">${Math.max(0, squadData.squadLimit - totalPlayers)}</div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-800/30 rounded-lg">
+                                <div class="text-sm text-gray-400">Overseas/Indian</div>
+                                <div class="text-lg font-bold">
+                                    <span class="text-purple-400">${overseasCount}</span>
+                                    <span class="text-gray-400">/</span>
+                                    <span class="text-green-400">${indianCount}</span>
                                 </div>
                             </div>
-                        `).join('')}
-                        ${squadData.retainedPlayers.length === 0 ? 
-                            '<div class="text-gray-500 text-center py-4">No retained players</div>' : ''}
-                    </div>
-                </div>
-                
-                <!-- Auction Buys -->
-                <div>
-                    <h3 class="text-xl font-bold mb-4 text-blue-400 flex items-center justify-between">
-                        <span>Auction Buys (${squadData.auctionPlayers.length})</span>
-                        <span class="text-sm text-gray-400">Total: ₹${squadData.auctionPlayers.reduce((sum, p) => sum + (p.price || 0), 0).toFixed(2)} Cr</span>
-                    </h3>
-                    <div class="space-y-3 max-h-[300px] overflow-y-auto">
-                        ${squadData.auctionPlayers.map(player => `
-                            <div class="p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors">
-                                <div class="flex justify-between items-center">
-                                    <div>
-                                        <div class="font-medium">${player.name}</div>
-                                        <div class="text-sm text-gray-400">${player.role} • ${player.isOverseas ? '✈️ Overseas' : '🇮🇳 Indian'}</div>
-                                        ${player.price ? `<div class="text-xs text-yellow-400">Price: ₹${player.price} Cr</div>` : ''}
-                                    </div>
-                                    <div class="text-yellow-400 font-bold">₹${player.price || 0} Cr</div>
-                                </div>
-                            </div>
-                        `).join('')}
-                        ${squadData.auctionPlayers.length === 0 ? 
-                            '<div class="text-gray-500 text-center py-4">No players bought yet</div>' : ''}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Squad Summary -->
-            <div class="mt-6 pt-6 border-t border-gray-700">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                        <div class="text-sm text-gray-400">Total Players</div>
-                        <div class="text-2xl font-bold">${totalPlayers}</div>
-                    </div>
-                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                        <div class="text-sm text-gray-400">Squad Limit</div>
-                        <div class="text-2xl font-bold text-purple-400">${squadData.squadLimit}</div>
-                    </div>
-                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                        <div class="text-sm text-gray-400">Remaining Slots</div>
-                        <div class="text-2xl font-bold text-blue-400">${Math.max(0, squadData.squadLimit - totalPlayers)}</div>
-                    </div>
-                    <div class="text-center p-3 bg-gray-800/30 rounded-lg">
-                        <div class="text-sm text-gray-400">Overseas/Indian</div>
-                        <div class="text-lg font-bold">
-                            <span class="text-purple-400">${overseasCount}</span>
-                            <span class="text-gray-400">/</span>
-                            <span class="text-green-400">${indianCount}</span>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove any existing modal first
-    const existingModal = document.querySelector('.fixed.inset-0.flex.items-center.justify-center.z-50');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    document.body.appendChild(squadModal);
-}
+            `;
+            
+            // Remove any existing modal first
+            const existingModal = document.querySelector('.fixed.inset-0.flex.items-center.justify-center.z-50');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            document.body.appendChild(squadModal);
+        }
 
         // ========== HELPER FUNCTIONS ==========
         function showAlert(title, message, icon = 'ℹ️') {
