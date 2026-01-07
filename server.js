@@ -610,12 +610,7 @@ function handleBid(roomCode, data, socket) {
         return;
     }
 
-    if (bid <= auction.currentBid) {
-        socket.emit('bidError', { 
-            message: `Bid must be higher than current bid (₹${auction.currentBid} Cr)` 
-        });
-        return;
-    }
+    
 
     auction.currentBid = bid;
     auction.currentBidder = team;
