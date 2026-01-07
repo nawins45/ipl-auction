@@ -389,7 +389,7 @@
 
     <script>
         // ========== GLOBAL VARIABLES ==========
-         const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
+        const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
         );
         let currentRoomCode = null;
         let currentSessionId = null;
@@ -402,6 +402,7 @@
             totalValue: 0,
             avgPrice: 0
         };
+        let isAuctioneerJoined = false;
 
         // ========== DOM ELEMENTS ==========
         const roomCodeDisplay = document.getElementById('roomCodeDisplay');
@@ -454,83 +455,83 @@
         });
         
         function checkSession() {
-    console.log('🔍 Checking auctioneer session...');
-    
-    // Get room code from URL or localStorage
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlRoomCode = urlParams.get('roomCode');
-    
-    // Check all possible session locations
-    const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
-    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
-    const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
-    
-    currentRoomCode = urlRoomCode || 
-                     auctioneerSession.roomCode || 
-                     currentSession.roomCode || 
-                     auctionUser.roomCode;
-    
-    currentUsername = auctioneerSession.username || currentSession.username || auctionUser.username;
-    currentSessionId = auctioneerSession.sessionId || currentSession.sessionId || auctionUser.sessionId;
-    
-    console.log('📊 Session check results:', {
-        urlRoomCode,
-        currentRoomCode,
-        currentUsername,
-        hasSessionId: !!currentSessionId,
-        auctioneerSession,
-        currentSession,
-        auctionUser
-    });
-    
-    if (currentRoomCode && currentUsername && currentSessionId) {
-        console.log(`✅ Valid auctioneer session found: ${currentUsername} in ${currentRoomCode}`);
-        roomCodeDisplay.textContent = currentRoomCode;
-        
-        // Initialize socket connection
-        initializeSocket();
-        
-        // Store session for future use
-        localStorage.setItem('auctioneerSession', JSON.stringify({
-            username: currentUsername,
-            roomCode: currentRoomCode,
-            sessionId: currentSessionId,
-            role: 'auctioneer',
-            timestamp: Date.now()
-        }));
-        
-    } else {
-        console.log('❌ No valid auctioneer session found');
-        showSessionModal();
-    }
-}    
+            console.log('🎯 Checking auctioneer session...');
+            
+            // Try multiple session storage locations
+            const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
+            const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+            const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
+            
+            // Also check URL parameters for room code
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlRoomCode = urlParams.get('roomCode');
+            
+            // Priority: URL > auctioneerSession > currentSession > auctionUser
+            currentRoomCode = urlRoomCode || 
+                             auctioneerSession.roomCode || 
+                             currentSession.roomCode || 
+                             auctionUser.roomCode;
+            
+            currentUsername = auctioneerSession.username || currentSession.username || auctionUser.username;
+            currentSessionId = auctioneerSession.sessionId || currentSession.sessionId || auctionUser.sessionId;
+            
+            console.log('🔍 Session check results:', {
+                urlRoomCode,
+                auctioneerSession,
+                currentSession,
+                auctionUser,
+                finalRoomCode: currentRoomCode,
+                finalUsername: currentUsername,
+                finalSessionId: currentSessionId
+            });
+            
+            if (currentRoomCode && currentSessionId) {
+                console.log(`✅ Valid auctioneer session found for room ${currentRoomCode}`);
+                roomCodeDisplay.textContent = currentRoomCode;
+                
+                // Store session properly
+                localStorage.setItem('auctioneerSession', JSON.stringify({
+                    username: currentUsername,
+                    roomCode: currentRoomCode,
+                    sessionId: currentSessionId,
+                    role: 'auctioneer',
+                    timestamp: Date.now()
+                }));
+                
+                initializeSocket();
+            } else {
+                console.log('❌ No valid auctioneer session found');
+                showSessionModal();
+            }
+        }
+
         function showSessionModal() {
             document.getElementById('sessionModal').classList.remove('hidden');
         }
         
         function reconnectWithSession() {
-    console.log('🔄 Attempting to reconnect with session...');
-    
-    // Try to find any session data
-    const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
-    
-    if (auctioneerSession.username && auctioneerSession.roomCode) {
-        console.log('✅ Found auctioneer session, reloading page...');
-        
-        // Add room code to URL if not already present
-        const urlParams = new URLSearchParams(window.location.search);
-        if (!urlParams.has('roomCode')) {
-            const newUrl = `${window.location.pathname}?roomCode=${auctioneerSession.roomCode}`;
-            window.location.href = newUrl;
-        } else {
-            // Just reload the page
-            window.location.reload();
+            console.log('🔄 Attempting to reconnect with session...');
+            
+            // Try to find any session data
+            const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
+            
+            if (auctioneerSession.username && auctioneerSession.roomCode) {
+                console.log('✅ Found auctioneer session, reloading page...');
+                
+                // Add room code to URL if not already present
+                const urlParams = new URLSearchParams(window.location.search);
+                if (!urlParams.has('roomCode')) {
+                    const newUrl = `${window.location.pathname}?roomCode=${auctioneerSession.roomCode}`;
+                    window.location.href = newUrl;
+                } else {
+                    // Just reload the page
+                    window.location.reload();
+                }
+            } else {
+                console.log('❌ No auctioneer session found');
+                goToLogin();
+            }
         }
-    } else {
-        console.log('❌ No auctioneer session found');
-        goToLogin();
-    }
-}
         
         function goToLogin() {
             localStorage.removeItem('auctioneerSession');
@@ -541,65 +542,12 @@
         function initializeSocket() {
             console.log('🔌 Connecting to socket server...');
             
-            
             socket.on('connect', () => {
                 console.log('✅ Connected to auction room');
                 updateConnectionStatus(true);
-
-                
-                // Try to recover session if needed
-    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
-
-    socket.emit('joinAuctioneer', {
-            roomCode: currentRoomCode,
-            sessionId: currentSessionId,
-            username: currentUsername,
-            role: 'auctioneer',
-            timestamp: Date.now()
-        });
-        console.log('📤 Sent auctioneer join with:', {
-            roomCode: currentRoomCode,
-            sessionId: currentSessionId,
-            username: currentUsername
-        });
-    
-    if (userSession.username && userSession.roomCode) {
-        console.log('🔄 Attempting session recovery...');
-        
-        socket.emit('recoverSession', {
-            username: userSession.username,
-            roomCode: userSession.roomCode,
-            partialSessionId: userSession.sessionId ? userSession.sessionId.substring(0, 8) : ''
-        }, (response) => {
-            if (response && response.success) {
-                console.log('✅ Session recovered:', response.sessionData);
-                
-                // Update localStorage with recovered session
-                localStorage.setItem('userSession', JSON.stringify(response.sessionData));
-                localStorage.setItem('currentSession', JSON.stringify(response.sessionData));
-                
-                // Proceed with normal join
-                socket.emit('joinAuctionPool', {
-                    roomCode: userSession.roomCode,
-                    username: userSession.username,
-                    sessionId: response.sessionData.sessionId
-                });
-            } else {
-                console.log('❌ Session recovery failed, showing session modal');
-                showSessionCheckModal();
-            }
-        });
-    } else {
-        // No session to recover
-        showSessionCheckModal();
-    }
                 
                 // Join as auctioneer
-                socket.emit('joinAuctioneer', {
-                    roomCode: currentRoomCode,
-                    sessionId: currentSessionId
-                });
+                joinAsAuctioneer();
             });
             
             socket.on('connect_error', (error) => {
@@ -614,6 +562,34 @@
             });
             
             setupSocketEvents();
+        }
+        
+        // ✅ NEW: Improved auctioneer join function
+        function joinAsAuctioneer() {
+            console.log('🎤 Joining as auctioneer:', {
+                roomCode: currentRoomCode,
+                sessionId: currentSessionId,
+                username: currentUsername
+            });
+            
+            socket.emit('joinAuctioneer', {
+                roomCode: currentRoomCode,
+                sessionId: currentSessionId,
+                username: currentUsername,
+                role: 'auctioneer',
+                timestamp: Date.now()
+            });
+            
+            // Also request current auction state
+            setTimeout(() => {
+                if (socket.connected) {
+                    console.log('🔄 Requesting current auction state...');
+                    socket.emit('getCurrentAuctionState', {
+                        roomCode: currentRoomCode,
+                        sessionId: currentSessionId
+                    });
+                }
+            }, 500);
         }
         
         function updateConnectionStatus(connected) {
@@ -640,371 +616,139 @@
         }
         
         // ========== ACTION FUNCTIONS ==========
-// In auctioneer-auction.html, around line 250-300
-function sellPlayer() {
-    if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
-        showAlert('Error', 'No player to sell', '❌');
-        return;
-    }
-    
-    console.log('🏷️ Selling player:', currentPlayerData.name);
-    
-    // Check if there's a bidder
-    if (!currentPlayerData.currentBidder) {
-        showAlert('No Bids', 'Cannot sell player with no bids. Mark as unsold instead.', '❌');
-        return;
-    }
-    
-    // Disable all buttons temporarily
-    sellPlayerBtn.disabled = true;
-    markUnsoldBtn.disabled = true;
-    nextPlayerBtn.disabled = true;
-    endAuctionBtn.disabled = true;
-    
-    sellPlayerBtn.innerHTML = `
-        <span class="flex items-center justify-center space-x-2">
-            <span class="animate-spin">⏳</span>
-            <span>SELLING...</span>
-        </span>
-    `;
-    
-    socket.emit('sellPlayer', {
-        roomCode: currentRoomCode,
-        sessionId: currentSessionId
-    });
-}
-
-function markUnsold() {
-    if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
-        showAlert('Error', 'No player to mark unsold', '❌');
-        return;
-    }
-    
-    if (confirm('Mark this player as UNSOLD?')) {
-        console.log('❌ Marking player unsold:', currentPlayerData.name);
-        
-        // Disable all buttons temporarily
-        sellPlayerBtn.disabled = true;
-        markUnsoldBtn.disabled = true;
-        nextPlayerBtn.disabled = true;
-        
-        markUnsoldBtn.innerHTML = 'MARKING...';
-        
-        socket.emit('markUnsold', {
-            roomCode: currentRoomCode,
-            sessionId: currentSessionId
-        });
-        
-        // Add auto-reset timer
-        setTimeout(() => {
-            markUnsoldBtn.disabled = false;
-            markUnsoldBtn.innerHTML = '❌ UNSOLD';
-        }, 2000);
-    }
-}
-
-function nextPlayer() {
-    if (!currentSessionId || !currentRoomCode) {
-        showAlert('Error', 'No active session', '❌');
-        return;
-    }
-    
-    console.log('⏭️ Moving to next player');
-    
-    // Disable next button temporarily
-    nextPlayerBtn.disabled = true;
-    
-    socket.emit('nextPlayer', {
-        roomCode: currentRoomCode,
-        sessionId: currentSessionId
-    });
-    
-    // Hide current player info
-    playerInfo.classList.add('hidden');
-    waitingPlayer.classList.remove('hidden');
-    
-    // Disable other buttons until new player loaded
-    sellPlayerBtn.disabled = true;
-    markUnsoldBtn.disabled = true;
-}
-
-// ========== SOCKET EVENT HANDLERS ==========
-function setupSocketEvents() {
-    socket.on('playerUpForAuction', (data) => {
-        console.log('👤 Player up for auction:', data);
-        currentPlayerData = data.player;
-        
-        // Show player info
-        waitingPlayer.classList.add('hidden');
-        playerInfo.classList.remove('hidden');
-        
-        // Update player details
-        updatePlayerDisplay(data.player);
-        updateBidDisplay(data.player);
-        
-        // Enable buttons
-        sellPlayerBtn.disabled = false;
-        markUnsoldBtn.disabled = false;
-        nextPlayerBtn.disabled = true; // Disable next until player sold/unsold
-        
-        // Update auction info
-        auctionCategory.textContent = data.category || '-';
-    });
-    
-    socket.on('bidUpdate', (data) => {
-        console.log('💰 Bid update:', data);
-        
-        if (currentPlayerData && currentPlayerData.id === data.playerId) {
-            currentPlayerData.currentBid = data.bid;
-            currentPlayerData.currentBidder = data.team;
-            updateBidDisplay(currentPlayerData);
+        function sellPlayer() {
+            if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
+                showAlert('Error', 'No player to sell', '❌');
+                return;
+            }
+            
+            console.log('🏷️ Selling player:', currentPlayerData.name);
+            console.log('Current bidder:', currentPlayerData.currentBidder);
+            console.log('Current bid:', currentPlayerData.currentBid);
+            
+            // Check if there's a bidder
+            if (!currentPlayerData.currentBidder) {
+                showAlert('No Bids', 'Cannot sell player with no bids. Mark as unsold instead.', '❌');
+                return;
+            }
+            
+            // Disable all buttons temporarily
+            sellPlayerBtn.disabled = true;
+            markUnsoldBtn.disabled = true;
+            nextPlayerBtn.disabled = true;
+            
+            sellPlayerBtn.innerHTML = `
+                <span class="flex items-center justify-center space-x-2">
+                    <span class="animate-spin">⏳</span>
+                    <span>SELLING...</span>
+                </span>
+            `;
+            
+            // ✅ FIXED: Add proper validation before emitting
+            if (!socket.connected) {
+                showAlert('Connection Error', 'Not connected to server', '❌');
+                resetButtons();
+                return;
+            }
+            
+            socket.emit('sellPlayer', {
+                roomCode: currentRoomCode,
+                sessionId: currentSessionId,
+                playerId: currentPlayerData.id,
+                bidder: currentPlayerData.currentBidder,
+                price: currentPlayerData.currentBid
+            }, (response) => {
+                console.log('📤 Sell player response:', response);
+                if (response && response.success) {
+                    console.log('✅ Sell player request acknowledged');
+                } else {
+                    console.error('❌ Sell player failed:', response?.message);
+                    showAlert('Error', response?.message || 'Failed to sell player', '❌');
+                    resetButtons();
+                }
+            });
         }
-        
-        // Add to bid log
-        addBidToLog(data.team, data.bid, 'BID');
-    });
-    
-    socket.on('playerSold', (data) => {
-    console.log('✅ Player sold:', data);
-    
-    // Update auction stats
-    auctionStats.soldPlayers++;
-    auctionStats.totalValue += data.price;
-    auctionStats.avgPrice = auctionStats.totalValue / auctionStats.soldPlayers;
-    updateAuctionStats();
-    
-    // Add to bid log
-    addBidToLog('SOLD', `${data.player} → ${data.team} for ₹${data.price} Cr`, 'SOLD');
-    
-    // Show success message
-    showAlert('Player Sold!', `${data.player} sold to ${data.team} for ₹${data.price} Cr`, '✅');
-    
-    // Hide player info and show waiting
-    playerInfo.classList.add('hidden');
-    waitingPlayer.classList.remove('hidden');
-    
-    // Reset button states
-    sellPlayerBtn.disabled = true;
-    markUnsoldBtn.disabled = true;
-    nextPlayerBtn.disabled = true;
-    
-    // Reset sell button text
-    sellPlayerBtn.innerHTML = `
-        <span class="flex items-center justify-center space-x-2">
-            <span>✅</span>
-            <span>SELL PLAYER</span>
-        </span>
-    `;
-    
-    // Reset mark unsold button
-    markUnsoldBtn.innerHTML = '❌ UNSOLD';
-    
-    // Enable next player button after delay
-    setTimeout(() => {
-        nextPlayerBtn.disabled = false;
-    }, 2000);
-});
-    
-    socket.on('playerUnsoldAuctioneer', (data) => {
-    console.log('❌ Player unsold (auctioneer view):', data);
-    
-    // Update auction stats
-    auctionStats.unsoldPlayers++;
-    updateAuctionStats();
-    
-    // Add to bid log
-    addBidToLog('UNSOLD', `${data.player} unsold`, 'UNSOLD');
-    
-    // ✅ NO POPUP FOR AUCTIONEER - just reset buttons
-    // Reset buttons after delay
-    setTimeout(() => {
-        nextPlayerBtn.disabled = false;
-        sellPlayerBtn.disabled = true;
-        markUnsoldBtn.disabled = true;
-        markUnsoldBtn.innerHTML = '❌ UNSOLD';
-    }, 1000);
-});
 
-    socket.on('auctionUpdate', (data) => {
-        console.log('📊 Auction update:', data);
-        updateAuctionInfo(data);
-    });
-    
-    // Update socket event handlers in auctioneer-auction.html
-socket.on('auctionComplete', (data) => {
-    console.log('🏆 Auction complete:', data);
-    showAlert('Auction Complete', 'All players have been auctioned! Redirecting...', '🏆');
-    
-    // Disable all buttons
-    sellPlayerBtn.disabled = true;
-    markUnsoldBtn.disabled = true;
-    nextPlayerBtn.disabled = true;
-    endAuctionBtn.disabled = true;
-    
-    // Show redirecting message
-    waitingPlayer.classList.remove('hidden');
-    waitingPlayer.innerHTML = `
-        <div class="text-6xl mb-4">🎉</div>
-        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
-        <p class="text-gray-300 mb-4">${data.message}</p>
-        <p class="text-gray-500">Preparing for team validation...</p>
-        <div class="mt-6 flex items-center justify-center space-x-2">
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
-        </div>
-    `;
-    playerInfo.classList.add('hidden');
-});
+        function markUnsold() {
+            if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
+                showAlert('Error', 'No player to mark unsold', '❌');
+                return;
+            }
+            
+            if (confirm('Mark this player as UNSOLD?')) {
+                console.log('❌ Marking player unsold:', currentPlayerData.name);
+                
+                // Disable all buttons temporarily
+                sellPlayerBtn.disabled = true;
+                markUnsoldBtn.disabled = true;
+                nextPlayerBtn.disabled = true;
+                
+                markUnsoldBtn.innerHTML = 'MARKING...';
+                
+                // ✅ FIXED: Add proper validation
+                if (!socket.connected) {
+                    showAlert('Connection Error', 'Not connected to server', '❌');
+                    resetButtons();
+                    return;
+                }
+                
+                socket.emit('markUnsold', {
+                    roomCode: currentRoomCode,
+                    sessionId: currentSessionId,
+                    playerId: currentPlayerData.id
+                }, (response) => {
+                    console.log('📤 Mark unsold response:', response);
+                    if (response && response.success) {
+                        console.log('✅ Mark unsold request acknowledged');
+                    } else {
+                        console.error('❌ Mark unsold failed:', response?.message);
+                        showAlert('Error', response?.message || 'Failed to mark player unsold', '❌');
+                        resetButtons();
+                    }
+                });
+            }
+        }
 
-// NEW: Handle auctioneer redirect to validation
-socket.on('redirectAuctioneerToValidation', (data) => {
-    console.log('📋 Auctioneer redirect to validation:', data);
-    
-    // Store session data for validation page
-    const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
-    auctioneerSession.roomCode = data.roomCode;
-    localStorage.setItem('auctioneerSession', JSON.stringify(auctioneerSession));
-    
-    // Also update currentSession
-    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
-    if (currentSession.sessionId === currentSessionId) {
-        currentSession.roomCode = data.roomCode;
-        localStorage.setItem('currentSession', JSON.stringify(currentSession));
-    }
-    
-    // Show redirect message
-    showAlert('Redirecting', 'Taking you to team validation page...', '📋');
-    
-    // Redirect after short delay
-    setTimeout(() => {
-        console.log('🔗 Redirecting auctioneer to validation.html');
-        window.location.href = data.redirectUrl || 'validation.html';
-    }, 2000);
-});
-// ✅ Add this handler to reset END button
-socket.on('endAuctionComplete', (data) => {
-    console.log('✅ End auction complete:', data);
-    
-    // Reset end button
-    endAuctionBtn.disabled = false;
-    endAuctionBtn.innerHTML = '🏁 END';
-    
-    // Already being redirected, but keep button reset
-    console.log('Auction ended successfully, redirecting...');
-});
-
-// Regular users get redirected to playing11, but auctioneer should ignore this
-socket.on('redirectToPlaying11', (data) => {
-    console.log('📤 Received general redirect (auctioneer ignoring):', data);
-    // Auctioneer will be redirected via redirectAuctioneerToValidation instead
-    // So we ignore this event
-});
-    socket.on('error', (data) => {
-        console.error('❌ Socket error:', data);
-        showAlert('Error', data.message, '❌');
-        
-        // Re-enable buttons on error
-        sellPlayerBtn.disabled = false;
-        markUnsoldBtn.disabled = false;
-        nextPlayerBtn.disabled = false;
-        
-        // Reset button text
-        sellPlayerBtn.innerHTML = `
-            <span class="flex items-center justify-center space-x-2">
-                <span>✅</span>
-                <span>SELL PLAYER</span>
-            </span>
-        `;
-        markUnsoldBtn.innerHTML = '❌ UNSOLD';
-    });
-}
-        
-        // ========== ACTION FUNCTIONS ==========
-        // ========== ACTION FUNCTIONS ==========
-        // ========== ACTION FUNCTIONS ==========
-function sellPlayer() {
-    if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
-        showAlert('Error', 'No player to sell', '❌');
-        return;
-    }
-    
-    console.log('🏷️ Selling player:', currentPlayerData.name);
-    console.log('Current bidder:', currentPlayerData.currentBidder);
-    console.log('Current bid:', currentPlayerData.currentBid);
-    
-    // Check if there's a bidder
-    if (!currentPlayerData.currentBidder) {
-        showAlert('No Bids', 'Cannot sell player with no bids. Mark as unsold instead.', '❌');
-        return;
-    }
-    
-    // Disable all buttons temporarily
-    sellPlayerBtn.disabled = true;
-    markUnsoldBtn.disabled = true;
-    nextPlayerBtn.disabled = true;
-    
-    sellPlayerBtn.innerHTML = `
-        <span class="flex items-center justify-center space-x-2">
-            <span class="animate-spin">⏳</span>
-            <span>SELLING...</span>
-        </span>
-    `;
-    
-    socket.emit('sellPlayer', {
-        roomCode: currentRoomCode,
-        sessionId: currentSessionId
-    });
-}
-
-function markUnsold() {
-    if (!currentSessionId || !currentRoomCode || !currentPlayerData) {
-        showAlert('Error', 'No player to mark unsold', '❌');
-        return;
-    }
-    
-    if (confirm('Mark this player as UNSOLD?')) {
-        console.log('❌ Marking player unsold:', currentPlayerData.name);
-        
-        // Disable all buttons temporarily
-        sellPlayerBtn.disabled = true;
-        markUnsoldBtn.disabled = true;
-        nextPlayerBtn.disabled = true;
-        
-        markUnsoldBtn.innerHTML = 'MARKING...';
-        
-        socket.emit('markUnsold', {
-            roomCode: currentRoomCode,
-            sessionId: currentSessionId
-        });
-    }
-}
-
-function nextPlayer() {
-    if (!currentSessionId || !currentRoomCode) {
-        showAlert('Error', 'No active session', '❌');
-        return;
-    }
-    
-    console.log('⏭️ Moving to next player');
-    
-    // Disable next button temporarily
-    nextPlayerBtn.disabled = true;
-    
-    socket.emit('nextPlayer', {
-        roomCode: currentRoomCode,
-        sessionId: currentSessionId
-    });
-    
-    // Hide current player info
-    playerInfo.classList.add('hidden');
-    waitingPlayer.classList.remove('hidden');
-    
-    // Disable other buttons until new player loaded
-    sellPlayerBtn.disabled = true;
-    markUnsoldBtn.disabled = true;
-}
-
+        function nextPlayer() {
+            if (!currentSessionId || !currentRoomCode) {
+                showAlert('Error', 'No active session', '❌');
+                return;
+            }
+            
+            console.log('⏭️ Moving to next player');
+            
+            // Disable next button temporarily
+            nextPlayerBtn.disabled = true;
+            
+            // ✅ FIXED: Add proper validation
+            if (!socket.connected) {
+                showAlert('Connection Error', 'Not connected to server', '❌');
+                resetButtons();
+                return;
+            }
+            
+            socket.emit('nextPlayer', {
+                roomCode: currentRoomCode,
+                sessionId: currentSessionId
+            }, (response) => {
+                console.log('📤 Next player response:', response);
+                if (response && response.success) {
+                    console.log('✅ Next player request acknowledged');
+                    
+                    // Hide current player info
+                    playerInfo.classList.add('hidden');
+                    waitingPlayer.classList.remove('hidden');
+                    
+                    // Disable other buttons until new player loaded
+                    sellPlayerBtn.disabled = true;
+                    markUnsoldBtn.disabled = true;
+                } else {
+                    console.error('❌ Next player failed:', response?.message);
+                    showAlert('Error', response?.message || 'Failed to move to next player', '❌');
+                    resetButtons();
+                }
+            });
+        }
         
         function endAuction() {
             if (!currentSessionId || !currentRoomCode) {
@@ -1015,13 +759,28 @@ function nextPlayer() {
             if (confirm('Are you sure you want to END the auction? This will complete the auction pool and redirect all users.')) {
                 console.log('🏁 Ending auction for room:', currentRoomCode);
                 
+                // ✅ FIXED: Add proper validation
+                if (!socket.connected) {
+                    showAlert('Connection Error', 'Not connected to server', '❌');
+                    return;
+                }
+                
                 socket.emit('endAuction', {
                     roomCode: currentRoomCode,
                     sessionId: currentSessionId
+                }, (response) => {
+                    console.log('📤 End auction response:', response);
+                    if (response && response.success) {
+                        console.log('✅ End auction request acknowledged');
+                        endAuctionBtn.disabled = true;
+                        endAuctionBtn.innerHTML = 'ENDING...';
+                    } else {
+                        console.error('❌ End auction failed:', response?.message);
+                        showAlert('Error', response?.message || 'Failed to end auction', '❌');
+                        endAuctionBtn.disabled = false;
+                        endAuctionBtn.innerHTML = '🏁 END';
+                    }
                 });
-                
-                endAuctionBtn.disabled = true;
-                endAuctionBtn.innerHTML = 'ENDING...';
             }
         }
         
@@ -1029,7 +788,274 @@ function nextPlayer() {
             bidLog.innerHTML = '<div class="text-center text-gray-500 py-4">No bids yet</div>';
         }
         
-        // ========== UI UPDATE FUNCTIONS ==========
+        // ========== SOCKET EVENT HANDLERS ==========
+        function setupSocketEvents() {
+            // ✅ NEW: Auctioneer join confirmation
+            socket.on('auctioneerJoined', (data) => {
+                console.log('✅ Auctioneer joined successfully:', data);
+                isAuctioneerJoined = true;
+                showAlert('Welcome Auctioneer', `You are now controlling room ${currentRoomCode}`, '🎤');
+            });
+            
+            // ✅ NEW: Current auction state response
+            socket.on('currentAuctionState', (data) => {
+                console.log('📊 Received current auction state:', data);
+                
+                if (data.currentPlayer) {
+                    console.log('🎯 Restoring current player:', data.currentPlayer.name);
+                    currentPlayerData = data.currentPlayer;
+                    
+                    // Show player info
+                    waitingPlayer.classList.add('hidden');
+                    playerInfo.classList.remove('hidden');
+                    
+                    // Update player details
+                    updatePlayerDisplay(data.currentPlayer);
+                    updateBidDisplay(data.currentPlayer);
+                    
+                    // Enable buttons
+                    sellPlayerBtn.disabled = false;
+                    markUnsoldBtn.disabled = false;
+                    nextPlayerBtn.disabled = true; // Disable next until player sold/unsold
+                    
+                    // Update auction info
+                    if (data.auctionInfo) {
+                        auctionCategory.textContent = data.auctionInfo.category || '-';
+                        playersLeft.textContent = data.auctionInfo.playersLeft || '-';
+                        unsoldCount.textContent = data.auctionInfo.unsoldCount || 0;
+                        playerPosition.textContent = data.auctionInfo.playerPosition || '0/0';
+                    }
+                } else {
+                    console.log('⚠️ No current player in auction');
+                    waitingPlayer.classList.remove('hidden');
+                    playerInfo.classList.add('hidden');
+                }
+            });
+            
+            socket.on('playerUpForAuction', (data) => {
+                console.log('👤 Player up for auction:', data);
+                currentPlayerData = data.player;
+                
+                // Show player info
+                waitingPlayer.classList.add('hidden');
+                playerInfo.classList.remove('hidden');
+                
+                // Update player details
+                updatePlayerDisplay(data.player);
+                updateBidDisplay(data.player);
+                
+                // Enable buttons
+                sellPlayerBtn.disabled = false;
+                markUnsoldBtn.disabled = false;
+                nextPlayerBtn.disabled = true; // Disable next until player sold/unsold
+                
+                // Update auction info
+                auctionCategory.textContent = data.category || '-';
+                
+                // ✅ Save current player to localStorage for recovery
+                localStorage.setItem('auctioneerCurrentPlayer', JSON.stringify(data.player));
+                localStorage.setItem('auctioneerCurrentAuction', JSON.stringify({
+                    category: data.category,
+                    timestamp: Date.now()
+                }));
+            });
+            
+            socket.on('bidUpdate', (data) => {
+                console.log('💰 Bid update:', data);
+                
+                if (currentPlayerData && currentPlayerData.id === data.playerId) {
+                    currentPlayerData.currentBid = data.bid;
+                    currentPlayerData.currentBidder = data.team;
+                    updateBidDisplay(currentPlayerData);
+                    
+                    // ✅ Update localStorage
+                    localStorage.setItem('auctioneerCurrentPlayer', JSON.stringify(currentPlayerData));
+                }
+                
+                // Add to bid log
+                addBidToLog(data.team, data.bid, 'BID');
+            });
+            
+            socket.on('playerSold', (data) => {
+                console.log('✅ Player sold:', data);
+                
+                // Update auction stats
+                auctionStats.soldPlayers++;
+                auctionStats.totalValue += data.price;
+                auctionStats.avgPrice = auctionStats.totalValue / auctionStats.soldPlayers;
+                updateAuctionStats();
+                
+                // Add to bid log
+                addBidToLog('SOLD', `${data.player} → ${data.team} for ₹${data.price} Cr`, 'SOLD');
+                
+                // Show success message
+                showAlert('Player Sold!', `${data.player} sold to ${data.team} for ₹${data.price} Cr`, '✅');
+                
+                // Hide player info and show waiting
+                playerInfo.classList.add('hidden');
+                waitingPlayer.classList.remove('hidden');
+                
+                // Reset button states
+                sellPlayerBtn.disabled = true;
+                markUnsoldBtn.disabled = true;
+                nextPlayerBtn.disabled = true;
+                
+                // Reset sell button text
+                sellPlayerBtn.innerHTML = `
+                    <span class="flex items-center justify-center space-x-2">
+                        <span>✅</span>
+                        <span>SELL PLAYER</span>
+                    </span>
+                `;
+                
+                // Reset mark unsold button
+                markUnsoldBtn.innerHTML = '❌ UNSOLD';
+                
+                // ✅ Clear localStorage since player is sold
+                localStorage.removeItem('auctioneerCurrentPlayer');
+                
+                // Enable next player button after delay
+                setTimeout(() => {
+                    nextPlayerBtn.disabled = false;
+                }, 2000);
+            });
+            
+            socket.on('playerUnsoldAuctioneer', (data) => {
+                console.log('❌ Player unsold (auctioneer view):', data);
+                
+                // Update auction stats
+                auctionStats.unsoldPlayers++;
+                updateAuctionStats();
+                
+                // Add to bid log
+                addBidToLog('UNSOLD', `${data.player} unsold`, 'UNSOLD');
+                
+                // ✅ Clear localStorage since player is unsold
+                localStorage.removeItem('auctioneerCurrentPlayer');
+                
+                // Reset buttons after delay
+                setTimeout(() => {
+                    nextPlayerBtn.disabled = false;
+                    sellPlayerBtn.disabled = true;
+                    markUnsoldBtn.disabled = true;
+                    markUnsoldBtn.innerHTML = '❌ UNSOLD';
+                }, 1000);
+            });
+
+            socket.on('auctionUpdate', (data) => {
+                console.log('📊 Auction update:', data);
+                updateAuctionInfo(data);
+                
+                // ✅ Save auction info to localStorage
+                localStorage.setItem('auctioneerAuctionInfo', JSON.stringify(data));
+            });
+            
+            socket.on('auctionComplete', (data) => {
+                console.log('🏆 Auction complete:', data);
+                showAlert('Auction Complete', 'All players have been auctioned! Redirecting...', '🏆');
+                
+                // Disable all buttons
+                sellPlayerBtn.disabled = true;
+                markUnsoldBtn.disabled = true;
+                nextPlayerBtn.disabled = true;
+                endAuctionBtn.disabled = true;
+                
+                // Show redirecting message
+                waitingPlayer.classList.remove('hidden');
+                waitingPlayer.innerHTML = `
+                    <div class="text-6xl mb-4">🎉</div>
+                    <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+                    <p class="text-gray-300 mb-4">${data.message}</p>
+                    <p class="text-gray-500">Preparing for team validation...</p>
+                    <div class="mt-6 flex items-center justify-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                    </div>
+                `;
+                playerInfo.classList.add('hidden');
+            });
+
+            socket.on('redirectAuctioneerToValidation', (data) => {
+                console.log('📋 Auctioneer redirect to validation:', data);
+                
+                // Store session data for validation page
+                const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
+                auctioneerSession.roomCode = data.roomCode;
+                localStorage.setItem('auctioneerSession', JSON.stringify(auctioneerSession));
+                
+                // Also update currentSession
+                const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+                if (currentSession.sessionId === currentSessionId) {
+                    currentSession.roomCode = data.roomCode;
+                    localStorage.setItem('currentSession', JSON.stringify(currentSession));
+                }
+                
+                // Show redirect message
+                showAlert('Redirecting', 'Taking you to team validation page...', '📋');
+                
+                // Redirect after short delay
+                setTimeout(() => {
+                    console.log('🔗 Redirecting auctioneer to validation.html');
+                    window.location.href = data.redirectUrl || 'validation.html';
+                }, 2000);
+            });
+
+            socket.on('endAuctionComplete', (data) => {
+                console.log('✅ End auction complete:', data);
+                
+                // Reset end button
+                endAuctionBtn.disabled = false;
+                endAuctionBtn.innerHTML = '🏁 END';
+                
+                console.log('Auction ended successfully, redirecting...');
+            });
+
+            socket.on('redirectToPlaying11', (data) => {
+                console.log('📤 Received general redirect (auctioneer ignoring):', data);
+                // Auctioneer will be redirected via redirectAuctioneerToValidation instead
+                // So we ignore this event
+            });
+            
+            // ✅ NEW: Session error handling
+            socket.on('sessionError', (data) => {
+                console.error('❌ Session error:', data);
+                showAlert('Session Error', data.message || 'Invalid session', '❌');
+                
+                // Try to recover
+                setTimeout(() => {
+                    if (!isAuctioneerJoined) {
+                        console.log('🔄 Retrying auctioneer join...');
+                        joinAsAuctioneer();
+                    }
+                }, 1000);
+            });
+            
+            socket.on('error', (data) => {
+                console.error('❌ Socket error:', data);
+                showAlert('Error', data.message, '❌');
+                
+                // Re-enable buttons on error
+                resetButtons();
+            });
+        }
+        
+        // ========== HELPER FUNCTIONS ==========
+        function resetButtons() {
+            sellPlayerBtn.disabled = false;
+            markUnsoldBtn.disabled = false;
+            nextPlayerBtn.disabled = false;
+            
+            // Reset button text
+            sellPlayerBtn.innerHTML = `
+                <span class="flex items-center justify-center space-x-2">
+                    <span>✅</span>
+                    <span>SELL PLAYER</span>
+                </span>
+            `;
+            markUnsoldBtn.innerHTML = '❌ UNSOLD';
+        }
+        
         function updatePlayerDisplay(player) {
             playerName.textContent = player.name || 'Unknown Player';
             
