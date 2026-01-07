@@ -143,39 +143,114 @@
         .sync-status.error {
             color: #EF4444;
         }
+        
         /* Team background with opacity */
-.team-background {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -10;
-    opacity: 0.1;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    pointer-events: none;
-}
+        .team-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -10;
+            opacity: 0.1;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            pointer-events: none;
+        }
 
-/* Unsold Popup Animation */
-@keyframes unsoldSlideIn {
-    from { 
-        transform: translate(-50%, -40px); 
-        opacity: 0; 
-    }
-    to { 
-        transform: translate(-50%, 0); 
-        opacity: 1; 
-    }
-}
+        /* Unsold Popup Animation */
+        @keyframes unsoldSlideIn {
+            from { 
+                transform: translate(-50%, -40px); 
+                opacity: 0; 
+            }
+            to { 
+                transform: translate(-50%, 0); 
+                opacity: 1; 
+            }
+        }
 
-.unsold-popup {
-    animation: unsoldSlideIn 0.4s ease-out;
-}
+        .unsold-popup {
+            animation: unsoldSlideIn 0.4s ease-out;
+        }
+        
+        /* Back Button Protection */
+        #backButtonWarning {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(90deg, #EF4444, #DC2626);
+            color: white;
+            padding: 10px;
+            text-align: center;
+            z-index: 1000;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        
+        #backButtonWarning.show {
+            transform: translateY(0);
+        }
+        
+        /* Reconnection Overlay */
+        #reconnectionOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        #reconnectionOverlay.show {
+            display: flex;
+        }
+        
+        .connection-loader {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3B82F6;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
+    <!-- Back Button Warning -->
+    <div id="backButtonWarning" class="back-button-warning">
+        <div class="flex items-center justify-center space-x-3">
+            <span class="text-xl">⚠️</span>
+            <span class="font-bold">Warning: Do not use the back button during auction!</span>
+            <button onclick="closeBackWarning()" class="ml-4 px-3 py-1 bg-white/20 rounded-lg hover:bg-white/30">
+                Dismiss
+            </button>
+        </div>
+    </div>
+    
+    <!-- Reconnection Overlay -->
+    <div id="reconnectionOverlay" class="reconnection-overlay">
+        <div class="connection-loader mb-6"></div>
+        <h2 class="text-2xl font-bold mb-2 text-blue-400">Reconnecting...</h2>
+        <p class="text-gray-300 mb-4">Please wait while we reconnect you to the auction</p>
+        <p id="reconnectionTimer" class="text-gray-400 text-sm">Attempting in 5 seconds...</p>
+        <button onclick="forceReconnect()" class="mt-4 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
+            Reconnect Now
+        </button>
+    </div>
+
     <div class="container mx-auto px-4 py-6">
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -425,33 +500,27 @@
     </div>
 
     <!-- Session Check Modal -->
-    <!-- Session Check Modal -->
-<div id="sessionCheckModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-    <div class="absolute inset-0 bg-black/80"></div>
-    <div class="glass-panel rounded-2xl p-6 max-w-md w-11/12 z-10">
-        <div class="text-center">
-            <div class="text-4xl mb-4">🔐</div>
-            <h3 class="text-2xl font-bold mb-2">Session Required</h3>
-            <p class="text-gray-300 mb-4">Your session may have expired or been lost.</p>
-            
-            <div class="mb-6 p-4 bg-gray-800/50 rounded-lg">
-                <div class="text-sm text-gray-400 mb-2">Your last known session:</div>
-                <div class="text-sm text-yellow-400" id="lastSessionInfo">No session data found</div>
-            </div>
-            
-            <div class="space-y-3">
-                <button onclick="attemptSessionRecovery()" 
-                        class="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 rounded-xl font-semibold transition-all duration-300">
-                    🔄 Attempt Session Recovery
-                </button>
-                <button onclick="goToLogin()" 
-                        class="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl font-semibold transition-all duration-300">
-                    🔑 Go to Login Page
-                </button>
+    <div id="sessionCheckModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="absolute inset-0 bg-black/80"></div>
+        <div class="glass-panel rounded-2xl p-6 max-w-md w-11/12 z-10">
+            <div class="text-center">
+                <div class="text-4xl mb-4">🔐</div>
+                <h3 class="text-2xl font-bold mb-2">Session Required</h3>
+                <p class="text-gray-300 mb-6">You need a valid session to join the auction pool.</p>
+                <div class="space-y-3">
+                    <button onclick="reconnectWithSession()" 
+                            class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold transition-all duration-300">
+                        Reconnect with Existing Session
+                    </button>
+                    <button onclick="goToLogin()" 
+                            class="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl font-semibold transition-all duration-300">
+                        Go to Login Page
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
     <!-- Alert Toast -->
     <div id="alertToast" class="fixed top-4 right-4 glass-panel rounded-xl p-4 max-w-md z-50 hidden slide-in">
         <div class="flex items-start space-x-3">
@@ -483,6 +552,10 @@
         let lastSyncTime = null;
         let syncRetryCount = 0;
         const MAX_SYNC_RETRIES = 3;
+        let reconnectTimer = null;
+        let reconnectCount = 0;
+        let isPageVisible = true;
+        let isBackButtonWarningShown = false;
 
         // ========== DOM ELEMENTS ==========
         const teamHeader = document.getElementById('teamHeader');
@@ -518,41 +591,225 @@
         const syncStatus = document.getElementById('syncStatus');
         const manualSyncBtn = document.getElementById('manualSyncBtn');
         const currentPlayerCount = document.getElementById('currentPlayerCount');
+        const reconnectionOverlay = document.getElementById('reconnectionOverlay');
+        const reconnectionTimer = document.getElementById('reconnectionTimer');
+        const backButtonWarning = document.getElementById('backButtonWarning');
+
+        // ========== PAGE VISIBILITY & BACK BUTTON PROTECTION ==========
+        function setupPageProtection() {
+            // 1. Warn user if they try to leave the page
+            window.addEventListener('beforeunload', function(e) {
+                if (socket && socket.connected) {
+                    const confirmationMessage = '⚠️ Are you sure you want to leave the auction? You may lose your connection!';
+                    e.returnValue = confirmationMessage;
+                    return confirmationMessage;
+                }
+            });
+            
+            // 2. Detect page visibility changes (tab switching)
+            document.addEventListener('visibilitychange', function() {
+                isPageVisible = !document.hidden;
+                
+                if (isPageVisible) {
+                    // Page is now visible again - try to reconnect
+                    console.log('🔄 Page is now visible, checking connection...');
+                    checkConnectionAndReconnect();
+                } else {
+                    // Page is hidden - user switched tabs
+                    console.log('⚠️ Page hidden - user switched tabs');
+                }
+            });
+            
+            // 3. Detect back button navigation
+            window.addEventListener('popstate', function(event) {
+                if (!isBackButtonWarningShown) {
+                    showBackButtonWarning();
+                    isBackButtonWarningShown = true;
+                    
+                    // Push state to prevent going back
+                    history.pushState(null, null, window.location.pathname);
+                    
+                    // Hide warning after 5 seconds
+                    setTimeout(() => {
+                        hideBackButtonWarning();
+                        isBackButtonWarningShown = false;
+                    }, 5000);
+                }
+            });
+            
+            // 4. Push initial state
+            history.pushState(null, null, window.location.pathname);
+            
+            console.log('✅ Page protection initialized');
+        }
+        
+        function showBackButtonWarning() {
+            backButtonWarning.classList.add('show');
+        }
+        
+        function hideBackButtonWarning() {
+            backButtonWarning.classList.remove('show');
+        }
+        
+        function closeBackWarning() {
+            hideBackButtonWarning();
+            isBackButtonWarningShown = false;
+        }
+        
+        function checkConnectionAndReconnect() {
+            if (socket && !socket.connected) {
+                console.log('🔄 Connection lost, attempting to reconnect...');
+                showReconnectionOverlay();
+                startReconnectionTimer();
+            } else if (socket && socket.connected) {
+                // Still connected, request state sync
+                requestStateSync();
+            }
+        }
+
+        // ========== RECONNECTION SYSTEM ==========
+        function showReconnectionOverlay() {
+            reconnectionOverlay.classList.add('show');
+            reconnectCount = 0;
+            updateReconnectionTimer(5);
+        }
+        
+        function hideReconnectionOverlay() {
+            reconnectionOverlay.classList.remove('show');
+            if (reconnectTimer) {
+                clearInterval(reconnectTimer);
+                reconnectTimer = null;
+            }
+        }
+        
+        function updateReconnectionTimer(seconds) {
+            reconnectionTimer.textContent = `Attempting in ${seconds} seconds...`;
+        }
+        
+        function startReconnectionTimer() {
+            let seconds = 5;
+            
+            if (reconnectTimer) {
+                clearInterval(reconnectTimer);
+            }
+            
+            reconnectTimer = setInterval(() => {
+                seconds--;
+                updateReconnectionTimer(seconds);
+                
+                if (seconds <= 0) {
+                    clearInterval(reconnectTimer);
+                    forceReconnect();
+                }
+            }, 1000);
+        }
+        
+        function forceReconnect() {
+            console.log('🚀 Force reconnecting...');
+            
+            if (socket) {
+                // Disconnect and reconnect
+                socket.disconnect();
+                socket.connect();
+                
+                // Show reconnection status
+                updateSyncStatus('syncing', 'Reconnecting...');
+                
+                // Increment reconnect count
+                reconnectCount++;
+                
+                if (reconnectCount > 3) {
+                    showAlert('Connection Failed', 'Unable to reconnect. Please refresh the page.', '❌');
+                    hideReconnectionOverlay();
+                }
+            }
+        }
 
         // ========== STATE SYNCHRONIZATION SYSTEM ==========
-       function requestStateSync() {
-    if (!socket || !socket.connected || !currentUsername || !currentRoomCode) {
-        console.log('❌ Cannot sync: Missing connection or credentials');
-        updateSyncStatus('error', 'Not connected');
-        setTimeout(() => {
-            if (socket && !socket.connected) {
-                console.log('🔄 Attempting to reconnect...');
-                socket.connect();
+        function requestStateSync() {
+            if (!socket || !socket.connected || !currentUsername || !currentRoomCode) {
+                console.log('❌ Cannot sync: Missing connection or credentials');
+                updateSyncStatus('error', 'Not connected');
+                showReconnectionOverlay();
+                return false;
             }
-        }, 1000);
-        return false;
-    }
-    
-    console.log('🔄 Requesting auction state sync...');
-    updateSyncStatus('syncing', 'Syncing state...');
-    
-    // ✅ FIXED: Use emit with callback for reliable sync
-    socket.emit('requestAuctionState', {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        timestamp: Date.now()
-    }, (response) => {
-        if (response && response.success) {
-            console.log('✅ State sync confirmed by server');
-            updateSyncStatus('synced', 'Live Auction State');
-        } else {
-            console.log('⚠️ State sync not confirmed, retrying...');
-            setTimeout(requestStateSync, 2000);
+            
+            console.log('🔄 Requesting auction state sync...');
+            updateSyncStatus('syncing', 'Syncing state...');
+            
+            // Save current state to localStorage before sync
+            saveCurrentState();
+            
+            socket.emit('requestAuctionState', {
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                timestamp: Date.now()
+            }, (response) => {
+                if (response && response.success) {
+                    console.log('✅ State sync confirmed by server');
+                    updateSyncStatus('synced', 'Live Auction State');
+                    hideReconnectionOverlay();
+                    
+                    // Update last sync time
+                    lastSyncTime = Date.now();
+                    syncRetryCount = 0;
+                } else {
+                    console.log('⚠️ State sync not confirmed, retrying...');
+                    setTimeout(requestStateSync, 2000);
+                }
+            });
+            
+            return true;
         }
-    });
-    
-    return true;
-}
+        
+        function saveCurrentState() {
+            const state = {
+                currentPlayer: currentPlayer,
+                teamBudget: teamBudget,
+                squadLimits: squadLimits,
+                userTeam: userTeam,
+                timestamp: Date.now()
+            };
+            
+            localStorage.setItem('auctionStateBackup', JSON.stringify(state));
+            console.log('💾 Saved current state to localStorage');
+        }
+        
+        function loadBackupState() {
+            const backup = localStorage.getItem('auctionStateBackup');
+            if (backup) {
+                try {
+                    const state = JSON.parse(backup);
+                    console.log('📥 Loading backup state:', state);
+                    
+                    if (state.currentPlayer) {
+                        currentPlayer = state.currentPlayer;
+                        displayCurrentPlayer();
+                    }
+                    
+                    if (state.teamBudget) {
+                        teamBudget = state.teamBudget;
+                        purseRemaining.textContent = teamBudget.toFixed(2);
+                    }
+                    
+                    if (state.squadLimits) {
+                        squadLimits = state.squadLimits;
+                        updateSquadLimits();
+                    }
+                    
+                    if (state.userTeam) {
+                        userTeam = state.userTeam;
+                        displayTeamInfo();
+                    }
+                    
+                    return true;
+                } catch (error) {
+                    console.error('❌ Error loading backup state:', error);
+                    return false;
+                }
+            }
+            return false;
+        }
         
         function updateSyncStatus(status, message = '') {
             const dot = syncStatus.querySelector('.w-2');
@@ -643,117 +900,112 @@
 
         // ========== INITIALIZATION ==========
         document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🎯 Auction Pool loading with state sync...');
-    
-    // Check for user session
-    userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-    // ✅ ADD: Check if we have force redirect data
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('forceRedirect') || !userSession.sessionId) {
-        console.log('⚠️ No valid session or force redirect detected');
-        showSessionCheckModal();
-        return;
-    }
-    
-    if (userSession.sessionId) {
-        currentUsername = userSession.username;
-        currentRoomCode = userSession.roomCode;
-        userTeam = userSession.team;
-        console.log('🔗 Found existing session:', { currentUsername, currentRoomCode });
-        
-        // ✅ Initialize socket FIRST
-        initializeSocket();
-        
-        // ✅ Wait for socket connection before setting up button listeners
-        const waitForSocket = () => {
-            return new Promise((resolve) => {
-                if (socket && socket.connected) {
-                    resolve();
-                } else {
-                    const checkInterval = setInterval(() => {
+            console.log('🎯 Auction Pool loading with state sync...');
+            
+            // Setup page protection FIRST
+            setupPageProtection();
+            
+            // Check for user session
+            userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+            
+            // ✅ ADD: Check if we have force redirect data
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('forceRedirect') || !userSession.sessionId) {
+                console.log('⚠️ No valid session or force redirect detected');
+                showSessionCheckModal();
+                return;
+            }
+            
+            if (userSession.sessionId) {
+                currentUsername = userSession.username;
+                currentRoomCode = userSession.roomCode;
+                userTeam = userSession.team;
+                console.log('🔗 Found existing session:', { currentUsername, currentRoomCode });
+                
+                // Load backup state while connecting
+                loadBackupState();
+                
+                // Initialize socket
+                initializeSocket();
+                
+                // Wait for socket connection
+                const waitForSocket = () => {
+                    return new Promise((resolve) => {
                         if (socket && socket.connected) {
-                            clearInterval(checkInterval);
                             resolve();
+                        } else {
+                            const checkInterval = setInterval(() => {
+                                if (socket && socket.connected) {
+                                    clearInterval(checkInterval);
+                                    resolve();
+                                }
+                            }, 100);
                         }
-                    }, 100);
+                    });
+                };
+                
+                try {
+                    await waitForSocket();
+                    console.log('✅ Socket connected, setting up event listeners');
+                } catch (error) {
+                    console.error('❌ Failed to connect socket:', error);
+                }
+            } else {
+                console.log('❌ No session found');
+                showSessionCheckModal();
+                return;
+            }
+            
+            // Setup event listeners
+            clearLogBtn.addEventListener('click', clearBidLog);
+            viewSquadBtn.addEventListener('click', openSquadModal);
+            showStatsBtn.addEventListener('click', toggleStats);
+            manualSyncBtn.addEventListener('click', () => {
+                if (socket && socket.connected) {
+                    requestStateSync();
                 }
             });
-        };
-        
-        try {
-            await waitForSocket();
-            console.log('✅ Socket connected, setting up event listeners');
-        } catch (error) {
-            console.error('❌ Failed to connect socket:', error);
-        }
-    } else {
-        // No session found, show session check modal
-        console.log('❌ No session found');
-        showSessionCheckModal();
-        return;
-    }
-    
-    // ✅ NOW set up event listeners AFTER socket is ready
-    clearLogBtn.addEventListener('click', clearBidLog);
-    viewSquadBtn.addEventListener('click', openSquadModal);
-    showStatsBtn.addEventListener('click', toggleStats);
-    manualSyncBtn.addEventListener('click', () => {
-        if (socket && socket.connected) {
-            requestStateSync();
-        }
-    });
             
             // Bid button delegation
-            // ✅ FIXED: Bid button delegation
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('bid-btn')) {
-        console.log('🎯 Bid button clicked:', e.target);
-        const increment = parseFloat(e.target.dataset.increment);
-        
-        if (isNaN(increment)) {
-            console.error('❌ Invalid bid increment');
-            return;
-        }
-        
-        placeBid(increment);
-    }
-});
-
-// ✅ ADD: Also handle click on button content (span elements inside)
-document.addEventListener('click', function(e) {
-    // Check if clicked element is inside a bid button
-    const bidButton = e.target.closest('.bid-btn');
-    if (bidButton) {
-        console.log('🎯 Bid button (nested) clicked');
-        const increment = parseFloat(bidButton.dataset.increment);
-        
-        if (isNaN(increment)) {
-            console.error('❌ Invalid bid increment');
-            return;
-        }
-        
-        placeBid(increment);
-    }
-});
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('bid-btn')) {
+                    console.log('🎯 Bid button clicked:', e.target);
+                    const increment = parseFloat(e.target.dataset.increment);
+                    
+                    if (isNaN(increment)) {
+                        console.error('❌ Invalid bid increment');
+                        return;
+                    }
+                    
+                    placeBid(increment);
+                }
+            });
+            
+            document.addEventListener('click', function(e) {
+                const bidButton = e.target.closest('.bid-btn');
+                if (bidButton) {
+                    console.log('🎯 Bid button (nested) clicked');
+                    const increment = parseFloat(bidButton.dataset.increment);
+                    
+                    if (isNaN(increment)) {
+                        console.error('❌ Invalid bid increment');
+                        return;
+                    }
+                    
+                    placeBid(increment);
+                }
+            });
             
             // Setup periodic sync (every 30 seconds as backup)
             setInterval(() => {
                 if (socket && socket.connected && lastSyncTime) {
                     const timeSinceLastSync = Date.now() - lastSyncTime;
-                    if (timeSinceLastSync > 30000) { // 30 seconds
+                    if (timeSinceLastSync > 30000) {
                         console.log('🔄 Periodic state sync check');
                         requestStateSync();
                     }
                 }
             }, 30000);
-            
-            // Listen for visibility change (tab switch)
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden && socket && socket.connected) {
-                    console.log('🔄 Page visible again, syncing state...');
-                    requestStateSync();
-                }
-            });
         });
 
         // ========== SESSION FUNCTIONS ==========
@@ -762,7 +1014,6 @@ document.addEventListener('click', function(e) {
         }
 
         function reconnectWithSession() {
-            // Try to get session from localStorage
             userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
             
             if (userSession.sessionId) {
@@ -788,58 +1039,27 @@ document.addEventListener('click', function(e) {
         );
             
             socket.on('connect', () => {
-    console.log('✅ Connected to auction pool');
-    updateSyncStatus('syncing', 'Connecting...');
-    
-    // Check if we have session data
-    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-    
-    if (userSession.username && userSession.roomCode) {
-        console.log(`🔄 Found existing session for ${userSession.username} in room ${userSession.roomCode}`);
-        
-        // Try to reconnect using the new reconnection system
-        socket.emit('reconnectToAuction', {
-            username: userSession.username,
-            roomCode: userSession.roomCode
-        }, (response) => {
-            if (response && response.success) {
-                console.log('✅ Auto-reconnected successfully');
+                console.log('✅ Connected to auction pool');
+                updateSyncStatus('syncing', 'Connecting...');
+                hideReconnectionOverlay();
                 
-                // Update variables
-                currentUsername = response.userData.username;
-                currentRoomCode = userSession.roomCode;
-                userTeam = response.userData.team;
-                teamBudget = response.userData.budget;
-                userSession = response.userData;
+                // Join auction pool with session
+                socket.emit('joinAuctionPool', {
+                    roomCode: currentRoomCode,
+                    username: currentUsername,
+                    sessionId: userSession.sessionId
+                });
                 
-                // Update UI
-                displayTeamInfo();
-                purseRemaining.textContent = response.userData.budget.toFixed(2);
-                updateSquadLimits();
-                
-                // Update sync status
-                updateSyncStatus('synced', 'Live Auction (Reconnected)');
-                
-                // Request state sync
+                // Request initial state sync after join
                 setTimeout(() => {
                     requestStateSync();
                 }, 500);
-                
-            } else {
-                console.log('❌ Auto-reconnection failed, showing session modal');
-                showSessionCheckModal();
-            }
-        });
-    } else {
-        console.log('❌ No session found, showing session modal');
-        showSessionCheckModal();
-    }
-});
+            });
             
             socket.on('connect_error', (error) => {
                 console.error('❌ Connection error:', error);
                 updateSyncStatus('error', 'Connection failed');
-                showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
+                showReconnectionOverlay();
             });
             
             socket.on('reconnect', (attemptNumber) => {
@@ -861,11 +1081,7 @@ document.addEventListener('click', function(e) {
             socket.on('disconnect', (reason) => {
                 console.log('⚠️ Disconnected:', reason);
                 updateSyncStatus('error', 'Disconnected');
-                
-                if (reason === 'io server disconnect') {
-                    // Server initiated disconnect, try to reconnect
-                    socket.connect();
-                }
+                showReconnectionOverlay();
             });
             
             // ========== STATE SYNC HANDLER ==========
@@ -890,41 +1106,42 @@ document.addEventListener('click', function(e) {
             });
             
             socket.on('playerUpForAuction', (data) => {
-    console.log('👤 Player up for auction:', data);
-    currentPlayer = data.player;
-    
-    // ✅ FIXED: Hide waiting and show player immediately
-    if (waitingAuction) {
-        waitingAuction.classList.add('hidden');
-    }
-    if (currentPlayerCard) {
-        currentPlayerCard.classList.remove('hidden');
-    }
-    
-    displayCurrentPlayer();
-    
-    if (biddingControls) {
-        biddingControls.classList.remove('hidden');
-    }
-    
-    updateBidButtons();
-    
-    // Reset stats display
-    if (playerStats) {
-        playerStats.classList.add('hidden');
-    }
-    if (currentPlayerCard) {
-        currentPlayerCard.classList.remove('expanded');
-    }
-    if (showStatsBtn) {
-        showStatsBtn.innerHTML = '📊 Show Full Player Stats';
-    }
-    
-    updateBidIncrement(currentPlayer.currentBid || currentPlayer.basePrice || 2);
-    
-    // ✅ FIXED: Update sync status to show live
-    updateSyncStatus('synced', 'Live Auction');
-});
+                console.log('👤 Player up for auction:', data);
+                currentPlayer = data.player;
+                
+                if (waitingAuction) {
+                    waitingAuction.classList.add('hidden');
+                }
+                if (currentPlayerCard) {
+                    currentPlayerCard.classList.remove('hidden');
+                }
+                
+                displayCurrentPlayer();
+                
+                if (biddingControls) {
+                    biddingControls.classList.remove('hidden');
+                }
+                
+                updateBidButtons();
+                
+                // Reset stats display
+                if (playerStats) {
+                    playerStats.classList.add('hidden');
+                }
+                if (currentPlayerCard) {
+                    currentPlayerCard.classList.remove('expanded');
+                }
+                if (showStatsBtn) {
+                    showStatsBtn.innerHTML = '📊 Show Full Player Stats';
+                }
+                
+                updateBidIncrement(currentPlayer.currentBid || currentPlayer.basePrice || 2);
+                
+                updateSyncStatus('synced', 'Live Auction');
+                
+                // Save state
+                saveCurrentState();
+            });
             
             socket.on('bidUpdate', (data) => {
                 console.log('💰 Bid update:', data);
@@ -941,7 +1158,6 @@ document.addEventListener('click', function(e) {
                     
                     if (data.team) {
                         highestBidder.textContent = data.team.toUpperCase();
-                        // Add team color
                         const teamColors = {
                             'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
                             'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
@@ -955,6 +1171,9 @@ document.addEventListener('click', function(e) {
                 
                 // Add to bid log
                 addBidToLog(data.team, data.bid);
+                
+                // Save state
+                saveCurrentState();
             });
             
             socket.on('playerSold', (data) => {
@@ -981,7 +1200,6 @@ document.addEventListener('click', function(e) {
                     teamBudget -= data.price;
                     purseRemaining.textContent = teamBudget.toFixed(2);
                     
-                    // Update squad counts
                     if (data.isOverseas) {
                         squadLimits.overseas++;
                     } else {
@@ -991,7 +1209,6 @@ document.addEventListener('click', function(e) {
                     
                     updateSquadLimits();
                     
-                    // Request updated squad data
                     socket.emit('requestSquadUpdate', {
                         roomCode: currentRoomCode,
                         username: currentUsername,
@@ -1006,6 +1223,9 @@ document.addEventListener('click', function(e) {
                     biddingControls.classList.add('hidden');
                     currentPlayer = null;
                     
+                    // Save cleared state
+                    saveCurrentState();
+                    
                     // Request fresh state sync after player sold
                     setTimeout(() => {
                         requestStateSync();
@@ -1013,11 +1233,8 @@ document.addEventListener('click', function(e) {
                 }, 3000);
             });
             
-            // ========== ADD THIS NEW SOCKET HANDLER ==========
             socket.on('playerUnsoldBroadcast', (data) => {
                 console.log('❌ Player unsold popup received:', data);
-                
-                // ✅ SHOW POPUP ONLY TO AUCTIONPOOL USERS
                 showUnsoldPopup(data.player);
             });
             
@@ -1042,6 +1259,9 @@ document.addEventListener('click', function(e) {
                     biddingControls.classList.add('hidden');
                     currentPlayer = null;
                     
+                    // Save cleared state
+                    saveCurrentState();
+                    
                     // Request fresh state sync after player unsold
                     setTimeout(() => {
                         requestStateSync();
@@ -1053,16 +1273,17 @@ document.addEventListener('click', function(e) {
                 console.log('📊 Auction update:', data);
                 updateAuctionStatus(data);
             });
+            
             socket.on('storePlaying11Data', (data) => {
-    console.log('💾 Storing playing 11 data:', data);
-    localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
-    localStorage.setItem('userSession', JSON.stringify({
-        username: data.username,
-        roomCode: data.roomCode,
-        team: data.squadData.team,
-        sessionId: data.squadData.sessionId
-    }));
-});
+                console.log('💾 Storing playing 11 data:', data);
+                localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+                localStorage.setItem('userSession', JSON.stringify({
+                    username: data.username,
+                    roomCode: data.roomCode,
+                    team: data.squadData.team,
+                    sessionId: data.squadData.sessionId
+                }));
+            });
             
             socket.on('squadUpdate', (data) => {
                 console.log('👥 Squad update:', data);
@@ -1071,18 +1292,12 @@ document.addEventListener('click', function(e) {
             
             socket.on('auctionComplete', (data) => {
                 console.log('🏆 Auction complete:', data);
-                
-                // Show completion message
                 showAlert('Auction Complete', data.message, '🏆');
                 
-                // Add to bid log
                 addBidToLog('SYSTEM', 'Auction pool completed!', 'COMPLETE');
                 
-                // Disable bidding controls
                 document.getElementById('biddingControls')?.classList.add('hidden');
                 
-                // Show redirecting message
-                const waitingAuction = document.getElementById('waitingAuction');
                 if (waitingAuction) {
                     waitingAuction.classList.remove('hidden');
                     waitingAuction.innerHTML = `
@@ -1098,57 +1313,50 @@ document.addEventListener('click', function(e) {
                     `;
                 }
             });
-            // Add this to your socket handlers in auctionpool.html
-socket.on('forceRedirectToPlaying11', (data) => {
-    console.log('🚀 Force redirect received:', data);
-    
-    // Store current squad data in localStorage before redirecting
-    const currentData = {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        team: userTeam,
-        budget: teamBudget,
-        squadLimits: squadLimits
-    };
-    
-    localStorage.setItem('auctionToPlaying11Data', JSON.stringify(currentData));
-    
-    // Show redirect message
-    showAlert('Auction Complete', 'Redirecting to Playing 11 selection...', '🏏');
-    
-    // Redirect after 1 second
-    setTimeout(() => {
-        window.location.href = data.url;
-    }, 1000);
-});
+            
+            socket.on('forceRedirectToPlaying11', (data) => {
+                console.log('🚀 Force redirect received:', data);
+                
+                const currentData = {
+                    roomCode: currentRoomCode,
+                    username: currentUsername,
+                    team: userTeam,
+                    budget: teamBudget,
+                    squadLimits: squadLimits
+                };
+                
+                localStorage.setItem('auctionToPlaying11Data', JSON.stringify(currentData));
+                
+                showAlert('Auction Complete', 'Redirecting to Playing 11 selection...', '🏏');
+                
+                setTimeout(() => {
+                    window.location.href = data.url;
+                }, 1000);
+            });
+            
             socket.on('redirectToPlaying11', (data) => {
-    console.log('🚀 Redirecting to playing 11:', data);
-    
-    // Show redirect message
-    showAlert('Auction Complete', data.message || 'Redirecting to Playing 11 selection...', '🏏');
-    
-    // Make sure data is stored (backup in case storePlaying11Data didn't fire)
-    if (data.squadData) {
-        localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
-    }
-    
-    // Also update user session
-    localStorage.setItem('userSession', JSON.stringify({
-        username: data.username,
-        roomCode: data.roomCode,
-        team: data.team,
-        sessionId: data.sessionId
-    }));
-    
-    // Clear any auction intervals
-    if (countdownInterval) clearInterval(countdownInterval);
-    
-    // Redirect after short delay (give time for localStorage to update)
-    setTimeout(() => {
-        console.log('🔗 Redirecting to playing11.html');
-        window.location.href = 'playing11.html';
-    }, 1000);
-});
+                console.log('🚀 Redirecting to playing 11:', data);
+                
+                showAlert('Auction Complete', data.message || 'Redirecting to Playing 11 selection...', '🏏');
+                
+                if (data.squadData) {
+                    localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+                }
+                
+                localStorage.setItem('userSession', JSON.stringify({
+                    username: data.username,
+                    roomCode: data.roomCode,
+                    team: data.team,
+                    sessionId: data.sessionId
+                }));
+                
+                if (countdownInterval) clearInterval(countdownInterval);
+                
+                setTimeout(() => {
+                    console.log('🔗 Redirecting to playing11.html');
+                    window.location.href = 'playing11.html';
+                }, 1000);
+            });
             
             socket.on('bidError', (data) => {
                 console.error('❌ Bid error:', data);
@@ -1161,115 +1369,6 @@ socket.on('forceRedirectToPlaying11', (data) => {
             });
         }
 
-        // ========== NEW REDIRECT HANDLERS ==========
-
-socket.on('forceRedirectToAuctionPool', (data) => {
-    console.log('🚀 FORCE REDIRECT RECEIVED:', data);
-    
-    if (data.success) {
-        // ✅ FIXED: Store session data properly
-        const userSession = {
-            username: data.username,
-            roomCode: data.roomCode,
-            team: data.team,
-            sessionId: data.sessionId,
-            squadData: data.squadData || {}
-        };
-        
-        localStorage.setItem('userSession', JSON.stringify(userSession));
-        localStorage.setItem('currentSession', JSON.stringify(userSession));
-        localStorage.setItem('auctionUser', JSON.stringify(userSession));
-        
-        // Show immediate redirect message
-        const waitingAuction = document.getElementById('waitingAuction');
-        if (waitingAuction) {
-            waitingAuction.classList.remove('hidden');
-            waitingAuction.innerHTML = `
-                <div class="text-6xl mb-4">🚀</div>
-                <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Pool Starting!</h3>
-                <p class="text-gray-300 mb-4">${data.message || 'Redirecting to auction pool...'}</p>
-                <div class="mt-6 flex items-center justify-center space-x-2">
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
-                </div>
-            `;
-        }
-        
-        // Hide current player if showing
-        currentPlayerCard.classList.add('hidden');
-        biddingControls.classList.add('hidden');
-        
-        // ✅ FIXED: Redirect immediately without delay
-        console.log('🔗 Force redirecting to auctionpool.html');
-        window.location.href = 'auctionpool.html';
-    }
-});
-
-socket.on('redirectToAuctionPool', (data) => {
-    console.log('📤 Redirect received:', data);
-    
-    // Update localStorage
-    localStorage.setItem('userSession', JSON.stringify({
-        username: data.username,
-        roomCode: data.roomCode,
-        team: data.team,
-        sessionId: data.sessionId
-    }));
-    
-    // Store squad data
-    if (data.squadData) {
-        localStorage.setItem('squadData', JSON.stringify(data.squadData));
-    }
-    
-    // Show redirect message
-    showAlert('Auction Pool', data.message || 'Moving to auction pool...', '💰');
-    
-    // Clear any intervals
-    if (countdownInterval) clearInterval(countdownInterval);
-    
-    // Redirect after delay
-    setTimeout(() => {
-        window.location.href = 'auctionpool.html';
-    }, 2000);
-});
-
-// Check for pending redirect on page load
-socket.on('connect', () => {
-    console.log('✅ Connected to auction pool');
-    updateSyncStatus('syncing', 'Connecting...');
-    
-    // Join auction pool with session
-    socket.emit('joinAuctionPool', {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        sessionId: userSession.sessionId
-    });
-    
-    // ✅ FIXED: Request immediate player data
-    setTimeout(() => {
-        console.log('🎯 Requesting immediate auction state...');
-        
-        // First check if auction is already active
-        socket.emit('checkAuctionStatus', {
-            roomCode: currentRoomCode,
-            username: currentUsername
-        }, (response) => {
-            if (response && response.isActive) {
-                console.log('✅ Auction is active, requesting player data');
-                // Request player data immediately
-                socket.emit('requestCurrentPlayer', {
-                    roomCode: currentRoomCode,
-                    username: currentUsername
-                });
-            }
-        });
-        
-        // Request state sync after join
-        requestStateSync();
-    }, 300);
-});
-
         // ========== PAGE FUNCTIONS ==========
         function initializePage() {
             console.log('🔄 Initializing auction page...');
@@ -1280,10 +1379,7 @@ socket.on('connect', () => {
                 return;
             }
             
-            // Display team info
             displayTeamInfo();
-            
-            // Update UI
             purseRemaining.textContent = teamBudget.toFixed(2);
             maxSquad.textContent = squadLimits.maxSquad || 25;
             
@@ -1291,58 +1387,55 @@ socket.on('connect', () => {
         }
         
         function displayTeamInfo() {
-    if (!userTeam) return;
-    
-    // Team logo mapping
-    const teamLogos = {
-        'csk': 'images/teams/CSK.png',
-        'mi': 'images/teams/MI.png', 
-        'rcb': 'images/teams/RCB.png',
-        'kkr': 'images/teams/KKR.png',
-        'dc': 'images/teams/DC.png',
-        'pbks': 'images/teams/PBKS.png',
-        'rr': 'images/teams/RR.png',
-        'srh': 'images/teams/SRH.png',
-        'gt': 'images/teams/GT.png',
-        'lsg': 'images/teams/LSG.png'
-    };
-    
-    const teamLogo = teamLogos[userTeam.id] || userTeam.logo || 'images/teams/default.png';
-    
-    teamHeader.innerHTML = `
-        <div class="flex items-center space-x-4">
-            <div class="w-16 h-16 rounded-full flex items-center justify-center relative" 
-                 style="background: ${userTeam.color}20; border: 2px solid ${userTeam.color}">
-                <div class="w-12 h-12 rounded-full bg-gray-900/80 flex items-center justify-center overflow-hidden">
-                    <img src="${teamLogo}" alt="${userTeam.name}" 
-                         class="w-10 h-10 object-contain p-1"
-                         onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span class=\\'text-2xl\\'>🏏</span>';">
+            if (!userTeam) return;
+            
+            const teamLogos = {
+                'csk': 'images/teams/CSK.png',
+                'mi': 'images/teams/MI.png', 
+                'rcb': 'images/teams/RCB.png',
+                'kkr': 'images/teams/KKR.png',
+                'dc': 'images/teams/DC.png',
+                'pbks': 'images/teams/PBKS.png',
+                'rr': 'images/teams/RR.png',
+                'srh': 'images/teams/SRH.png',
+                'gt': 'images/teams/GT.png',
+                'lsg': 'images/teams/LSG.png'
+            };
+            
+            const teamLogo = teamLogos[userTeam.id] || userTeam.logo || 'images/teams/default.png';
+            
+            teamHeader.innerHTML = `
+                <div class="flex items-center space-x-4">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center relative" 
+                         style="background: ${userTeam.color}20; border: 2px solid ${userTeam.color}">
+                        <div class="w-12 h-12 rounded-full bg-gray-900/80 flex items-center justify-center overflow-hidden">
+                            <img src="${teamLogo}" alt="${userTeam.name}" 
+                                 class="w-10 h-10 object-contain p-1"
+                                 onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span class=\\'text-2xl\\'>🏏</span>';">
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold" style="color: ${userTeam.color}">${userTeam.name}</h2>
+                        <p class="text-gray-400 text-sm">Live Auction Pool</p>
+                        <p class="text-gray-500 text-xs">${currentUsername}</p>
+                    </div>
                 </div>
-            </div>
-            <div>
-                <h2 class="text-xl font-bold" style="color: ${userTeam.color}">${userTeam.name}</h2>
-                <p class="text-gray-400 text-sm">Live Auction Pool</p>
-                <p class="text-gray-500 text-xs">${currentUsername}</p>
-            </div>
-        </div>
-    `;
-    
-    // Create or update team background
-    let teamBg = document.getElementById('teamBackground');
-    if (!teamBg) {
-        teamBg = document.createElement('div');
-        teamBg.id = 'teamBackground';
-        teamBg.className = 'team-background';
-        document.body.appendChild(teamBg);
-    }
-    
-    // Set background image
-    teamBg.style.backgroundImage = `url('${teamLogo}')`;
-    teamBg.style.filter = 'blur(4px) brightness(0.15) opacity(0.4)';
-    teamBg.style.backgroundSize = '300px';
-    teamBg.style.backgroundRepeat = 'no-repeat';
-    teamBg.style.backgroundPosition = 'center';
-}
+            `;
+            
+            let teamBg = document.getElementById('teamBackground');
+            if (!teamBg) {
+                teamBg = document.createElement('div');
+                teamBg.id = 'teamBackground';
+                teamBg.className = 'team-background';
+                document.body.appendChild(teamBg);
+            }
+            
+            teamBg.style.backgroundImage = `url('${teamLogo}')`;
+            teamBg.style.filter = 'blur(4px) brightness(0.15) opacity(0.4)';
+            teamBg.style.backgroundSize = '300px';
+            teamBg.style.backgroundRepeat = 'no-repeat';
+            teamBg.style.backgroundPosition = 'center';
+        }
         
         function displayCurrentPlayer() {
             if (!currentPlayer) return;
@@ -1350,10 +1443,8 @@ socket.on('connect', () => {
             currentPlayerCard.classList.remove('hidden');
             waitingAuction.classList.add('hidden');
             
-            // Update player info
             playerName.textContent = currentPlayer.name || 'Unknown Player';
             
-            // Set role and badge
             const role = currentPlayer.role || 'Player';
             let roleClass = 'role-bat';
             let roleDisplay = role;
@@ -1385,50 +1476,19 @@ socket.on('connect', () => {
             basePrice.textContent = `₹${currentPlayer.basePrice || 2} Cr`;
             originalTeamName.textContent = currentPlayer.originalTeam || '-';
             
-            // Update highest bidder
-            // Update highest bidder with GLOW EFFECT
-if (currentPlayer.currentBidder) {
-    const team = currentPlayer.currentBidder;
-    const teamNames = {
-        'csk': 'CSK', 'mi': 'MI', 'rcb': 'RCB',
-        'kkr': 'KKR', 'dc': 'DC', 'pbks': 'PBKS',
-        'rr': 'RR', 'srh': 'SRH', 'gt': 'GT', 'lsg': 'LSG'
-    };
-    const teamColors = {
-        'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
-        'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
-        'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
-    };
-    
-    const color = teamColors[team] || '#FFFFFF';
-    const displayName = teamNames[team] || team.toUpperCase();
-    
-    // Create pill-shaped badge with glow
-    highestBidder.innerHTML = `
-        <span class="inline-flex items-center px-4 py-2 rounded-full font-bold text-white animate-pulse shadow-lg" 
-              style="background: ${color}; box-shadow: 0 0 15px ${color}, 0 0 30px ${color}80;">
-            <span class="mr-2">👑</span>
-            ${displayName}
-            <span class="ml-2 text-xs bg-white/20 px-2 py-1 rounded-full">LEADING</span>
-        </span>
-    `;
-    
-    // Also update the text below with team info
-    const teamDisplay = document.createElement('div');
-    teamDisplay.className = 'text-sm mt-1';
-    teamDisplay.innerHTML = `<span style="color: ${color}">${team.toUpperCase()} is currently winning</span>`;
-    
-} else {
-    // No bids yet - less prominent
-    highestBidder.innerHTML = `
-        <span class="inline-flex items-center px-4 py-2 rounded-full font-medium bg-gray-700/50 text-gray-300">
-            <span class="mr-2">📊</span>
-            No bids yet
-        </span>
-    `;
-}
+            if (currentPlayer.currentBidder) {
+                highestBidder.textContent = currentPlayer.currentBidder.toUpperCase();
+                const teamColors = {
+                    'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
+                    'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
+                    'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
+                };
+                highestBidder.style.color = teamColors[currentPlayer.currentBidder] || '#FFFFFF';
+            } else {
+                highestBidder.textContent = 'No bids yet';
+                highestBidder.style.color = '#D1D5DB';
+            }
             
-            // Show overseas badge
             const isOverseas = currentPlayer.nationality?.toString().toLowerCase() !== 'indian';
             if (isOverseas) {
                 playerOverseasBadge.classList.remove('hidden');
@@ -1436,7 +1496,6 @@ if (currentPlayer.currentBidder) {
                 playerOverseasBadge.classList.add('hidden');
             }
             
-            // Update stats - FIXED: Properly display player stats
             document.getElementById('statRuns').textContent = currentPlayer.totalRuns || '0';
             document.getElementById('statHighestScore').textContent = currentPlayer.highestScore || '0';
             document.getElementById('statStrikeRate').textContent = currentPlayer.strikeRate || '0';
@@ -1469,7 +1528,6 @@ if (currentPlayer.currentBidder) {
         }
         
         function updateBidButtons() {
-            // Enable all bid buttons
             document.querySelectorAll('.bid-btn').forEach(btn => {
                 btn.disabled = false;
             });
@@ -1487,28 +1545,25 @@ if (currentPlayer.currentBidder) {
             
             console.log(`🎯 Bid attempt: ${userTeam.id} bidding ₹${roundedBid} Cr`);
             
-            // ✅ ADD THIS CHECK: Make sure the bid is actually higher
-            // ✅ SILENT CHECK: Only send bid if actually higher
-if (roundedBid <= currentBidValue) {
-    console.log('⚠️ Bid is not higher than current bid - silently ignoring');
-    return; // Don't send bid, don't show popup
-}
+            if (roundedBid <= currentBidValue) {
+                console.log('⚠️ Bid is not higher than current bid');
+                showAlert('Bid Too Low', `Bid must be higher than current bid (₹${currentBidValue} Cr)`, '⚠️');
+                return;
+            }
             
             sendBidToServer(roundedBid);
         }
         
         function sendBidToServer(bidAmount) {
-            // ✅ FIXED: ADD PROPER VALIDATION CHECKS BEFORE SOCKET EMIT
             console.log('🎯 Sending bid to server:', bidAmount);
             
-            // Check 1: Socket connection
             if (!socket || !socket.connected) {
                 console.error('❌ Socket not connected');
                 showAlert('Connection Error', 'Not connected to server. Please refresh.', '❌');
+                showReconnectionOverlay();
                 return;
             }
             
-            // Check 2: Required data
             if (!currentPlayer || !currentPlayer.id) {
                 console.error('❌ No current player selected');
                 showAlert('Error', 'No player selected for bidding', '❌');
@@ -1527,13 +1582,11 @@ if (roundedBid <= currentBidValue) {
                 return;
             }
             
-            // Check 3: Budget validation
             if (bidAmount > teamBudget) {
                 showAlert('Insufficient Funds', `Your purse is only ₹${teamBudget.toFixed(2)} Cr`, '❌');
                 return;
             }
             
-            // Check 4: Squad size limit
             const totalSquadSize = squadLimits.total;
             const maxSquadValue = squadLimits.maxSquad || 25;
             
@@ -1542,7 +1595,6 @@ if (roundedBid <= currentBidValue) {
                 return;
             }
             
-            // ✅ FIXED: Get session ID properly
             const sessionData = JSON.parse(localStorage.getItem('userSession') || '{}');
             const sessionId = sessionData.sessionId || Date.now().toString();
             
@@ -1555,7 +1607,6 @@ if (roundedBid <= currentBidValue) {
                 sessionId: sessionId
             });
             
-            // ✅ FIXED: Use emit with callback to handle response
             socket.emit('placeBid', {
                 roomCode: currentRoomCode,
                 username: currentUsername,
@@ -1566,7 +1617,8 @@ if (roundedBid <= currentBidValue) {
             }, (response) => {
                 if (response && response.success) {
                     console.log('✅ Bid successfully placed');
-                    // Update UI immediately with optimistic update
+                    
+                    // Optimistic update
                     currentBid.textContent = `₹${bidAmount} Cr`;
                     currentBid.classList.add('bounce');
                     setTimeout(() => currentBid.classList.remove('bounce'), 500);
@@ -1581,7 +1633,6 @@ if (roundedBid <= currentBidValue) {
                         highestBidder.style.color = teamColors[userTeam.id] || '#FFFFFF';
                     }
                     
-                    // Add to bid log
                     addBidToLog(userTeam.id, bidAmount);
                     
                 } else {
@@ -1592,63 +1643,56 @@ if (roundedBid <= currentBidValue) {
         }
         
         function addBidToLog(team, bid, type = 'BID') {
-    const bidItem = document.createElement('div');
-    bidItem.className = 'bid-log-item new p-3 rounded-lg bg-gray-800/30 border-l-4 border-yellow-500 slide-in';
-    
-    // Team logos mapping with actual image paths
-    const teamLogos = {
-        'csk': 'images/teams/CSK.png',
-        'mi': 'images/teams/MI.png', 
-        'rcb': 'images/teams/RCB.png',
-        'kkr': 'images/teams/KKR.png',
-        'dc': 'images/teams/DC.png',
-        'pbks': 'images/teams/PBKS.png',
-        'rr': 'images/teams/RR.png',
-        'srh': 'images/teams/SRH.png',
-        'gt': 'images/teams/GT.png',
-        'lsg': 'images/teams/LSG.png'
-    };
-    
-    const teamColors = {
-        'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
-        'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
-        'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
-    };
-    
-    const teamColor = teamColors[team] || '#FFFFFF';
-    const teamLogo = teamLogos[team] || 'images/teams/default.png';
-    
-    bidItem.innerHTML = `
-    <div class="flex justify-between items-center">
-        <div class="flex items-center space-x-2">
-            <div class="w-6 h-6 rounded-full overflow-hidden bg-gray-800/50 flex items-center justify-center border border-${teamColor}">
-                <img src="${teamLogo}" alt="${team}" 
-                     class="w-5 h-5 object-contain"
-                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span class=\\'text-sm\\'>🏏</span>';">
-            </div>
-            <div class="flex flex-col">
-                <span class="font-bold text-sm" style="color: ${teamColor}">${team.toUpperCase()}</span>
-                <span class="text-xs text-gray-400">BID PLACED</span>
-            </div>
-        </div>
-        <span class="font-bold text-yellow-400 text-lg">₹${bid} Cr</span>
-    </div>
-    <div class="text-xs text-gray-400 mt-1 flex justify-between">
-        <span>${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-        <span class="text-yellow-300">💰</span>
-    </div>
-`;
-    
-    bidLog.prepend(bidItem);
-    
-    setTimeout(() => {
-        bidItem.classList.remove('new');
-    }, 1000);
-    
-    if (bidLog.children.length > 20) {
-        bidLog.removeChild(bidLog.lastChild);
-    }
-}
+            const bidItem = document.createElement('div');
+            bidItem.className = 'bid-log-item new p-3 rounded-lg bg-gray-800/30 border-l-4 border-yellow-500 slide-in';
+            
+            const teamLogos = {
+                'csk': 'images/teams/CSK.png',
+                'mi': 'images/teams/MI.png', 
+                'rcb': 'images/teams/RCB.png',
+                'kkr': 'images/teams/KKR.png',
+                'dc': 'images/teams/DC.png',
+                'pbks': 'images/teams/PBKS.png',
+                'rr': 'images/teams/RR.png',
+                'srh': 'images/teams/SRH.png',
+                'gt': 'images/teams/GT.png',
+                'lsg': 'images/teams/LSG.png'
+            };
+            
+            const teamColors = {
+                'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
+                'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
+                'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
+            };
+            
+            const teamColor = teamColors[team] || '#FFFFFF';
+            const teamLogo = teamLogos[team] || 'images/teams/default.png';
+            
+            bidItem.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-6 h-6 rounded-full overflow-hidden bg-gray-800/50 flex items-center justify-center">
+                            <img src="${teamLogo}" alt="${team}" 
+                                 class="w-5 h-5 object-contain"
+                                 onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span class=\\'text-sm\\'>🏏</span>';">
+                        </div>
+                        <div class="h-4 w-1 bg-gradient-to-b from-transparent via-${teamColor} to-transparent"></div>
+                    </div>
+                    <span class="font-bold text-yellow-400">₹${bid} Cr</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+            `;
+            
+            bidLog.prepend(bidItem);
+            
+            setTimeout(() => {
+                bidItem.classList.remove('new');
+            }, 1000);
+            
+            if (bidLog.children.length > 20) {
+                bidLog.removeChild(bidLog.lastChild);
+            }
+        }
         
         function clearBidLog() {
             bidLog.innerHTML = '<div class="text-center text-gray-500 py-4">No bids yet</div>';
@@ -1659,7 +1703,6 @@ if (roundedBid <= currentBidValue) {
             if (data.playersLeft !== undefined) playersLeft.textContent = data.playersLeft;
             if (data.unsoldCount !== undefined) unsoldCount.textContent = data.unsoldCount;
             
-            // Update player count
             if (data.currentPlayerIndex !== undefined && data.totalPlayers !== undefined) {
                 const currentCount = data.currentPlayerIndex + 1;
                 currentPlayerCount.textContent = `${currentCount}/${data.totalPlayers}`;
@@ -1670,14 +1713,13 @@ if (roundedBid <= currentBidValue) {
         function openSquadModal() {
             console.log('👥 Opening squad modal...');
             
-            // ✅ FIXED: ADD PROPER VALIDATION CHECKS
             if (!socket || !socket.connected) {
                 console.error('❌ Socket not connected for squad request');
                 showAlert('Connection Error', 'Not connected to server. Please refresh.', '❌');
+                showReconnectionOverlay();
                 return;
             }
             
-            // ✅ FIXED: Get session data properly
             const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
             const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
             const sessionId = userSession.sessionId || currentSession.sessionId;
@@ -1700,7 +1742,6 @@ if (roundedBid <= currentBidValue) {
                 sessionId: sessionId
             });
             
-            // ✅ FIXED: Use emit with callback
             socket.emit('requestSquad', {
                 roomCode: currentRoomCode,
                 username: currentUsername,
@@ -1733,11 +1774,8 @@ if (roundedBid <= currentBidValue) {
         
         function updateSquadLimits() {
             squadSize.textContent = squadLimits.total || 0;
-            
-            // FIX: Use actual max squad from rules, not hardcoded 25
             const max = squadLimits.maxSquad || 25;
             maxSquad.textContent = max;
-            
             remainingSlots.textContent = max - squadLimits.total;
             canBuy.textContent = max - squadLimits.total;
             indianCount.textContent = squadLimits.indian || 0;
@@ -1747,7 +1785,6 @@ if (roundedBid <= currentBidValue) {
         function updateSquadDisplay(data) {
             console.log('👥 Updating squad display:', data);
             
-            // Ensure we have all required data with defaults
             const squadData = {
                 team: data.team || userTeam || { name: 'Team' },
                 retainedPlayers: data.retainedPlayers || [],
@@ -1761,7 +1798,6 @@ if (roundedBid <= currentBidValue) {
                 rules: data.rules || { impactPlayers: 1 }
             };
             
-            // Calculate overseas/indian counts
             let overseasCount = 0;
             let indianCount = 0;
             
@@ -1777,7 +1813,6 @@ if (roundedBid <= currentBidValue) {
             
             const totalPlayers = squadData.retainedPlayers.length + squadData.auctionPlayers.length;
             
-            // Create squad modal
             const squadModal = document.createElement('div');
             squadModal.className = 'fixed inset-0 flex items-center justify-center z-50';
             squadModal.innerHTML = `
@@ -1882,7 +1917,6 @@ if (roundedBid <= currentBidValue) {
                 </div>
             `;
             
-            // Remove any existing modal first
             const existingModal = document.querySelector('.fixed.inset-0.flex.items-center.justify-center.z-50');
             if (existingModal) {
                 existingModal.remove();
@@ -1890,8 +1924,6 @@ if (roundedBid <= currentBidValue) {
             
             document.body.appendChild(squadModal);
         }
-
-
 
         // ========== HELPER FUNCTIONS ==========
         function showAlert(title, message, icon = 'ℹ️') {
@@ -1921,115 +1953,6 @@ if (roundedBid <= currentBidValue) {
             `;
         }
         
-        // ✅ ADD THESE NEW SESSION RECOVERY FUNCTIONS
-function attemptSessionRecovery() {
-    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-    
-    if (!userSession.username || !userSession.roomCode) {
-        showAlert('No Session Data', 'No previous session found. Please login again.', '❌');
-        return;
-    }
-    
-    console.log('🔄 Attempting session recovery for:', userSession.username, 'in room:', userSession.roomCode);
-    
-    if (!socket || !socket.connected) {
-        console.log('⚠️ Socket not connected, reconnecting...');
-        if (socket) socket.connect();
-        setTimeout(() => attemptSessionRecovery(), 1000);
-        return;
-    }
-    
-    socket.emit('reconnectToAuction', {
-        username: userSession.username,
-        roomCode: userSession.roomCode
-    }, (response) => {
-        console.log('📨 Reconnection response:', response);
-        
-        if (response && response.success) {
-            console.log('✅ Session recovered! User data:', response.userData);
-            
-            // Update localStorage with recovered data
-            localStorage.setItem('userSession', JSON.stringify({
-                username: response.userData.username,
-                roomCode: userSession.roomCode,
-                team: response.userData.team,
-                sessionId: response.userData.sessionId,
-                retainedPlayers: response.userData.retainedPlayers,
-                auctionPlayers: response.userData.auctionPlayers
-            }));
-            
-            // Update global variables
-            currentUsername = response.userData.username;
-            currentRoomCode = userSession.roomCode;
-            userTeam = response.userData.team;
-            teamBudget = response.userData.budget;
-            
-            // Update squad data if available
-            if (response.userData.retainedPlayers) {
-                localStorage.setItem('retainedPlayers', JSON.stringify(response.userData.retainedPlayers));
-            }
-            if (response.userData.auctionPlayers) {
-                localStorage.setItem('auctionBuys', JSON.stringify(response.userData.auctionPlayers));
-            }
-            
-            // Hide session modal
-            sessionCheckModal.classList.add('hidden');
-            
-            // Update UI
-            displayTeamInfo();
-            purseRemaining.textContent = response.userData.budget.toFixed(2);
-            
-            // Update squad limits
-            updateSquadLimits();
-            
-            showAlert('Reconnected!', 'Successfully rejoined the auction with all your data preserved.', '✅');
-            
-            // If auction is active, request immediate sync
-            if (response.auctionActive) {
-                console.log('🎯 Auction is active, requesting state sync...');
-                
-                // Request immediate state sync
-                socket.emit('requestAuctionState', {
-                    roomCode: currentRoomCode,
-                    username: currentUsername,
-                    timestamp: Date.now(),
-                    forceSync: true
-                }, (syncResponse) => {
-                    if (syncResponse && syncResponse.success) {
-                        console.log('✅ State synced after reconnection');
-                    }
-                });
-            }
-            
-        } else {
-            showAlert('Recovery Failed', response?.message || 'Could not recover session. You may need to rejoin from the beginning.', '❌');
-            
-            // Clear invalid session
-            localStorage.removeItem('userSession');
-            localStorage.removeItem('currentSession');
-            
-            // Redirect to login after delay
-            setTimeout(() => {
-                window.location.href = 'login.html';
-            }, 3000);
-        }
-    });
-}
-
-// Also update the modal show function to display last session info
-function showSessionCheckModal() {
-    const lastSessionInfo = document.getElementById('lastSessionInfo');
-    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-    
-    if (userSession.username && userSession.roomCode) {
-        lastSessionInfo.textContent = `${userSession.username} | Room: ${userSession.roomCode}`;
-    } else {
-        lastSessionInfo.textContent = 'No session data found';
-    }
-    
-    sessionCheckModal.classList.remove('hidden');
-}
-
         function showSoldBroadcast(player, team, price) {
             const broadcast = document.createElement('div');
             broadcast.className = 'fixed bottom-1/3 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg';
@@ -2056,17 +1979,14 @@ function showSessionCheckModal() {
             
             document.body.appendChild(broadcast);
             
-            // Remove after 3 seconds
             setTimeout(() => {
                 broadcast.remove();
             }, 3000);
         }
 
-        // ========== NEW FUNCTION FOR UNSOLD POPUP ==========
         function showUnsoldPopup(playerName) {
             console.log('❌ Showing unsold popup for:', playerName);
             
-            // Create unsold popup
             const popup = document.createElement('div');
             popup.className = 'fixed top-1/3 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg unsold-popup';
             popup.innerHTML = `
@@ -2087,7 +2007,6 @@ function showSessionCheckModal() {
             
             document.body.appendChild(popup);
             
-            // Remove after 3 seconds
             setTimeout(() => {
                 if (popup.parentElement) {
                     popup.remove();
@@ -2099,9 +2018,10 @@ function showSessionCheckModal() {
         window.reconnectWithSession = reconnectWithSession;
         window.goToLogin = goToLogin;
         window.closeAlert = closeAlert;
-        window.attemptSessionRecovery = attemptSessionRecovery; // ✅ Add this line
+        window.forceReconnect = forceReconnect;
+        window.closeBackWarning = closeBackWarning;
 
-        console.log('✅ Auction pool page loaded with state synchronization');
+        console.log('✅ Auction pool page loaded with back button protection');
     </script>
 </body>
 </html>
