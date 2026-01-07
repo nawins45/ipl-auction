@@ -454,83 +454,61 @@
         });
         
         function checkSession() {
-            // Get room code from URL or localStorage
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlRoomCode = urlParams.get('roomCode');
-            const localRoomCode = localStorage.getItem('auctioneerRoomCode');
-            
-            currentRoomCode = urlRoomCode || localRoomCode;
-            
-            // Get session data
-            const auctioneerSession = localStorage.getItem('auctioneerSession');
-            const currentSession = localStorage.getItem('currentSession');
-            
-            if (auctioneerSession) {
-                try {
-                    const sessionData = JSON.parse(auctioneerSession);
-                    currentSessionId = sessionData.sessionId;
-                    currentUsername = sessionData.username;
-                    
-                    console.log(`🔗 Loaded auctioneer session for room: ${currentRoomCode}`);
-                    
-                    if (!currentRoomCode) {
-                        showAlert('Room Error', 'No room code found. Please return to control panel.', '❌');
-                        setTimeout(() => {
-                            window.location.href = 'auctioneer.html';
-                        }, 3000);
-                        return;
-                    }
-                    
-                    roomCodeDisplay.textContent = currentRoomCode;
-                    
-                    initializeSocket();
-                    
-                } catch (error) {
-                    console.error('❌ Error parsing session:', error);
-                    showSessionModal();
-                }
-            } else if (currentSession) {
-                try {
-                    const sessionData = JSON.parse(currentSession);
-                    if (sessionData.role === 'auctioneer') {
-                        currentSessionId = sessionData.sessionId;
-                        currentUsername = sessionData.username;
-                        
-                        if (!currentRoomCode) {
-                            showAlert('Room Error', 'No room code found. Please return to control panel.', '❌');
-                            setTimeout(() => {
-                                window.location.href = 'auctioneer.html';
-                            }, 3000);
-                            return;
-                        }
-                        
-                        roomCodeDisplay.textContent = currentRoomCode;
-                        initializeSocket();
-                    } else {
-                        showSessionModal();
-                    }
-                } catch (error) {
-                    console.error('❌ Error parsing current session:', error);
-                    showSessionModal();
-                }
-            } else {
-                showSessionModal();
-            }
-        }
+    // Get room code from multiple sources
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRoomCode = urlParams.get('roomCode');
+    
+    // Try different storage locations
+    const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
+    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+    const auctionUser = JSON.parse(localStorage.getItem('auctionUser') || '{}');
+    
+    // Priority: URL > auctioneerSession > currentSession > auctionUser
+    currentRoomCode = urlRoomCode || 
+                     auctioneerSession.roomCode || 
+                     currentSession.roomCode || 
+                     auctionUser.roomCode;
+    
+    currentUsername = auctioneerSession.username || currentSession.username || auctionUser.username;
+    currentSessionId = auctioneerSession.sessionId || currentSession.sessionId || auctionUser.sessionId;
+    
+    console.log('🔍 Session check results:', {
+        urlRoomCode,
+        auctioneerSession,
+        currentSession,
+        auctionUser,
+        finalRoomCode: currentRoomCode,
+        finalUsername: currentUsername,
+        finalSessionId: currentSessionId
+    });
+    
+    if (currentRoomCode && currentUsername && currentSessionId) {
+        console.log(`✅ Valid session found for ${currentUsername} in room ${currentRoomCode}`);
+        roomCodeDisplay.textContent = currentRoomCode;
+        initializeSocket();
+    } else {
+        console.log('❌ No valid session found, showing session modal');
+        showSessionModal();
+    }
+}
         
         function showSessionModal() {
             document.getElementById('sessionModal').classList.remove('hidden');
         }
         
         function reconnectWithSession() {
-            const auctioneerSession = localStorage.getItem('auctioneerSession');
-            if (auctioneerSession) {
-                document.getElementById('sessionModal').classList.add('hidden');
-                checkSession();
-            } else {
-                goToLogin();
-            }
-        }
+    // Clear all storage and force re-login
+    localStorage.removeItem('auctioneerSession');
+    localStorage.removeItem('currentSession');
+    localStorage.removeItem('auctionUser');
+    
+    console.log('🔄 Clearing session data and redirecting to login...');
+    
+    // Redirect to auctioneer.html to get a fresh session
+    setTimeout(() => {
+        window.location.href = 'auctioneer.html';
+    }, 500);
+}
         
         function goToLogin() {
             localStorage.removeItem('auctioneerSession');
@@ -541,9 +519,44 @@
         function initializeSocket() {
             console.log('🔌 Connecting to socket server...');
             
+            
             socket.on('connect', () => {
                 console.log('✅ Connected to auction room');
                 updateConnectionStatus(true);
+                // Try to recover session if needed
+    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+    
+    if (userSession.username && userSession.roomCode) {
+        console.log('🔄 Attempting session recovery...');
+        
+        socket.emit('recoverSession', {
+            username: userSession.username,
+            roomCode: userSession.roomCode,
+            partialSessionId: userSession.sessionId ? userSession.sessionId.substring(0, 8) : ''
+        }, (response) => {
+            if (response && response.success) {
+                console.log('✅ Session recovered:', response.sessionData);
+                
+                // Update localStorage with recovered session
+                localStorage.setItem('userSession', JSON.stringify(response.sessionData));
+                localStorage.setItem('currentSession', JSON.stringify(response.sessionData));
+                
+                // Proceed with normal join
+                socket.emit('joinAuctionPool', {
+                    roomCode: userSession.roomCode,
+                    username: userSession.username,
+                    sessionId: response.sessionData.sessionId
+                });
+            } else {
+                console.log('❌ Session recovery failed, showing session modal');
+                showSessionCheckModal();
+            }
+        });
+    } else {
+        // No session to recover
+        showSessionCheckModal();
+    }
                 
                 // Join as auctioneer
                 socket.emit('joinAuctioneer', {

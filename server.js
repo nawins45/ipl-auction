@@ -3303,6 +3303,105 @@ socket.on('requestAuctionPoolRedirect', (data) => {
             }
         }
     });
+    // ✅ ADD THIS: Session recovery system
+socket.on('recoverSession', (data, callback) => {
+    try {
+        const { username, partialSessionId, roomCode } = data;
+        
+        console.log(`🔍 Session recovery attempt for ${username} in room ${roomCode}`);
+        console.log(`   Partial session ID: ${partialSessionId}`);
+        
+        if (!username || !roomCode) {
+            if (callback) callback({ success: false, message: 'Username and room code required' });
+            return;
+        }
+        
+        const room = rooms[roomCode];
+        if (!room) {
+            if (callback) callback({ success: false, message: 'Room not found' });
+            return;
+        }
+        
+        // Find user in room
+        const user = room.users[username];
+        if (!user) {
+            if (callback) callback({ success: false, message: 'User not found in room' });
+            return;
+        }
+        
+        // Find session by partial match
+        let foundSessionId = null;
+        
+        // Method 1: Check if user already has a session
+        if (user.sessionId && sessions[user.sessionId]) {
+            foundSessionId = user.sessionId;
+            console.log(`✅ Found existing session for ${username}: ${foundSessionId}`);
+        }
+        // Method 2: Search sessions by username and room
+        else {
+            for (const sessionId in sessions) {
+                const session = sessions[sessionId];
+                if (session.username === username && 
+                    session.roomCode === roomCode && 
+                    session.active) {
+                    foundSessionId = sessionId;
+                    console.log(`✅ Found matching session: ${foundSessionId}`);
+                    break;
+                }
+            }
+        }
+        
+        if (foundSessionId) {
+            // Update session with new socket
+            sessions[foundSessionId].socketId = socket.id;
+            sessions[foundSessionId].lastActivity = Date.now();
+            
+            // Update user with session
+            user.sessionId = foundSessionId;
+            user.socketId = socket.id;
+            user.connected = true;
+            
+            // Send back full session data
+            const sessionData = {
+                username: username,
+                roomCode: roomCode,
+                sessionId: foundSessionId,
+                role: user.role || 'user',
+                team: user.team || null,
+                active: true
+            };
+            
+            console.log(`✅ Session recovered for ${username}`);
+            
+            if (callback) callback({ 
+                success: true, 
+                message: 'Session recovered',
+                sessionData: sessionData
+            });
+            
+            // Also notify auctioneer if needed
+            if (room.auctioneerSocket && username !== room.auctioneer) {
+                io.to(room.auctioneerSocket).emit('userReconnected', {
+                    username: username,
+                    team: user.team?.name || 'Unknown'
+                });
+            }
+        } else {
+            console.log(`❌ No session found for ${username}`);
+            if (callback) callback({ 
+                success: false, 
+                message: 'No active session found. Please start a new session.' 
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error in recoverSession:', error);
+        if (callback) callback({ 
+            success: false, 
+            message: 'Session recovery failed' 
+        });
+    }
+});
 
 });
 

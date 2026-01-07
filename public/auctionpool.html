@@ -425,27 +425,33 @@
     </div>
 
     <!-- Session Check Modal -->
-    <div id="sessionCheckModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-        <div class="absolute inset-0 bg-black/80"></div>
-        <div class="glass-panel rounded-2xl p-6 max-w-md w-11/12 z-10">
-            <div class="text-center">
-                <div class="text-4xl mb-4">🔐</div>
-                <h3 class="text-2xl font-bold mb-2">Session Required</h3>
-                <p class="text-gray-300 mb-6">You need a valid session to join the auction pool.</p>
-                <div class="space-y-3">
-                    <button onclick="reconnectWithSession()" 
-                            class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold transition-all duration-300">
-                        Reconnect with Existing Session
-                    </button>
-                    <button onclick="goToLogin()" 
-                            class="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl font-semibold transition-all duration-300">
-                        Go to Login Page
-                    </button>
-                </div>
+    <!-- Session Check Modal -->
+<div id="sessionCheckModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="absolute inset-0 bg-black/80"></div>
+    <div class="glass-panel rounded-2xl p-6 max-w-md w-11/12 z-10">
+        <div class="text-center">
+            <div class="text-4xl mb-4">🔐</div>
+            <h3 class="text-2xl font-bold mb-2">Session Required</h3>
+            <p class="text-gray-300 mb-4">Your session may have expired or been lost.</p>
+            
+            <div class="mb-6 p-4 bg-gray-800/50 rounded-lg">
+                <div class="text-sm text-gray-400 mb-2">Your last known session:</div>
+                <div class="text-sm text-yellow-400" id="lastSessionInfo">No session data found</div>
+            </div>
+            
+            <div class="space-y-3">
+                <button onclick="attemptSessionRecovery()" 
+                        class="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 rounded-xl font-semibold transition-all duration-300">
+                    🔄 Attempt Session Recovery
+                </button>
+                <button onclick="goToLogin()" 
+                        class="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl font-semibold transition-all duration-300">
+                    🔑 Go to Login Page
+                </button>
             </div>
         </div>
     </div>
-
+</div>
     <!-- Alert Toast -->
     <div id="alertToast" class="fixed top-4 right-4 glass-panel rounded-xl p-4 max-w-md z-50 hidden slide-in">
         <div class="flex items-start space-x-3">
@@ -784,6 +790,40 @@ document.addEventListener('click', function(e) {
             socket.on('connect', () => {
                 console.log('✅ Connected to auction pool');
                 updateSyncStatus('syncing', 'Connecting...');
+                // Try to recover session if needed
+    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+    
+    if (userSession.username && userSession.roomCode) {
+        console.log('🔄 Attempting session recovery...');
+        
+        socket.emit('recoverSession', {
+            username: userSession.username,
+            roomCode: userSession.roomCode,
+            partialSessionId: userSession.sessionId ? userSession.sessionId.substring(0, 8) : ''
+        }, (response) => {
+            if (response && response.success) {
+                console.log('✅ Session recovered:', response.sessionData);
+                
+                // Update localStorage with recovered session
+                localStorage.setItem('userSession', JSON.stringify(response.sessionData));
+                localStorage.setItem('currentSession', JSON.stringify(response.sessionData));
+                
+                // Proceed with normal join
+                socket.emit('joinAuctionPool', {
+                    roomCode: userSession.roomCode,
+                    username: userSession.username,
+                    sessionId: response.sessionData.sessionId
+                });
+            } else {
+                console.log('❌ Session recovery failed, showing session modal');
+                showSessionCheckModal();
+            }
+        });
+    } else {
+        // No session to recover
+        showSessionCheckModal();
+    }
                 
                 // Join auction pool with session
                 socket.emit('joinAuctionPool', {
@@ -1348,18 +1388,47 @@ socket.on('connect', () => {
             originalTeamName.textContent = currentPlayer.originalTeam || '-';
             
             // Update highest bidder
-            if (currentPlayer.currentBidder) {
-                highestBidder.textContent = currentPlayer.currentBidder.toUpperCase();
-                const teamColors = {
-                    'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
-                    'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
-                    'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
-                };
-                highestBidder.style.color = teamColors[currentPlayer.currentBidder] || '#FFFFFF';
-            } else {
-                highestBidder.textContent = 'No bids yet';
-                highestBidder.style.color = '#D1D5DB';
-            }
+            // Update highest bidder with GLOW EFFECT
+if (currentPlayer.currentBidder) {
+    const team = currentPlayer.currentBidder;
+    const teamNames = {
+        'csk': 'CSK', 'mi': 'MI', 'rcb': 'RCB',
+        'kkr': 'KKR', 'dc': 'DC', 'pbks': 'PBKS',
+        'rr': 'RR', 'srh': 'SRH', 'gt': 'GT', 'lsg': 'LSG'
+    };
+    const teamColors = {
+        'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
+        'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
+        'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
+    };
+    
+    const color = teamColors[team] || '#FFFFFF';
+    const displayName = teamNames[team] || team.toUpperCase();
+    
+    // Create pill-shaped badge with glow
+    highestBidder.innerHTML = `
+        <span class="inline-flex items-center px-4 py-2 rounded-full font-bold text-white animate-pulse shadow-lg" 
+              style="background: ${color}; box-shadow: 0 0 15px ${color}, 0 0 30px ${color}80;">
+            <span class="mr-2">👑</span>
+            ${displayName}
+            <span class="ml-2 text-xs bg-white/20 px-2 py-1 rounded-full">LEADING</span>
+        </span>
+    `;
+    
+    // Also update the text below with team info
+    const teamDisplay = document.createElement('div');
+    teamDisplay.className = 'text-sm mt-1';
+    teamDisplay.innerHTML = `<span style="color: ${color}">${team.toUpperCase()} is currently winning</span>`;
+    
+} else {
+    // No bids yet - less prominent
+    highestBidder.innerHTML = `
+        <span class="inline-flex items-center px-4 py-2 rounded-full font-medium bg-gray-700/50 text-gray-300">
+            <span class="mr-2">📊</span>
+            No bids yet
+        </span>
+    `;
+}
             
             // Show overseas badge
             const isOverseas = currentPlayer.nationality?.toString().toLowerCase() !== 'indian';
@@ -1421,11 +1490,11 @@ socket.on('connect', () => {
             console.log(`🎯 Bid attempt: ${userTeam.id} bidding ₹${roundedBid} Cr`);
             
             // ✅ ADD THIS CHECK: Make sure the bid is actually higher
-            if (roundedBid <= currentBidValue) {
-                console.log('⚠️ Bid is not higher than current bid');
-                showAlert('Bid Too Low', `Bid must be higher than current bid (₹${currentBidValue} Cr)`, '⚠️');
-                return; // Don't send bid
-            }
+            // ✅ SILENT CHECK: Only send bid if actually higher
+if (roundedBid <= currentBidValue) {
+    console.log('⚠️ Bid is not higher than current bid - silently ignoring');
+    return; // Don't send bid, don't show popup
+}
             
             sendBidToServer(roundedBid);
         }
@@ -1552,19 +1621,25 @@ socket.on('connect', () => {
     const teamLogo = teamLogos[team] || 'images/teams/default.png';
     
     bidItem.innerHTML = `
-        <div class="flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <div class="w-6 h-6 rounded-full overflow-hidden bg-gray-800/50 flex items-center justify-center">
-                    <img src="${teamLogo}" alt="${team}" 
-                         class="w-5 h-5 object-contain"
-                         onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span class=\\'text-sm\\'>🏏</span>';">
-                </div>
-                <div class="h-4 w-1 bg-gradient-to-b from-transparent via-${teamColor} to-transparent"></div>
+    <div class="flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-6 h-6 rounded-full overflow-hidden bg-gray-800/50 flex items-center justify-center border border-${teamColor}">
+                <img src="${teamLogo}" alt="${team}" 
+                     class="w-5 h-5 object-contain"
+                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span class=\\'text-sm\\'>🏏</span>';">
             </div>
-            <span class="font-bold text-yellow-400">₹${bid} Cr</span>
+            <div class="flex flex-col">
+                <span class="font-bold text-sm" style="color: ${teamColor}">${team.toUpperCase()}</span>
+                <span class="text-xs text-gray-400">BID PLACED</span>
+            </div>
         </div>
-        <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-    `;
+        <span class="font-bold text-yellow-400 text-lg">₹${bid} Cr</span>
+    </div>
+    <div class="text-xs text-gray-400 mt-1 flex justify-between">
+        <span>${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+        <span class="text-yellow-300">💰</span>
+    </div>
+`;
     
     bidLog.prepend(bidItem);
     
@@ -1818,6 +1893,8 @@ socket.on('connect', () => {
             document.body.appendChild(squadModal);
         }
 
+
+
         // ========== HELPER FUNCTIONS ==========
         function showAlert(title, message, icon = 'ℹ️') {
             const alertDiv = document.getElementById('alertToast');
@@ -1846,6 +1923,68 @@ socket.on('connect', () => {
             `;
         }
         
+        // ✅ ADD THESE NEW SESSION RECOVERY FUNCTIONS
+function attemptSessionRecovery() {
+    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
+    
+    if (!userSession.username || !userSession.roomCode) {
+        showAlert('No Session Data', 'No previous session found. Please login again.', '❌');
+        return;
+    }
+    
+    console.log('🔄 Attempting manual session recovery...');
+    
+    if (socket && socket.connected) {
+        socket.emit('recoverSession', {
+            username: userSession.username,
+            roomCode: userSession.roomCode,
+            partialSessionId: userSession.sessionId ? userSession.sessionId.substring(0, 8) : ''
+        }, (response) => {
+            if (response && response.success) {
+                showAlert('Success!', 'Session recovered successfully!', '✅');
+                
+                // Update localStorage
+                localStorage.setItem('userSession', JSON.stringify(response.sessionData));
+                localStorage.setItem('currentSession', JSON.stringify(response.sessionData));
+                
+                // Hide modal and continue
+                sessionCheckModal.classList.add('hidden');
+                
+                // Re-initialize with recovered session
+                currentUsername = response.sessionData.username;
+                currentRoomCode = response.sessionData.roomCode;
+                userSession = response.sessionData;
+                
+                // Join auction pool
+                socket.emit('joinAuctionPool', {
+                    roomCode: currentRoomCode,
+                    username: currentUsername,
+                    sessionId: response.sessionData.sessionId
+                });
+            } else {
+                showAlert('Recovery Failed', response?.message || 'Could not recover session. Please login again.', '❌');
+            }
+        });
+    } else {
+        showAlert('Not Connected', 'Cannot connect to server. Please refresh.', '❌');
+    }
+}
+
+// Also update the modal show function to display last session info
+function showSessionCheckModal() {
+    const lastSessionInfo = document.getElementById('lastSessionInfo');
+    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+    
+    if (userSession.username && userSession.roomCode) {
+        lastSessionInfo.textContent = `${userSession.username} | Room: ${userSession.roomCode}`;
+    } else {
+        lastSessionInfo.textContent = 'No session data found';
+    }
+    
+    sessionCheckModal.classList.remove('hidden');
+}
+
         function showSoldBroadcast(player, team, price) {
             const broadcast = document.createElement('div');
             broadcast.className = 'fixed bottom-1/3 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg';
@@ -1915,6 +2054,7 @@ socket.on('connect', () => {
         window.reconnectWithSession = reconnectWithSession;
         window.goToLogin = goToLogin;
         window.closeAlert = closeAlert;
+        window.attemptSessionRecovery = attemptSessionRecovery; // ✅ Add this line
 
         console.log('✅ Auction pool page loaded with state synchronization');
     </script>
