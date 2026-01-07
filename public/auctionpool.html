@@ -1492,68 +1492,81 @@ socket.on('redirectToPlaying11WithSquad', (data) => {
 
             // ✅ ADD THIS FORCE REDIRECT HANDLER
 // ✅ ADD THIS FORCE REDIRECT HANDLER (AFTER YOUR OTHER SOCKET HANDLERS)
+// ✅ FIXED: Force redirect with squad data
 socket.on('forceRedirectToPlaying11WithData', (data) => {
-    console.log('🚀 FORCE REDIRECT with squad data received:', data);
+    console.log('🚀 Force redirect with squad data received:', data);
     
-    if (data.squadData) {
-        // Store the complete squad data
-        localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
-        
-        // Also update user session
-        localStorage.setItem('userSession', JSON.stringify({
-            username: data.username,
-            roomCode: data.roomCode,
-            team: data.team,
-            sessionId: data.squadData.sessionId || userSession?.sessionId || Date.now().toString(),
-            squadData: data.squadData
-        }));
-        
-        // Mark auction as completed
-        localStorage.setItem('auctionCompleted', 'true');
-        
-        console.log('💾 Squad data stored for playing 11:', {
-            retained: data.squadData.retainedPlayers?.length || 0,
-            auction: data.squadData.auctionPlayers?.length || 0,
-            total: (data.squadData.retainedPlayers?.length || 0) + (data.squadData.auctionPlayers?.length || 0)
-        });
+    if (!data.squadData) {
+        console.error('❌ No squad data in redirect');
+        showAlert('Error', 'No squad data received. Please contact auctioneer.', '❌');
+        return;
     }
     
-    // Show immediate redirect message
-    const waitingAuction = document.getElementById('waitingAuction');
-    if (waitingAuction) {
-        waitingAuction.classList.remove('hidden');
-        waitingAuction.innerHTML = `
-            <div class="text-6xl mb-4">🎉</div>
-            <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
-            <p class="text-gray-300 mb-4">${data.message || 'Auctioneer has ended the auction!'}</p>
-            <p class="text-yellow-400 mb-4">Preparing your squad data...</p>
-            <p class="text-gray-500">You have: ${data.squadData ? 
-                `${(data.squadData.retainedPlayers?.length || 0) + (data.squadData.auctionPlayers?.length || 0)} players` : 
-                'Your complete squad'} ready for playing 11 selection
-            </p>
-            <div class="mt-6">
-                <div class="inline-block px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg font-semibold animate-pulse">
-                    Redirecting in 3 seconds...
-                </div>
-            </div>
-            <div class="mt-6 flex items-center justify-center space-x-2">
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
-            </div>
-        `;
-    }
+    // Store the complete squad data in localStorage
+    localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+    localStorage.setItem('auctionCompleted', 'true');
     
-    // Hide current player
+    console.log('💾 Squad data stored:', {
+        retained: data.squadData.retainedPlayers?.length || 0,
+        auction: data.squadData.auctionPlayers?.length || 0,
+        total: data.squadData.retainedPlayers?.length + data.squadData.auctionPlayers?.length
+    });
+    
+    // Update UI to show redirecting
+    waitingAuction.classList.remove('hidden');
     currentPlayerCard.classList.add('hidden');
     biddingControls.classList.add('hidden');
+    
+    waitingAuction.innerHTML = `
+        <div class="text-6xl mb-4">🎉</div>
+        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+        <p class="text-gray-300 mb-4">${data.message || 'Redirecting to Playing 11 selection...'}</p>
+        <div class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl p-4 mb-4">
+            <div class="text-center">
+                <div class="text-xl font-bold text-yellow-400 mb-2">Your Squad Summary</div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-sm text-gray-400">Retained Players</div>
+                        <div class="text-lg font-bold text-green-400">${data.squadData.retainedPlayers?.length || 0}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-400">Auction Buys</div>
+                        <div class="text-lg font-bold text-blue-400">${data.squadData.auctionPlayers?.length || 0}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-400">Total Players</div>
+                        <div class="text-lg font-bold text-yellow-400">${(data.squadData.retainedPlayers?.length || 0) + (data.squadData.auctionPlayers?.length || 0)}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-400">Remaining Purse</div>
+                        <div class="text-lg font-bold text-purple-400">₹${data.squadData.remainingBudget?.toFixed(2) || '100.00'} Cr</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="text-gray-500">Preparing Playing 11 selection interface...</p>
+        <div class="mt-6 flex items-center justify-center space-x-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+        </div>
+    `;
     
     // Disable all buttons
     document.querySelectorAll('button').forEach(btn => btn.disabled = true);
     
-    // Redirect after 3 seconds
+    // Also update user session
+    localStorage.setItem('userSession', JSON.stringify({
+        username: currentUsername,
+        roomCode: currentRoomCode,
+        team: userTeam,
+        sessionId: userSession.sessionId,
+        squadData: data.squadData
+    }));
+    
+    // Wait 3 seconds to show the message, then redirect
     setTimeout(() => {
-        console.log('🔗 FORCE Redirecting to playing11.html');
+        console.log('🔗 Redirecting to playing11.html');
         window.location.href = 'playing11.html';
     }, 3000);
 });

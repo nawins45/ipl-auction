@@ -756,7 +756,14 @@
         return;
     }
     
-    const confirmationMessage = `END AUCTION AND REDIRECT EVERYONE?\n\nThis will:\n✅ Send all users to playing11.html with their squad data\n✅ Redirect you to validation.html\n✅ Complete the auction pool phase\n\nAre you sure you want to end the auction?`;
+    const confirmationMessage = 
+        '🏁 END AUCTION POOL?\n\n' +
+        'This will:\n' +
+        '✓ Complete the auction pool\n' +
+        '✓ Send squad data to all users\n' +
+        '✓ Redirect users to Playing 11 selection\n' +
+        '✓ Redirect you to validation page\n\n' +
+        'This action cannot be undone!';
     
     if (confirm(confirmationMessage)) {
         console.log('🏁 Ending auction for room:', currentRoomCode);
@@ -766,15 +773,9 @@
             return;
         }
 
-        // Disable all buttons
-        sellPlayerBtn.disabled = true;
-        markUnsoldBtn.disabled = true;
-        nextPlayerBtn.disabled = true;
+        // Show loading state
         endAuctionBtn.disabled = true;
         endAuctionBtn.innerHTML = 'ENDING...';
-        
-        // Show processing message
-        showAlert('Processing...', 'Ending auction and redirecting all users. Please wait...', '⏳');
         
         socket.emit('endAuction', {
             roomCode: currentRoomCode,
@@ -783,22 +784,28 @@
             timestamp: Date.now()
         }, (response) => {
             if (response && response.success) {
-                console.log('✅ End auction successful:', response);
+                console.log('✅ End auction request acknowledged:', response);
                 
-                // Update button text
-                endAuctionBtn.innerHTML = 'REDIRECTING...';
+                showAlert('Auction Ending', 
+                    'Auction pool is ending. Users will be redirected to Playing 11 selection.', 
+                    '✅');
                 
-                // Show success message
-                showAlert('Success', `${response.message}`, '✅');
+                // Show redirecting message
+                waitingPlayer.classList.remove('hidden');
+                waitingPlayer.innerHTML = `
+                    <div class="text-6xl mb-4">🔄</div>
+                    <h3 class="text-2xl font-bold text-yellow-400 mb-2">Processing...</h3>
+                    <p class="text-gray-300 mb-4">Ending auction pool and redirecting ${response.usersCount || 'all'} users...</p>
+                    <div class="mt-6 flex items-center justify-center space-x-2">
+                        <div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                        <div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                    </div>
+                `;
                 
             } else {
                 console.error('❌ End auction failed:', response?.message);
                 showAlert('Error', response?.message || 'Failed to end auction', '❌');
-                
-                // Re-enable buttons
-                sellPlayerBtn.disabled = false;
-                markUnsoldBtn.disabled = false;
-                nextPlayerBtn.disabled = false;
                 endAuctionBtn.disabled = false;
                 endAuctionBtn.innerHTML = '🏁 END';
             }
@@ -998,30 +1005,46 @@
                 playerInfo.classList.add('hidden');
             });
 
-            socket.on('redirectAuctioneerToValidation', (data) => {
-                console.log('📋 Auctioneer redirect to validation:', data);
-                
-                // Store session data for validation page
-                const auctioneerSession = JSON.parse(localStorage.getItem('auctioneerSession') || '{}');
-                auctioneerSession.roomCode = data.roomCode;
-                localStorage.setItem('auctioneerSession', JSON.stringify(auctioneerSession));
-                
-                // Also update currentSession
-                const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
-                if (currentSession.sessionId === currentSessionId) {
-                    currentSession.roomCode = data.roomCode;
-                    localStorage.setItem('currentSession', JSON.stringify(currentSession));
-                }
-                
-                // Show redirect message
-                showAlert('Redirecting', 'Taking you to team validation page...', '📋');
-                
-                // Redirect after short delay
-                setTimeout(() => {
-                    console.log('🔗 Redirecting auctioneer to validation.html');
-                    window.location.href = data.redirectUrl || 'validation.html';
-                }, 2000);
-            });
+            // ✅ FIXED: Auctioneer redirect to validation
+socket.on('redirectAuctioneerToValidation', (data) => {
+    console.log('📋 Auctioneer redirect to validation received:', data);
+    
+    // Store session data for validation page
+    localStorage.setItem('auctioneerSession', JSON.stringify({
+        username: currentUsername,
+        roomCode: currentRoomCode,
+        sessionId: currentSessionId,
+        role: 'auctioneer',
+        auctionCompleted: true,
+        timestamp: Date.now()
+    }));
+    
+    // Show redirecting message
+    waitingPlayer.classList.remove('hidden');
+    playerInfo.classList.add('hidden');
+    
+    waitingPlayer.innerHTML = `
+        <div class="text-6xl mb-4">🏁</div>
+        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+        <p class="text-gray-300 mb-4">${data.message || 'Redirecting to validation page...'}</p>
+        <p class="text-yellow-400 mb-4">All users have been redirected to Playing 11 selection.</p>
+        <p class="text-gray-500">You will now validate their playing 11 submissions.</p>
+        <div class="mt-6 flex items-center justify-center space-x-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+        </div>
+    `;
+    
+    // Disable all buttons
+    document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+    
+    // Redirect after delay
+    setTimeout(() => {
+        console.log('🔗 Redirecting auctioneer to validation.html');
+        window.location.href = 'validation.html?roomCode=' + currentRoomCode;
+    }, 3000);
+});
 
             socket.on('endAuctionComplete', (data) => {
                 console.log('✅ End auction complete:', data);
