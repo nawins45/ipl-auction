@@ -1388,6 +1388,73 @@ function calculateTotalSpent() {
                     window.location.href = data.url;
                 }, 1000);
             });
+
+            // ✅ ADD THIS HANDLER for receiving squad data before redirect
+socket.on('preparePlaying11Squad', (data) => {
+    console.log('💾 Preparing squad data for playing 11:', data);
+    
+    if (data.squadData) {
+        // Store complete squad data for playing11.html
+        localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+        
+        // Also store in user session
+        localStorage.setItem('userSession', JSON.stringify({
+            username: currentUsername,
+            roomCode: currentRoomCode,
+            team: userTeam,
+            sessionId: userSession.sessionId,
+            squadData: data.squadData
+        }));
+        
+        console.log('✅ Squad data stored for playing 11:', {
+            retained: data.squadData.retainedPlayers?.length || 0,
+            auction: data.squadData.auctionPlayers?.length || 0,
+            total: (data.squadData.retainedPlayers?.length || 0) + (data.squadData.auctionPlayers?.length || 0)
+        });
+    }
+});
+
+// ✅ ADD THIS HANDLER for redirect with squad data
+socket.on('redirectToPlaying11WithSquad', (data) => {
+    console.log('🚀 Redirecting to playing 11 with squad data:', data);
+    
+    // Show redirect message
+    showAlert('Auction Complete', 'All players auctioned! Redirecting to Playing 11 selection...', '🏆');
+    
+    // Update UI to show redirecting
+    waitingAuction.classList.remove('hidden');
+    waitingAuction.innerHTML = `
+        <div class="text-6xl mb-4">🎉</div>
+        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+        <p class="text-gray-300 mb-4">${data.message || 'Redirecting to Playing 11 selection...'}</p>
+        <p class="text-yellow-400 mb-4">Finalizing your squad data...</p>
+        <p class="text-gray-500">You have been assigned: ${data.squadData ? 
+            `${(data.squadData.retainedPlayers?.length || 0) + (data.squadData.auctionPlayers?.length || 0)} players` : 
+            'Your squad'} 
+        </p>
+        <div class="mt-6 flex items-center justify-center space-x-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+        </div>
+    `;
+    
+    // Hide current player
+    currentPlayerCard.classList.add('hidden');
+    biddingControls.classList.add('hidden');
+    
+    // Disable all buttons
+    document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+    
+    // Mark auction as completed
+    localStorage.setItem('auctionCompleted', 'true');
+    
+    // Redirect after delay
+    setTimeout(() => {
+        console.log('🔗 Redirecting to playing11.html');
+        window.location.href = 'playing11.html';
+    }, 3000);
+});
             
             socket.on('redirectToPlaying11', (data) => {
                 console.log('🚀 Redirecting to playing 11:', data);
@@ -1448,6 +1515,103 @@ socket.on('forceRedirectToPlaying11WithData', (data) => {
     
     // Show immediate redirect
     showAlert('Auction Complete', 'Redirecting to Playing 11 selection...', '🏏');
+    
+    // Redirect immediately
+    setTimeout(() => {
+        window.location.href = 'playing11.html';
+    }, 1500);
+});
+// ✅ ADD THESE HANDLERS in auctionpool.html (in setupSocketEvents or similar)
+socket.on('auctionEndedForUsers', (data) => {
+    console.log('🏁 Auction ended for users:', data);
+    
+    // Mark auction as completed
+    localStorage.setItem('auctionCompleted', 'true');
+    
+    // Store squad data for playing11
+    if (data.squadData) {
+        localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+        console.log('💾 Stored squad data for playing11:', data.squadData);
+    }
+    
+    // Show redirect message
+    const waitingAuction = document.getElementById('waitingAuction');
+    if (waitingAuction) {
+        waitingAuction.classList.remove('hidden');
+        waitingAuction.innerHTML = `
+            <div class="text-6xl mb-4">🎉</div>
+            <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+            <p class="text-gray-300 mb-4">${data.message || 'All players have been auctioned!'}</p>
+            <p class="text-yellow-400 mb-4">Preparing your squad data...</p>
+            <p class="text-gray-500">Redirecting to Playing 11 selection...</p>
+            <div class="mt-6 flex items-center justify-center space-x-2">
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+            </div>
+        `;
+    }
+    
+    // Hide current player if showing
+    currentPlayerCard.classList.add('hidden');
+    biddingControls.classList.add('hidden');
+    
+    // Redirect after delay (give time for data to be stored)
+    setTimeout(() => {
+        console.log('🔗 Redirecting user to playing11.html');
+        
+        // Also store user session
+        localStorage.setItem('userSession', JSON.stringify({
+            username: currentUsername,
+            roomCode: currentRoomCode,
+            team: userTeam,
+            sessionId: userSession?.sessionId || Date.now().toString()
+        }));
+        
+        // Redirect to playing11
+        window.location.href = 'playing11.html';
+    }, 2000);
+});
+
+
+
+// ✅ ADD THIS ALTERNATIVE HANDLER (backup)
+socket.on('forceRedirectToPlaying11', (data) => {
+    console.log('🚀 Force redirect received:', data);
+    
+    // Store current squad data
+    const currentData = {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        team: userTeam,
+        budget: teamBudget,
+        squadLimits: squadLimits,
+        retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
+        auctionPlayers: JSON.parse(localStorage.getItem('auctionBuys') || '[]')
+    };
+    
+    localStorage.setItem('auctionToPlaying11Data', JSON.stringify(currentData));
+    localStorage.setItem('auctionCompleted', 'true');
+    
+    // Show immediate redirect message
+    const waitingAuction = document.getElementById('waitingAuction');
+    if (waitingAuction) {
+        waitingAuction.classList.remove('hidden');
+        waitingAuction.innerHTML = `
+            <div class="text-6xl mb-4">🚀</div>
+            <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+            <p class="text-gray-300 mb-4">${data.message || 'Redirecting to playing 11 selection...'}</p>
+            <div class="mt-6 flex items-center justify-center space-x-2">
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+            </div>
+        `;
+    }
+    
+    // Hide current player
+    currentPlayerCard.classList.add('hidden');
+    biddingControls.classList.add('hidden');
     
     // Redirect immediately
     setTimeout(() => {

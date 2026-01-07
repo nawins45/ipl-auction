@@ -756,24 +756,27 @@
         return;
     }
     
-    if (confirm('Are you sure you want to END the auction? This will complete the auction pool and redirect all users.')) {
+    if (confirm('Are you sure you want to END the auction? This will:\n1. Complete the auction pool\n2. Send squad data to all users\n3. Redirect users to Playing 11 selection\n4. Redirect you to validation page')) {
         console.log('🏁 Ending auction for room:', currentRoomCode);
         
-        // ✅ FIXED: Send complete auction end data
+        if (!socket.connected) {
+            showAlert('Connection Error', 'Not connected to server', '❌');
+            return;
+        }
+
         socket.emit('endAuction', {
             roomCode: currentRoomCode,
             sessionId: currentSessionId,
             forceEnd: true,
             timestamp: Date.now()
         }, (response) => {
-            console.log('📤 End auction response:', response);
             if (response && response.success) {
                 console.log('✅ End auction request acknowledged');
                 endAuctionBtn.disabled = true;
                 endAuctionBtn.innerHTML = 'ENDING...';
                 
                 // Show redirecting message
-                showAlert('Auction Ended', 'Redirecting to validation page...', '📋');
+                showAlert('Auction Ended', 'Completing auction pool and redirecting users...', '📋');
                 
                 // Clear localStorage
                 localStorage.removeItem('auctioneerCurrentPlayer');
@@ -1065,6 +1068,52 @@ socket.on('auctionEndConfirmed', (data) => {
         console.log('🔗 Redirecting auctioneer to validation.html');
         window.location.href = 'validation.html';
     }, 2000);
+});
+// ✅ ADD THESE HANDLERS in auctioneer-auction.html
+socket.on('auctionEnded', (data) => {
+    console.log('✅ Auction ended successfully:', data);
+    
+    // Disable all buttons
+    sellPlayerBtn.disabled = true;
+    markUnsoldBtn.disabled = true;
+    nextPlayerBtn.disabled = true;
+    endAuctionBtn.disabled = true;
+    
+    // Show redirecting message
+    waitingPlayer.classList.remove('hidden');
+    playerInfo.classList.add('hidden');
+    waitingPlayer.innerHTML = `
+        <div class="text-6xl mb-4">🏁</div>
+        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Ended!</h3>
+        <p class="text-gray-300 mb-4">All users are being redirected to Playing 11 selection.</p>
+        <p class="text-yellow-400">Taking you to validation page...</p>
+        <div class="mt-6 flex items-center justify-center space-x-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+        </div>
+    `;
+    
+    // Store auction completion status
+    localStorage.setItem('auctionCompleted', 'true');
+    
+    // Redirect auctioneer to validation page after delay
+    setTimeout(() => {
+        console.log('🔗 Redirecting auctioneer to validation.html');
+        window.location.href = 'validation.html?roomCode=' + currentRoomCode;
+    }, 3000);
+});
+
+// ✅ ADD THIS HANDLER for redirecting users
+socket.on('redirectUsersToPlaying11', (data) => {
+    console.log('📤 Redirect users event received (auctioneer ignoring):', data);
+    // This is for users, auctioneer will be redirected separately
+});
+
+// ✅ ADD THIS HANDLER for individual user redirects
+socket.on('userRedirected', (data) => {
+    console.log(`👤 User ${data.username} redirected to playing11.html`);
+    // Optional: Show notification that a user was redirected
 });
         }
         

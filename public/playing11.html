@@ -1205,29 +1205,65 @@
 
         // ========== SUBMISSION FUNCTIONS ==========
         submitPlaying11Btn.addEventListener('click', () => {
-            if (!validateSelection()) {
-                showAlert('Validation Error', 'Please fix all validation errors before submitting.', '❌');
-                return;
-            }
-            
-            // Prepare submission data
-            const playing11Final = playing11.filter(player => player !== null);
-            const impactPlayersFinal = impactPlayers.filter(player => player !== null);
-            
-            // Show confirmation
-            const confirmationMessage = `
-                Confirm submission of your Playing 11?
-                
-                Playing 11: ${playing11Final.length} players
-                Impact Players: ${impactPlayersFinal.length} player(s)
-                
-                This action cannot be undone.
-            `;
-            
-            if (confirm(confirmationMessage.replace(/\n\s*/g, '\n'))) {
-                submitPlaying11(playing11Final, impactPlayersFinal);
-            }
-        });
+    if (!validateSelection()) {
+        showAlert('Validation Error', 'Please fix all validation errors before submitting.', '❌');
+        return;
+    }
+    
+    // Prepare submission data
+    const playing11Final = playing11.filter(player => player !== null);
+    const impactPlayersFinal = impactPlayers.filter(player => player !== null);
+    
+    // Check if we have a captain
+    if (!window.selectedCaptain) {
+        showAlert('Captain Required', 'Please select a captain from your Playing 11.', '❌');
+        return;
+    }
+    
+    // Show confirmation
+    const confirmationMessage = `
+        Confirm submission of your Playing 11?
+        
+        Playing 11: ${playing11Final.length} players
+        Impact Players: ${impactPlayersFinal.length} player(s)
+        Captain: ${window.selectedCaptain.name}
+        
+        This action cannot be undone.
+    `;
+    
+    if (confirm(confirmationMessage.replace(/\n\s*/g, '\n'))) {
+        submitPlaying11WithCaptain(playing11Final, impactPlayersFinal, window.selectedCaptain);
+    }
+});
+
+function submitPlaying11WithCaptain(playing11Data, impactPlayersData, captain) {
+    // Include captain in submission
+    const submissionData = {
+        roomCode: currentRoomCode,
+        username: currentUsername,
+        playing11: playing11Data,
+        impactPlayers: impactPlayersData,
+        captain: captain,
+        sessionId: userSessionId
+    };
+    
+    console.log('📤 Submitting Playing 11 with captain:', {
+        playing11: playing11Data.length,
+        impact: impactPlayersData.length,
+        captain: captain.name
+    });
+    
+    // Use the new socket event
+    socket.emit('submitPlaying11WithCaptain', submissionData);
+    
+    submitPlaying11Btn.disabled = true;
+    submitPlaying11Btn.innerHTML = `
+        <div class="flex items-center justify-center space-x-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            <span>Submitting...</span>
+        </div>
+    `;
+}
         
         function submitPlaying11(playing11Data, impactPlayersData) {
             // Include captain in submission
@@ -1359,10 +1395,42 @@
             });
             
             socket.on('playing11SubmittedSuccess', (data) => {
-                console.log('✅ Playing 11 submitted successfully:', data);
-                showSuccessModal();
-                submitPlaying11Btn.innerHTML = '✅ Submitted!';
-            });
+    console.log('✅ Playing 11 submitted successfully:', data);
+    
+    // Store submission status
+    localStorage.setItem('playing11Submitted', 'true');
+    localStorage.setItem('submissionTime', new Date().toISOString());
+    
+    // Update UI
+    submitPlaying11Btn.innerHTML = '✅ Submitted Successfully!';
+    submitPlaying11Btn.disabled = true;
+    
+    // Show success modal
+    showSuccessModal();
+    
+    // Update status badge
+    validationStatus.classList.remove('hidden');
+    statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-900/30';
+    statusBadge.innerHTML = `
+        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+        <span class="text-sm font-medium text-green-400">Submitted ✓</span>
+    `;
+    
+    // Disable drag and drop
+    document.querySelectorAll('.player-drag-item').forEach(item => {
+        item.setAttribute('draggable', 'false');
+        item.classList.add('opacity-50');
+    });
+});
+
+socket.on('playing11Error', (data) => {
+    console.error('❌ Playing 11 submission error:', data);
+    showAlert('Submission Error', data.message, '❌');
+    
+    // Re-enable submit button
+    submitPlaying11Btn.disabled = false;
+    submitPlaying11Btn.innerHTML = '✅ Submit Playing 11';
+});
             
             socket.on('teamRated', (data) => {
                 console.log('Team rated by auctioneer:', data);
