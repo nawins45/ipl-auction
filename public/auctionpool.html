@@ -788,55 +788,53 @@ document.addEventListener('click', function(e) {
         );
             
             socket.on('connect', () => {
-                console.log('✅ Connected to auction pool');
-                updateSyncStatus('syncing', 'Connecting...');
-                // Try to recover session if needed
+    console.log('✅ Connected to auction pool');
+    updateSyncStatus('syncing', 'Connecting...');
+    
+    // Check if we have session data
     const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
     
     if (userSession.username && userSession.roomCode) {
-        console.log('🔄 Attempting session recovery...');
+        console.log(`🔄 Found existing session for ${userSession.username} in room ${userSession.roomCode}`);
         
-        socket.emit('recoverSession', {
+        // Try to reconnect using the new reconnection system
+        socket.emit('reconnectToAuction', {
             username: userSession.username,
-            roomCode: userSession.roomCode,
-            partialSessionId: userSession.sessionId ? userSession.sessionId.substring(0, 8) : ''
+            roomCode: userSession.roomCode
         }, (response) => {
             if (response && response.success) {
-                console.log('✅ Session recovered:', response.sessionData);
+                console.log('✅ Auto-reconnected successfully');
                 
-                // Update localStorage with recovered session
-                localStorage.setItem('userSession', JSON.stringify(response.sessionData));
-                localStorage.setItem('currentSession', JSON.stringify(response.sessionData));
+                // Update variables
+                currentUsername = response.userData.username;
+                currentRoomCode = userSession.roomCode;
+                userTeam = response.userData.team;
+                teamBudget = response.userData.budget;
+                userSession = response.userData;
                 
-                // Proceed with normal join
-                socket.emit('joinAuctionPool', {
-                    roomCode: userSession.roomCode,
-                    username: userSession.username,
-                    sessionId: response.sessionData.sessionId
-                });
+                // Update UI
+                displayTeamInfo();
+                purseRemaining.textContent = response.userData.budget.toFixed(2);
+                updateSquadLimits();
+                
+                // Update sync status
+                updateSyncStatus('synced', 'Live Auction (Reconnected)');
+                
+                // Request state sync
+                setTimeout(() => {
+                    requestStateSync();
+                }, 500);
+                
             } else {
-                console.log('❌ Session recovery failed, showing session modal');
+                console.log('❌ Auto-reconnection failed, showing session modal');
                 showSessionCheckModal();
             }
         });
     } else {
-        // No session to recover
+        console.log('❌ No session found, showing session modal');
         showSessionCheckModal();
     }
-                
-                // Join auction pool with session
-                socket.emit('joinAuctionPool', {
-                    roomCode: currentRoomCode,
-                    username: currentUsername,
-                    sessionId: userSession.sessionId
-                });
-                
-                // Request initial state sync after join
-                setTimeout(() => {
-                    requestStateSync();
-                }, 500);
-            });
+});
             
             socket.on('connect_error', (error) => {
                 console.error('❌ Connection error:', error);
@@ -1926,49 +1924,96 @@ if (roundedBid <= currentBidValue) {
         // ✅ ADD THESE NEW SESSION RECOVERY FUNCTIONS
 function attemptSessionRecovery() {
     const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-    const currentSession = JSON.parse(localStorage.getItem('currentSession') || '{}');
     
     if (!userSession.username || !userSession.roomCode) {
         showAlert('No Session Data', 'No previous session found. Please login again.', '❌');
         return;
     }
     
-    console.log('🔄 Attempting manual session recovery...');
+    console.log('🔄 Attempting session recovery for:', userSession.username, 'in room:', userSession.roomCode);
     
-    if (socket && socket.connected) {
-        socket.emit('recoverSession', {
-            username: userSession.username,
-            roomCode: userSession.roomCode,
-            partialSessionId: userSession.sessionId ? userSession.sessionId.substring(0, 8) : ''
-        }, (response) => {
-            if (response && response.success) {
-                showAlert('Success!', 'Session recovered successfully!', '✅');
+    if (!socket || !socket.connected) {
+        console.log('⚠️ Socket not connected, reconnecting...');
+        if (socket) socket.connect();
+        setTimeout(() => attemptSessionRecovery(), 1000);
+        return;
+    }
+    
+    socket.emit('reconnectToAuction', {
+        username: userSession.username,
+        roomCode: userSession.roomCode
+    }, (response) => {
+        console.log('📨 Reconnection response:', response);
+        
+        if (response && response.success) {
+            console.log('✅ Session recovered! User data:', response.userData);
+            
+            // Update localStorage with recovered data
+            localStorage.setItem('userSession', JSON.stringify({
+                username: response.userData.username,
+                roomCode: userSession.roomCode,
+                team: response.userData.team,
+                sessionId: response.userData.sessionId,
+                retainedPlayers: response.userData.retainedPlayers,
+                auctionPlayers: response.userData.auctionPlayers
+            }));
+            
+            // Update global variables
+            currentUsername = response.userData.username;
+            currentRoomCode = userSession.roomCode;
+            userTeam = response.userData.team;
+            teamBudget = response.userData.budget;
+            
+            // Update squad data if available
+            if (response.userData.retainedPlayers) {
+                localStorage.setItem('retainedPlayers', JSON.stringify(response.userData.retainedPlayers));
+            }
+            if (response.userData.auctionPlayers) {
+                localStorage.setItem('auctionBuys', JSON.stringify(response.userData.auctionPlayers));
+            }
+            
+            // Hide session modal
+            sessionCheckModal.classList.add('hidden');
+            
+            // Update UI
+            displayTeamInfo();
+            purseRemaining.textContent = response.userData.budget.toFixed(2);
+            
+            // Update squad limits
+            updateSquadLimits();
+            
+            showAlert('Reconnected!', 'Successfully rejoined the auction with all your data preserved.', '✅');
+            
+            // If auction is active, request immediate sync
+            if (response.auctionActive) {
+                console.log('🎯 Auction is active, requesting state sync...');
                 
-                // Update localStorage
-                localStorage.setItem('userSession', JSON.stringify(response.sessionData));
-                localStorage.setItem('currentSession', JSON.stringify(response.sessionData));
-                
-                // Hide modal and continue
-                sessionCheckModal.classList.add('hidden');
-                
-                // Re-initialize with recovered session
-                currentUsername = response.sessionData.username;
-                currentRoomCode = response.sessionData.roomCode;
-                userSession = response.sessionData;
-                
-                // Join auction pool
-                socket.emit('joinAuctionPool', {
+                // Request immediate state sync
+                socket.emit('requestAuctionState', {
                     roomCode: currentRoomCode,
                     username: currentUsername,
-                    sessionId: response.sessionData.sessionId
+                    timestamp: Date.now(),
+                    forceSync: true
+                }, (syncResponse) => {
+                    if (syncResponse && syncResponse.success) {
+                        console.log('✅ State synced after reconnection');
+                    }
                 });
-            } else {
-                showAlert('Recovery Failed', response?.message || 'Could not recover session. Please login again.', '❌');
             }
-        });
-    } else {
-        showAlert('Not Connected', 'Cannot connect to server. Please refresh.', '❌');
-    }
+            
+        } else {
+            showAlert('Recovery Failed', response?.message || 'Could not recover session. You may need to rejoin from the beginning.', '❌');
+            
+            // Clear invalid session
+            localStorage.removeItem('userSession');
+            localStorage.removeItem('currentSession');
+            
+            // Redirect to login after delay
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 3000);
+        }
+    });
 }
 
 // Also update the modal show function to display last session info
