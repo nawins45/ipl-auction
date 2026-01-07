@@ -548,7 +548,7 @@
 
     <script>
         // ========== GLOBAL VARIABLES ==========
-        const socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
+        let socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
 );
 
 
@@ -2421,6 +2421,7 @@ setTimeout(() => {
 }, 10000); // 10 seconds
 
 console.log('✅ Auction pool page loaded with debug redirect system');
+
     </script>
 </body>
 </html>
