@@ -2725,96 +2725,131 @@ if (room.currentAuctionPlayer) {
     // End auction
     // In the endAuction handler, update the redirect part:
 // Server-side pseudocode for endAuction
-socket.on('endAuction', async (data) => {
+// Handle end auction from auctioneer - FIXED VERSION
+socket.on('endAuction', (data, callback) => {
     try {
-        const { roomCode, sessionId } = data;
+        console.log('\n' + '='.repeat(50));
+        console.log('🏁 END AUCTION REQUEST FROM AUCTIONEER');
+        console.log('='.repeat(50));
         
-        console.log(`🏁 Ending auction for room: ${roomCode}`);
+        const { roomCode, sessionId, forceEnd } = data;
+        const room = rooms[roomCode];
         
-        // Validate auctioneer session
-        const isValid = await validateAuctioneerSession(roomCode, sessionId);
-        if (!isValid) {
-            socket.emit('error', { message: 'Invalid auctioneer session' });
+        if (!room) {
+            console.log('❌ Room not found:', roomCode);
+            if (callback) callback({ success: false, message: 'Room not found' });
             return;
         }
         
-        // Mark auction as completed in database
-        await db.auctions.updateOne(
-            { roomCode: roomCode },
-            { $set: { status: 'completed', endedAt: new Date() } }
+        const session = sessions[sessionId];
+        if (!session || session.role !== 'auctioneer' || 
+            session.username !== room.auctioneer || 
+            session.roomCode !== roomCode) {
+            console.log('❌ Invalid auctioneer session');
+            if (callback) callback({ success: false, message: 'Invalid session' });
+            return;
+        }
+        
+        console.log(`🎯 Ending auction for room ${roomCode}`);
+        console.log(`   Auctioneer: ${room.auctioneer}`);
+        console.log(`   Users in room: ${Object.keys(room.users).length}`);
+        
+        // Get all users (excluding auctioneer)
+        const usersToRedirect = Object.values(room.users).filter(
+            user => user.username !== room.auctioneer && user.team
         );
         
-        // Get all users in the room
-        const roomUsers = await db.users.find({ roomCode: roomCode, role: 'user' }).toArray();
+        console.log(`📤 Preparing to redirect ${usersToRedirect.length} users...`);
         
-        // Prepare squad data for each user
-        const redirectPromises = roomUsers.map(async (user) => {
-            // Get user's squad data
-            const squadData = await db.squads.findOne({ 
-                roomCode: roomCode, 
-                username: user.username 
-            });
-            
-            if (squadData) {
-                // Prepare the data to send
-                const userSquadData = {
-                    roomCode: roomCode,
-                    username: user.username,
-                    team: squadData.team,
-                    sessionId: user.sessionId,
-                    retainedPlayers: squadData.retainedPlayers || [],
-                    auctionPlayers: squadData.auctionBuys || [],
-                    budget: squadData.currentBudget || 100,
-                    totalSpent: calculateTotalSpent(squadData.auctionBuys),
-                    totalBudget: 100,
-                    remainingBudget: squadData.currentBudget || 100,
-                    timestamp: Date.now()
-                };
+        // Send squad data and redirect command to each user
+        usersToRedirect.forEach(user => {
+            if (user.socketId) {
+                console.log(`   ↳ User ${user.username} (${user.team?.name}) - Socket: ${user.socketId}`);
                 
-                // Send to user's socket
-                io.to(user.socketId).emit('auctionEndedForUsers', {
-                    message: 'Auction completed! Select your playing 11.',
-                    squadData: userSquadData,
-                    redirectUrl: 'playing11.html'
-                });
+                // Get user's squad data
+                const squadData = getUserSquad(roomCode, user.username);
                 
-                // Also store in database for backup
-                await db.playing11Data.insertOne({
-                    roomCode: roomCode,
-                    username: user.username,
-                    squadData: userSquadData,
-                    timestamp: new Date()
-                });
-                
-                console.log(`📤 Sent squad data to ${user.username}`);
-                
-                return user.username;
+                if (squadData) {
+                    console.log(`     Squad: ${squadData.retainedPlayers?.length || 0} retained + ${squadData.auctionPlayers?.length || 0} auction = ${(squadData.retainedPlayers?.length || 0) + (squadData.auctionPlayers?.length || 0)} total`);
+                    
+                    // Store squad data for playing11.html
+                    const playing11Data = {
+                        roomCode: roomCode,
+                        username: user.username,
+                        team: squadData.team,
+                        retainedPlayers: squadData.retainedPlayers || [],
+                        auctionPlayers: squadData.auctionPlayers || [],
+                        budget: squadData.budget || 100,
+                        totalSpent: squadData.totalSpent || 0,
+                        totalBudget: squadData.totalBudget || 100,
+                        remainingBudget: squadData.remainingBudget || 100,
+                        squadLimit: squadData.squadLimit || 25,
+                        remainingSlots: squadData.remainingSlots || 0,
+                        rtmCards: user.rtmCards || 2,
+                        sessionId: user.sessionId,
+                        timestamp: Date.now()
+                    };
+                    
+                    // Send immediate force redirect with squad data
+                    io.to(user.socketId).emit('forceRedirectToPlaying11WithData', {
+                        message: 'Auction pool completed! Select your playing 11.',
+                        roomCode: roomCode,
+                        username: user.username,
+                        team: user.team,
+                        squadData: playing11Data,
+                        redirectUrl: 'playing11.html',
+                        force: true,
+                        timestamp: Date.now()
+                    });
+                    
+                    console.log(`     ✅ Redirect command sent to ${user.username}`);
+                } else {
+                    console.log(`     ❌ No squad data for ${user.username}`);
+                }
+            } else {
+                console.log(`     ❌ User ${user.username} has no socket connection`);
             }
-            return null;
         });
         
-        // Wait for all users to get their data
-        const redirectedUsers = await Promise.all(redirectPromises);
-        const successfulRedirects = redirectedUsers.filter(u => u !== null);
+        // Send success to auctioneer
+        if (callback) {
+            callback({ 
+                success: true, 
+                message: `Auction ended! ${usersToRedirect.length} users are being redirected to playing 11.`,
+                usersRedirected: usersToRedirect.length,
+                roomCode: roomCode
+            });
+        }
         
-        // Send confirmation to auctioneer
-        socket.emit('auctionEnded', {
-            success: true,
-            message: `Auction ended successfully. ${successfulRedirects.length} users redirected.`,
+        // Send auctioneer to validation page after delay
+        setTimeout(() => {
+            console.log(`🎯 Redirecting auctioneer to validation.html`);
+            
+            if (room.auctioneerSocket) {
+                io.to(room.auctioneerSocket).emit('forceRedirectAuctioneerToValidation', {
+                    message: 'Auction completed! All users redirected to playing 11.',
+                    roomCode: roomCode,
+                    redirectUrl: 'validation.html',
+                    timestamp: Date.now()
+                });
+            }
+        }, 2000);
+        
+        // Also broadcast to all that auction is complete
+        io.to(roomCode).emit('auctionCompleteBroadcast', {
+            message: 'Auction pool has been completed by auctioneer!',
             roomCode: roomCode,
-            usersRedirected: successfulRedirects
+            timestamp: new Date().toISOString()
         });
         
-        // Also emit to all users in room (broadcast)
-        io.to(roomCode).emit('auctionComplete', {
-            message: 'Auction pool completed! Redirecting to playing 11 selection...'
-        });
-        
-        console.log(`✅ Auction ended for room ${roomCode}, ${successfulRedirects.length} users notified`);
+        console.log('✅ Auction end process completed');
         
     } catch (error) {
-        console.error('❌ End auction error:', error);
-        socket.emit('error', { message: 'Failed to end auction: ' + error.message });
+        console.error('❌ Error ending auction:', error);
+        if (callback) callback({ 
+            success: false, 
+            message: 'Failed to end auction: ' + error.message 
+        });
     }
 });
     // Request squad
