@@ -921,15 +921,13 @@ function handleAuctionComplete(roomCode) {
                 timestamp: Date.now()
             };
             
-            // Send squad data to user WITH redirect command
-            io.to(user.socketId).emit('forceRedirectToPlaying11WithData', {
-                message: 'Auction completed! Redirecting to Playing 11 selection...',
-                roomCode: roomCode,
-                username: user.username,
-                squadData: playing11Data,
-                redirectUrl: 'playing11.html',
-                force: true
-            });
+            // Also send a simple redirect as backup
+io.to(user.socketId).emit('simpleRedirectToPlaying11', {
+    message: 'Auction completed. Redirecting to Playing 11 selection...',
+    roomCode: roomCode,
+    username: user.username,
+    force: true
+});
             
             console.log(`   ✅ Sent squad data and redirect to ${user.username}`);
             
