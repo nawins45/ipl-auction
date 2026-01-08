@@ -11,6 +11,18 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         
+        /* Base styles */
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Player card animations */
         .player-card {
             transition: all 0.3s ease;
             border: 2px solid transparent;
@@ -26,6 +38,7 @@
             background: rgba(245, 158, 11, 0.1);
         }
         
+        /* Stats grid */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -52,6 +65,7 @@
             font-size: 14px;
         }
         
+        /* Badges */
         .overseas-badge {
             position: absolute;
             top: 10px;
@@ -82,6 +96,7 @@
         .role-ar { background: rgba(168, 85, 247, 0.2); color: #A855F7; }
         .role-wk { background: rgba(245, 158, 11, 0.2); color: #F59E0B; }
         
+        /* Bid log animations */
         .bid-log-item.new {
             animation: highlight 1s ease-out;
         }
@@ -101,6 +116,7 @@
             gap: 4px;
         }
         
+        /* Animations */
         .pulse-animation {
             animation: pulse 2s infinite;
         }
@@ -128,6 +144,7 @@
             50% { transform: scale(1.1); }
         }
         
+        /* Sync status */
         .sync-status {
             transition: all 0.3s ease;
         }
@@ -144,7 +161,7 @@
             color: #EF4444;
         }
         
-        /* Team background with opacity */
+        /* Team background */
         .team-background {
             position: fixed;
             top: 0;
@@ -152,14 +169,14 @@
             width: 100%;
             height: 100%;
             z-index: -10;
-            opacity: 45;
+            opacity: 0.05;
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
             pointer-events: none;
         }
 
-        /* Unsold Popup Animation */
+        /* Unsold Popup */
         @keyframes unsoldSlideIn {
             from { 
                 transform: translate(-50%, -40px); 
@@ -175,7 +192,7 @@
             animation: unsoldSlideIn 0.4s ease-out;
         }
         
-        /* Back Button Protection */
+        /* Back Button Warning */
         #backButtonWarning {
             position: fixed;
             top: 0;
@@ -227,128 +244,200 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Add this to your CSS section */
-.highest-bidder-pill {
-    display: inline-block;
-    padding: 8px 16px;
-    border-radius: 50px; /* Pill shape */
-    font-weight: 700;
-    font-size: 16px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    position: relative;
-    box-shadow: 0 0 20px currentColor; /* Glow effect */
-    animation: pulseGlow 1.5s infinite alternate;
-    transition: all 0.3s ease;
-    border: 2px solid currentColor;
-}
+        /* Highest Bidder Pill */
+        .highest-bidder-pill {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 20px currentColor;
+            animation: pulseGlow 1.5s infinite alternate;
+            transition: all 0.3s ease;
+            border: 2px solid currentColor;
+            min-width: 120px;
+            text-align: center;
+        }
 
-/* Enhanced glow animation */
-@keyframes pulseGlow {
-    0% {
-        box-shadow: 0 0 10px currentColor;
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 20px currentColor, 0 0 30px rgba(255, 255, 255, 0.2);
-        transform: scale(1.05);
-    }
-    100% {
-        box-shadow: 0 0 25px currentColor, 0 0 40px rgba(255, 255, 255, 0.3);
-        transform: scale(1.03);
-    }
-}
+        @keyframes pulseGlow {
+            0% {
+                box-shadow: 0 0 10px currentColor;
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 20px currentColor, 0 0 30px rgba(255, 255, 255, 0.2);
+                transform: scale(1.05);
+            }
+            100% {
+                box-shadow: 0 0 25px currentColor, 0 0 40px rgba(255, 255, 255, 0.3);
+                transform: scale(1.03);
+            }
+        }
 
-/* Team-specific glow colors */
-.highest-bidder-pill.csk {
-    background: linear-gradient(45deg, #FFCC00, #FFD700);
-    color: #000;
-}
-.highest-bidder-pill.mi {
-    background: linear-gradient(45deg, #0048A0, #0066CC);
-    color: white;
-}
-.highest-bidder-pill.rcb {
-    background: linear-gradient(45deg, #D5152C, #FF0000);
-    color: white;
-}
-.highest-bidder-pill.kkr {
-    background: linear-gradient(45deg, #3A225D, #5A2D8C);
-    color: white;
-}
-.highest-bidder-pill.dc {
-    background: linear-gradient(45deg, #004C93, #0066CC);
-    color: white;
-}
-.highest-bidder-pill.pbks {
-    background: linear-gradient(45deg, #ED1B24, #FF4444);
-    color: white;
-}
-.highest-bidder-pill.rr {
-    background: linear-gradient(45deg, #FF4C93, #FF80AB);
-    color: white;
-}
-.highest-bidder-pill.srh {
-    background: linear-gradient(45deg, #FF6F3D, #FF8C66);
-    color: white;
-}
-.highest-bidder-pill.gt {
-    background: linear-gradient(45deg, #1E2D4A, #2A3D66);
-    color: white;
-}
-.highest-bidder-pill.lsg {
-    background: linear-gradient(45deg, #A5E1F4, #00BFFF);
-    color: #000;
-}
+        /* Team-specific colors */
+        .highest-bidder-pill.csk {
+            background: linear-gradient(45deg, #FFCC00, #FFD700);
+            color: #000;
+        }
+        .highest-bidder-pill.mi {
+            background: linear-gradient(45deg, #0048A0, #0066CC);
+            color: white;
+        }
+        .highest-bidder-pill.rcb {
+            background: linear-gradient(45deg, #D5152C, #FF0000);
+            color: white;
+        }
+        .highest-bidder-pill.kkr {
+            background: linear-gradient(45deg, #3A225D, #5A2D8C);
+            color: white;
+        }
+        .highest-bidder-pill.dc {
+            background: linear-gradient(45deg, #004C93, #0066CC);
+            color: white;
+        }
+        .highest-bidder-pill.pbks {
+            background: linear-gradient(45deg, #ED1B24, #FF4444);
+            color: white;
+        }
+        .highest-bidder-pill.rr {
+            background: linear-gradient(45deg, #FF4C93, #FF80AB);
+            color: white;
+        }
+        .highest-bidder-pill.srh {
+            background: linear-gradient(45deg, #FF6F3D, #FF8C66);
+            color: white;
+        }
+        .highest-bidder-pill.gt {
+            background: linear-gradient(45deg, #1E2D4A, #2A3D66);
+            color: white;
+        }
+        .highest-bidder-pill.lsg {
+            background: linear-gradient(45deg, #A5E1F4, #00BFFF);
+            color: #000;
+        }
 
-/* Default style when no bidder */
-.no-bidder-pill {
-    background: linear-gradient(45deg, #4B5563, #6B7280);
-    color: #D1D5DB;
-    padding: 8px 16px;
-    border-radius: 50px;
-    font-weight: 600;
-    font-size: 14px;
-    border: 2px solid #9CA3AF;
-}
+        .no-bidder-pill {
+            background: linear-gradient(45deg, #4B5563, #6B7280);
+            color: #D1D5DB;
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 14px;
+            border: 2px solid #9CA3AF;
+        }
 
-/* Hover effect */
-.highest-bidder-pill:hover {
-    transform: scale(1.08);
-    box-shadow: 0 0 30px currentColor, 0 0 50px rgba(255, 255, 255, 0.4);
-}
-/* Add sparkle effect for highest bidder */
-.highest-bidder-pill::before {
-    content: '✨';
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    font-size: 12px;
-    animation: sparkle 1.5s infinite;
-}
-
-@keyframes sparkle {
-    0%, 100% { opacity: 0; transform: scale(0.5); }
-    50% { opacity: 1; transform: scale(1); }
-}
-
-/* Trophy icon for current highest bidder */
-.highest-bidder-pill::after {
-    content: '👑';
-    position: absolute;
-    top: -10px;
-    left: -8px;
-    font-size: 14px;
-    animation: bounce 0.5s infinite alternate;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .highest-bidder-pill {
-        padding: 6px 12px;
-        font-size: 14px;
-    }
-}
+        /* Button styles */
+        .btn-primary {
+            background: linear-gradient(45deg, #3B82F6, #1D4ED8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Bid button styles */
+        .bid-btn {
+            min-width: 100px;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .bid-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Card styles */
+        .info-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Header improvements */
+        .header-container {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.9));
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        
+        /* Responsive improvements */
+        @media (max-width: 768px) {
+            .highest-bidder-pill {
+                padding: 6px 12px;
+                font-size: 12px;
+                min-width: 100px;
+            }
+            
+            .bid-btn {
+                min-width: 80px;
+                padding: 10px 15px;
+                font-size: 12px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #3B82F6, #8B5CF6);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, #2563EB, #7C3AED);
+        }
+        
+        /* Loading animation */
+        .mobile-loader {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3B82F6;
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
@@ -357,7 +446,7 @@
         <div class="flex items-center justify-center space-x-3">
             <span class="text-xl">⚠️</span>
             <span class="font-bold">Warning: Do not use the back button during auction!</span>
-            <button onclick="closeBackWarning()" class="ml-4 px-3 py-1 bg-white/20 rounded-lg hover:bg-white/30">
+            <button onclick="closeBackWarning()" class="ml-4 px-3 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
                 Dismiss
             </button>
         </div>
@@ -369,121 +458,133 @@
         <h2 class="text-2xl font-bold mb-2 text-blue-400">Reconnecting...</h2>
         <p class="text-gray-300 mb-4">Please wait while we reconnect you to the auction</p>
         <p id="reconnectionTimer" class="text-gray-400 text-sm">Attempting in 5 seconds...</p>
-        <button onclick="forceReconnect()" class="mt-4 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
+        <button onclick="forceReconnect()" class="mt-4 px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all duration-300">
             Reconnect Now
         </button>
     </div>
 
-    <div class="container mx-auto px-4 py-6">
-        <!-- Header -->
-        <header class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-            <div class="text-center md:text-left">
-                <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                    Live Auction Pool
-                </h1>
-                <div id="teamHeader" class="flex items-center justify-center md:justify-start space-x-3">
-                    <!-- Team info will be loaded -->
-                </div>
-                <div class="flex items-center space-x-2 mt-2">
-                    <div id="syncStatus" class="text-xs sync-status synced flex items-center space-x-1">
-                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                        <span>State Synced</span>
+    <!-- Header Section -->
+    <div class="header-container">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                <!-- Team Info -->
+                <div class="text-center md:text-left">
+                    <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                        Live Auction Pool
+                    </h1>
+                    <div id="teamHeader" class="flex items-center justify-center md:justify-start space-x-4">
+                        <!-- Team info will be loaded -->
                     </div>
-                    <button id="manualSyncBtn" class="text-xs text-gray-400 hover:text-yellow-400 px-2 py-1 bg-gray-800/50 rounded-lg transition-colors">
-                        🔄 Sync Now
-                    </button>
-                </div>
-            </div>
-            
-            <div class="flex flex-col md:flex-row items-center gap-4">
-                <!-- Auction Status -->
-                <div class="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-4 text-center min-w-[140px]">
-                    <div class="text-sm text-gray-300 mb-1">AUCTION STATUS</div>
-                    <div id="auctionStatus" class="text-2xl font-bold text-yellow-400 pulse-animation">LIVE</div>
-                    <div class="text-xs text-gray-400">Auctioneer Controlled</div>
+                    <div class="flex items-center space-x-2 mt-3">
+                        <div id="syncStatus" class="text-xs sync-status synced flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                            <span>State Synced</span>
+                        </div>
+                        <button id="manualSyncBtn" class="text-xs btn-secondary px-3 py-1">
+                            🔄 Sync Now
+                        </button>
+                    </div>
                 </div>
                 
-                <!-- Purse -->
-                <div class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl p-4 text-center min-w-[140px]">
-                    <div class="text-sm text-gray-300 mb-1">TEAM PURSE</div>
-                    <div class="text-2xl font-bold text-green-400">₹<span id="purseRemaining">100</span> Cr</div>
-                    <div class="text-xs text-gray-400">Remaining</div>
+                <!-- Status Cards -->
+                <div class="flex flex-col md:flex-row items-center gap-4">
+                    <!-- Auction Status -->
+                    <div class="info-card text-center min-w-[160px]">
+                        <div class="text-sm text-gray-300 mb-2">AUCTION STATUS</div>
+                        <div id="auctionStatus" class="text-2xl font-bold text-yellow-400 pulse-animation">LIVE</div>
+                        <div class="text-xs text-gray-400 mt-1">Auctioneer Controlled</div>
+                    </div>
+                    
+                    <!-- Purse -->
+                    <div class="info-card text-center min-w-[160px]">
+                        <div class="text-sm text-gray-300 mb-2">TEAM PURSE</div>
+                        <div class="text-2xl font-bold text-green-400">₹<span id="purseRemaining">100</span> Cr</div>
+                        <div class="text-xs text-gray-400 mt-1">Remaining</div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <button id="viewSquadBtn" class="btn-primary flex items-center gap-2">
+                            👥 View Squad
+                        </button>
+                        <button id="debugRedirectBtn" 
+                                onclick="redirectToPlaying11Fallback()" 
+                                class="btn-secondary flex items-center gap-2 hidden"
+                                title="Manual redirect to Playing 11">
+                            🔧 Debug Redirect
+                        </button>
+                    </div>
                 </div>
-                
-                <!-- Squad Button -->
-                <button id="viewSquadBtn" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-semibold hover:scale-105 transition-transform">
-                    👥 View Squad
-                </button>
-                <!-- ADD THIS DEBUG BUTTON -->
-    <button id="debugRedirectBtn" 
-            onclick="redirectToPlaying11Fallback()" 
-            class="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 rounded-lg font-semibold text-sm hidden"
-            title="Manual redirect to Playing 11">
-        🔧 Debug Redirect
-    </button>
             </div>
-            <!-- Add this button for debugging -->
-<button onclick="redirectToPlaying11Fallback()" 
-        class="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 rounded-lg font-semibold text-sm hidden"
-        id="debugRedirectBtn">
-    🔧 Debug Redirect
-</button>
-        </header>
+        </div>
+    </div>
 
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 pb-8">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Left: Current Player & Bidding -->
-            <div class="lg:col-span-2">
+            <!-- Left: Current Player & Bidding (2/3 width) -->
+            <div class="lg:col-span-2 space-y-6">
                 <!-- Current Player Card -->
                 <div id="currentPlayerCard" class="glass-panel rounded-2xl p-6 slide-in hidden">
-                    <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+                    <div class="flex flex-col lg:flex-row items-center lg:items-start gap-6">
                         <!-- Player Image -->
-                        <div class="w-48 h-48 rounded-xl bg-gray-800/50 flex items-center justify-center overflow-hidden relative">
-                            <div id="playerImage" class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
-                                <span class="text-5xl">🏏</span>
-                            </div>
-                            <div id="playerOverseasBadge" class="overseas-badge hidden">
-                                ✈️ Overseas
+                        <div class="relative">
+                            <div class="w-48 h-48 rounded-xl bg-gray-800/50 flex items-center justify-center overflow-hidden">
+                                <div id="playerImage" class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+                                    <span class="text-5xl">🏏</span>
+                                </div>
+                                <div id="playerOverseasBadge" class="overseas-badge hidden">
+                                    ✈️ Overseas
+                                </div>
                             </div>
                         </div>
                         
                         <!-- Player Details -->
                         <div class="flex-1">
-                            <div class="flex justify-between items-start mb-4">
+                            <!-- Player Header -->
+                            <div class="flex flex-col lg:flex-row justify-between items-start gap-4 mb-6">
                                 <div>
-                                    <h2 id="playerName" class="text-3xl font-bold mb-1">Player Name</h2>
-                                    <div class="flex items-center space-x-3 mb-3">
+                                    <h2 id="playerName" class="text-3xl font-bold mb-2">Player Name</h2>
+                                    <div class="flex flex-wrap items-center gap-2 mb-3">
                                         <span id="playerRole" class="role-badge role-bat">BAT</span>
-                                        <span id="playerType" class="px-3 py-1 bg-purple-900/30 text-purple-300 rounded-lg">Type</span>
-                                        <span id="playerNationality" class="px-3 py-1 bg-yellow-900/30 text-yellow-300 rounded-lg">Nationality</span>
+                                        <span id="playerType" class="px-3 py-1 bg-purple-900/30 text-purple-300 rounded-lg text-sm">Type</span>
+                                        <span id="playerNationality" class="px-3 py-1 bg-yellow-900/30 text-yellow-300 rounded-lg text-sm">Nationality</span>
                                     </div>
-                                    <div class="text-sm text-gray-400 mb-2">
-                                        Original Team: <span id="originalTeamName" class="text-yellow-300">-</span>
+                                    <div class="text-sm text-gray-400">
+                                        Original Team: <span id="originalTeamName" class="text-yellow-300 font-medium">-</span>
                                     </div>
                                 </div>
-                                <div class="text-right">
-                                    <div class="text-2xl font-bold text-yellow-400 mb-1">Current Bid</div>
-                                    <div id="currentBid" class="text-4xl font-black">₹0 Cr</div>
-                                    <div class="mb-1 text-sm text-gray-400">Highest Bidder:</div>
-                                     <div id="highestBidderContainer" class="inline-block">
-                                    <div id="highestBidder" class="text-lg text-gray-300 mt-2">No bids yet</div>
+                                
+                                <!-- Bid Info -->
+                                <div class="text-center lg:text-right">
+                                    <div class="text-lg font-bold text-yellow-400 mb-1">Current Bid</div>
+                                    <div id="currentBid" class="text-4xl font-black mb-3">₹0 Cr</div>
+                                    <div class="mb-2 text-sm text-gray-400">Highest Bidder:</div>
+                                    <div id="highestBidderContainer" class="flex justify-center lg:justify-end">
+                                        <div id="highestBidder" class="highest-bidder-pill no-bidder-pill">
+                                            No bids yet
+                                        </div>
+                                    </div>
                                 </div>
-
                             </div>
                             
                             <!-- Base Price -->
                             <div class="mb-6">
-                                <div class="text-sm text-gray-400">Base Price: <span id="basePrice" class="text-yellow-300 font-bold">₹2 Cr</span></div>
+                                <div class="text-sm text-gray-400">
+                                    Base Price: <span id="basePrice" class="text-yellow-300 font-bold ml-1">₹2 Cr</span>
+                                </div>
                             </div>
                             
                             <!-- Show Stats Button -->
                             <button id="showStatsBtn" 
-                                    class="w-full py-3 bg-gradient-to-r from-blue-900/30 to-cyan-900/30 hover:from-blue-900/50 hover:to-cyan-900/50 rounded-xl font-semibold mb-4 transition-all duration-300">
+                                    class="w-full py-3 bg-gradient-to-r from-blue-900/30 to-cyan-900/30 hover:from-blue-900/50 hover:to-cyan-900/50 rounded-xl font-semibold mb-6 transition-all duration-300 flex items-center justify-center gap-2">
                                 📊 Show Full Player Stats
                             </button>
                             
-                            <!-- Stats Grid (Hidden by default) -->
+                            <!-- Stats Grid -->
                             <div id="playerStats" class="hidden slide-in">
                                 <div class="stats-grid">
+                                    <!-- Batting Stats -->
                                     <div class="stat-item">
                                         <div class="stat-label">Total Runs</div>
                                         <div id="statRuns" class="stat-value">0</div>
@@ -495,18 +596,6 @@
                                     <div class="stat-item">
                                         <div class="stat-label">Strike Rate</div>
                                         <div id="statStrikeRate" class="stat-value">0</div>
-                                    </div>
-                                    <div class="stat-item">
-                                        <div class="stat-label">Wickets</div>
-                                        <div id="statWickets" class="stat-value">0</div>
-                                    </div>
-                                    <div class="stat-item">
-                                        <div class="stat-label">Economy Rate</div>
-                                        <div id="statEconomy" class="stat-value">0</div>
-                                    </div>
-                                    <div class="stat-item">
-                                        <div class="stat-label">Best Bowling</div>
-                                        <div id="statBestBowling" class="stat-value">0/0</div>
                                     </div>
                                     <div class="stat-item">
                                         <div class="stat-label">4's</div>
@@ -524,33 +613,56 @@
                                         <div class="stat-label">100's</div>
                                         <div id="statHundreds" class="stat-value">0</div>
                                     </div>
+                                    
+                                    <!-- Bowling Stats -->
+                                    <div class="stat-item">
+                                        <div class="stat-label">Wickets</div>
+                                        <div id="statWickets" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">Economy Rate</div>
+                                        <div id="statEconomy" class="stat-value">0</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">Best Bowling</div>
+                                        <div id="statBestBowling" class="stat-value">0/0</div>
+                                    </div>
                                 </div>
                             </div>
                             
                             <!-- Bidding Controls -->
                             <div id="biddingControls" class="space-y-4 mt-6 hidden">
-                                <div class="text-sm text-gray-400">
-                                    Minimum bid increment: <span id="minIncrement" class="text-yellow-400">₹0.10 Cr</span>
+                                <div class="text-sm text-gray-400 text-center">
+                                    Minimum bid increment: <span id="minIncrement" class="text-yellow-400 font-medium">₹0.10 Cr</span>
                                 </div>
                                 
-                                <div class="flex flex-wrap gap-3">
-                                    <button class="bid-btn px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-semibold transition-all duration-300" 
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <button class="bid-btn bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700" 
                                             data-increment="0.1">
                                         +₹0.1 Cr
                                     </button>
-                                    <button class="bid-btn px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl font-semibold transition-all duration-300" 
+                                    <button class="bid-btn bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700" 
                                             data-increment="0.25">
                                         +₹0.25 Cr
                                     </button>
-                                    <button class="bid-btn px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-xl font-semibold transition-all duration-300" 
+                                    <button class="bid-btn bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700" 
                                             data-increment="0.5">
                                         +₹0.5 Cr
                                     </button>
-                                    <button class="bid-btn px-4 py-3 bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 rounded-xl font-semibold transition-all duration-300" 
+                                    <button class="bid-btn bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700" 
                                             data-increment="1">
                                         +₹1 Cr
                                     </button>
-                                </div>                           
+                                </div>
+                                
+                                <!-- Debug button -->
+                                <div class="text-center pt-4 border-t border-gray-700/50">
+                                    <button onclick="debugAuctionBuys()" 
+                                            class="px-3 py-2 bg-gradient-to-r from-gray-600 to-gray-800 rounded-lg font-semibold text-sm hover:from-gray-700 hover:to-gray-900 transition-all"
+                                            title="Debug Auction Buys">
+                                        🔍 Debug Buys
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -558,10 +670,10 @@
                 
                 <!-- Waiting for Auction -->
                 <div id="waitingAuction" class="glass-panel rounded-2xl p-12 text-center">
-                    <div class="text-6xl mb-4">⏳</div>
-                    <h3 class="text-2xl font-bold text-gray-300 mb-2">Waiting for Auction to Start</h3>
-                    <p class="text-gray-500">The auctioneer will begin the auction pool shortly...</p>
-                    <div class="mt-6 flex items-center justify-center space-x-2">
+                    <div class="text-6xl mb-6">⏳</div>
+                    <h3 class="text-2xl font-bold text-gray-300 mb-3">Waiting for Auction to Start</h3>
+                    <p class="text-gray-500 max-w-md mx-auto">The auctioneer will begin the auction pool shortly. Get ready to bid on your favorite players!</p>
+                    <div class="mt-8 flex items-center justify-center space-x-2">
                         <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                         <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
                         <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
@@ -569,68 +681,85 @@
                 </div>
             </div>
 
-            <!-- Right: Bid Log & Info -->
+            <!-- Right: Bid Log & Info (1/3 width) -->
             <div class="space-y-6">
-                <!-- Auction Info -->
+                <!-- Auction Info Card -->
                 <div class="glass-panel rounded-2xl p-6 slide-in">
-                    <h3 class="text-xl font-bold text-yellow-400 mb-4">Auction Status</h3>
-                    <div class="space-y-3">
-                        <div class="flex justify-between">
+                    <h3 class="text-xl font-bold text-yellow-400 mb-6 flex items-center gap-2">
+                        <span>📊</span>
+                        <span>Auction Status</span>
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
                             <span class="text-gray-400">Category:</span>
-                            <span id="auctionCategory" class="font-semibold">-</span>
+                            <span id="auctionCategory" class="font-semibold text-white">-</span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
                             <span class="text-gray-400">Players Left:</span>
-                            <span id="playersLeft" class="font-semibold">-</span>
+                            <span id="playersLeft" class="font-semibold text-white">-</span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
                             <span class="text-gray-400">Unsold Players:</span>
-                            <span id="unsoldCount" class="font-semibold">0</span>
+                            <span id="unsoldCount" class="font-semibold text-red-400">0</span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between items-center py-2">
                             <span class="text-gray-400">Current Player:</span>
-                            <span id="currentPlayerCount" class="font-semibold">0/0</span>
+                            <span id="currentPlayerCount" class="font-semibold text-blue-400">0/0</span>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Live Bid Log -->
+                <!-- Live Bid Log Card -->
                 <div class="glass-panel rounded-2xl p-6 slide-in">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold text-yellow-400">Live Bid Log</h3>
-                        <button id="clearLogBtn" class="text-xs text-gray-400 hover:text-gray-300 px-3 py-1 bg-gray-800/50 rounded-lg">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-yellow-400 flex items-center gap-2">
+                            <span>📝</span>
+                            <span>Live Bid Log</span>
+                        </h3>
+                        <button id="clearLogBtn" class="btn-secondary text-sm px-3 py-1">
                             Clear
                         </button>
                     </div>
-                    <div id="bidLog" class="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    <div id="bidLog" class="space-y-3 max-h-80 overflow-y-auto pr-2">
                         <!-- Bid messages will appear here -->
-                        <div class="text-center text-gray-500 py-4">No bids yet</div>
+                        <div class="text-center text-gray-500 py-8">
+                            <div class="text-3xl mb-2">💬</div>
+                            <p>No bids yet</p>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Squad Status -->
+                <!-- Squad Status Card -->
                 <div class="glass-panel rounded-2xl p-6 slide-in">
-                    <h3 class="text-xl font-bold text-yellow-400 mb-4">Squad Status</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 p-3 rounded-lg text-center">
-                            <div class="text-lg font-bold text-green-400" id="squadSize">0</div>
-                            <div class="text-sm text-gray-400">Squad Size</div>
-                            <div class="text-xs text-gray-500">Max: <span id="maxSquad">25</span></div>
+                    <h3 class="text-xl font-bold text-yellow-400 mb-6 flex items-center gap-2">
+                        <span>👥</span>
+                        <span>Squad Status</span>
+                    </h3>
+                    <div class="space-y-4">
+                        <!-- Squad Size -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 p-4 rounded-xl text-center">
+                                <div class="text-2xl font-bold text-green-400 mb-1" id="squadSize">0</div>
+                                <div class="text-sm text-gray-400">Squad Size</div>
+                                <div class="text-xs text-gray-500 mt-1">Max: <span id="maxSquad" class="text-gray-400">25</span></div>
+                            </div>
+                            <div class="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 p-4 rounded-xl text-center">
+                                <div class="text-2xl font-bold text-blue-400 mb-1" id="remainingSlots">25</div>
+                                <div class="text-sm text-gray-400">Remaining Slots</div>
+                                <div class="text-xs text-gray-500 mt-1">Can buy: <span id="canBuy" class="text-gray-400">25</span></div>
+                            </div>
                         </div>
-                        <div class="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 p-3 rounded-lg text-center">
-                            <div class="text-lg font-bold text-blue-400" id="remainingSlots">25</div>
-                            <div class="text-sm text-gray-400">Remaining Slots</div>
-                            <div class="text-xs text-gray-500">Can buy: <span id="canBuy">25</span> more</div>
-                        </div>
-                    </div>
-                    <div class="mt-4 grid grid-cols-2 gap-4">
-                        <div class="bg-gradient-to-r from-green-900/20 to-emerald-900/20 p-2 rounded-lg text-center">
-                            <div class="text-sm font-bold text-green-400" id="indianCount">0</div>
-                            <div class="text-xs text-gray-400">Indian</div>
-                        </div>
-                        <div class="bg-gradient-to-r from-purple-900/20 to-pink-900/20 p-2 rounded-lg text-center">
-                            <div class="text-sm font-bold text-purple-400" id="overseasCount">0</div>
-                            <div class="text-xs text-gray-400">Overseas</div>
+                        
+                        <!-- Player Count -->
+                        <div class="grid grid-cols-2 gap-4 mt-4">
+                            <div class="bg-gradient-to-r from-green-900/20 to-emerald-900/20 p-3 rounded-lg text-center">
+                                <div class="text-lg font-bold text-green-400 mb-1" id="indianCount">0</div>
+                                <div class="text-xs text-gray-400">Indian Players</div>
+                            </div>
+                            <div class="bg-gradient-to-r from-purple-900/20 to-pink-900/20 p-3 rounded-lg text-center">
+                                <div class="text-lg font-bold text-purple-400 mb-1" id="overseasCount">0</div>
+                                <div class="text-xs text-gray-400">Overseas Players</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -641,10 +770,10 @@
     <!-- Session Check Modal -->
     <div id="sessionCheckModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
         <div class="absolute inset-0 bg-black/80"></div>
-        <div class="glass-panel rounded-2xl p-6 max-w-md w-11/12 z-10">
+        <div class="glass-panel rounded-2xl p-8 max-w-md w-11/12 z-10">
             <div class="text-center">
                 <div class="text-4xl mb-4">🔐</div>
-                <h3 class="text-2xl font-bold mb-2">Session Required</h3>
+                <h3 class="text-2xl font-bold mb-4">Session Required</h3>
                 <p class="text-gray-300 mb-6">You need a valid session to join the auction pool.</p>
                 <div class="space-y-3">
                     <button onclick="reconnectWithSession()" 
@@ -661,22 +790,16 @@
     </div>
 
     <!-- Alert Toast -->
-    <div id="alertToast" class="fixed top-4 right-4 glass-panel rounded-xl p-4 max-w-md z-50 hidden slide-in">
+    <div id="alertToast" class="fixed top-6 right-6 glass-panel rounded-xl p-4 max-w-md z-50 hidden slide-in">
         <div class="flex items-start space-x-3">
             <div class="text-2xl" id="alertIcon">⚠️</div>
-            <div>
-                <h4 class="font-bold text-lg" id="alertTitle">Alert</h4>
-                <p class="text-gray-300" id="alertMessage">This is an alert message</p>
+            <div class="flex-1">
+                <h4 class="font-bold text-lg mb-1" id="alertTitle">Alert</h4>
+                <p class="text-gray-300 text-sm" id="alertMessage">This is an alert message</p>
             </div>
-            <button onclick="closeAlert()" class="text-gray-400 hover:text-white">✕</button>
+            <button onclick="closeAlert()" class="text-gray-400 hover:text-white text-lg">✕</button>
         </div>
     </div>
-    <!-- Add this with your other buttons -->
-<button onclick="debugAuctionBuys()" 
-        class="px-3 py-2 bg-gradient-to-r from-gray-600 to-gray-800 rounded-lg font-semibold text-sm"
-        title="Debug Auction Buys">
-    🔍 Debug Buys
-</button>
 
     <script>
         // ========== GLOBAL VARIABLES ==========
@@ -743,6 +866,7 @@
         const reconnectionOverlay = document.getElementById('reconnectionOverlay');
         const reconnectionTimer = document.getElementById('reconnectionTimer');
         const backButtonWarning = document.getElementById('backButtonWarning');
+        const debugRedirectBtn = document.getElementById('debugRedirectBtn');
 
         // ========== PAGE VISIBILITY & BACK BUTTON PROTECTION ==========
         function setupPageProtection() {
@@ -1155,6 +1279,18 @@
                     }
                 }
             }, 30000);
+            
+            // Show debug button after 10 seconds if still on auction page
+            setTimeout(() => {
+                if (debugRedirectBtn && window.location.href.includes('auctionpool.html')) {
+                    debugRedirectBtn.classList.remove('hidden');
+                    console.log('⚠️ Debug redirect button enabled');
+                    
+                    showAlert('Manual Redirect', 
+                        'If you are stuck here, click the "Debug Redirect" button to manually go to Playing 11 selection.', 
+                        '🔧');
+                }
+            }, 10000);
         });
 
         // ========== SESSION FUNCTIONS ==========
@@ -1306,13 +1442,7 @@
                     setTimeout(() => currentBid.classList.remove('bounce'), 500);
                     
                     if (data.team) {
-                        highestBidder.textContent = data.team.toUpperCase();
-                        const teamColors = {
-                            'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
-                            'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
-                            'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
-                        };
-                        highestBidder.style.color = teamColors[data.team] || '#FFFFFF';
+                        updateHighestBidderDisplay(data.team);
                     }
                     
                     updateBidIncrement(data.bid);
@@ -1323,184 +1453,133 @@
                 
                 // Save state
                 saveCurrentState();
-                if (data.currentBidder) {
-    const teamName = data.currentBidder.toUpperCase();
-    highestBidder.textContent = teamName;
-    
-    // Apply pill styling
-    highestBidder.className = 'highest-bidder-pill';
-    
-    // Add team-specific class
-    if (data.currentBidder in teamColors) {
-        highestBidder.classList.add(data.currentBidder);
-    } else {
-        // Default styling
-        highestBidder.style.background = 'linear-gradient(45deg, #6366F1, #8B5CF6)';
-        highestBidder.style.color = 'white';
-        highestBidder.style.boxShadow = '0 0 20px #8B5CF6';
-    }
-} else {
-    highestBidder.textContent = 'No bids yet';
-    highestBidder.className = 'highest-bidder-pill no-bidder-pill';
-}
             });
             
             socket.on('playerSold', (data) => {
-    console.log('✅ Player sold:', data);
-    showSoldBroadcast(data.player, data.team, data.price);
-    
-    // Add to bid log
-    const soldItem = document.createElement('div');
-    soldItem.className = 'p-3 rounded-lg bg-green-900/30 border-l-4 border-green-500 slide-in';
-    soldItem.innerHTML = `
-        <div class="flex justify-between items-center">
-            <div>
-                <span class="font-bold">${data.player}</span>
-                <span class="text-gray-400 ml-2">→ ${data.team.toUpperCase()}</span>
-            </div>
-            <span class="font-bold text-green-400">₹${data.price} Cr</span>
-        </div>
-        <div class="text-xs text-gray-400 mt-1">SOLD at ${new Date().toLocaleTimeString()}</div>
-    `;
-    bidLog.prepend(soldItem);
-    
-    // ✅ FIXED: Store bought players in localStorage with CORRECT overseas status
-    // Update squad if it's our team
-    if (data.team === userTeam?.id) {
-        console.log('🎯 Player bought by our team! Storing in localStorage...');
-        
-        // ✅ FIX: Determine overseas status correctly
-        let isOverseasPlayer = false;
-        
-        // Method 1: Use isOverseas from server data if available
-        if (data.isOverseas !== undefined) {
-            isOverseasPlayer = data.isOverseas;
-            console.log('✅ Using server-provided overseas status:', isOverseasPlayer);
-        }
-        // Method 2: Determine from nationality if available
-        else if (data.nationality) {
-            isOverseasPlayer = data.nationality.toString().toLowerCase() !== 'indian';
-            console.log('✅ Determined overseas from nationality:', data.nationality, '->', isOverseasPlayer);
-        }
-        // Method 3: Check if we have current player data
-        else if (currentPlayer && currentPlayer.nationality) {
-            isOverseasPlayer = currentPlayer.nationality.toString().toLowerCase() !== 'indian';
-            console.log('✅ Determined overseas from current player:', currentPlayer.nationality, '->', isOverseasPlayer);
-        }
-        // Method 4: Check player name for known overseas players (fallback)
-        else {
-            const overseasKeywords = ['de', 'st', 'van', 'mc', 'o\'', 'afghan', 'australian', 'english', 'south african', 'west indian', 'sri lankan', 'bangladeshi', 'new zealander'];
-            const playerNameLower = data.player.toLowerCase();
-            isOverseasPlayer = overseasKeywords.some(keyword => playerNameLower.includes(keyword));
-            console.log('⚠️ Fallback: Determined overseas from name pattern:', playerNameLower, '->', isOverseasPlayer);
-        }
-        
-        // Create player object with proper data
-        const boughtPlayer = {
-            id: data.playerId || data.player?.replace(/\s+/g, '_').toLowerCase(),
-            name: data.player,
-            role: data.playerRole || data.role || currentPlayer?.role || 'Player',
-            price: data.price,
-            isOverseas: isOverseasPlayer,  // ✅ CORRECT overseas status
-            nationality: data.nationality || currentPlayer?.nationality || 'Indian',
-            boughtAt: Date.now(),
-            originalTeam: data.originalTeam || currentPlayer?.originalTeam || 'Unknown'
-        };
-        
-        console.log('🛒 Player bought with CORRECT overseas status:', {
-            name: boughtPlayer.name,
-            isOverseas: boughtPlayer.isOverseas,
-            nationality: boughtPlayer.nationality,
-            price: boughtPlayer.price
-        });
-        
-        // Get current auction buys from localStorage
-        let auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
-        
-        // Check if player already exists (prevent duplicates)
-        const playerExists = auctionBuys.some(p => p.id === boughtPlayer.id);
-        
-        if (!playerExists) {
-            // Add the new player
-            auctionBuys.push(boughtPlayer);
-            
-            // Save back to localStorage
-            localStorage.setItem('auctionBuys', JSON.stringify(auctionBuys));
-            
-            console.log('💾 Saved auction buy to localStorage:', {
-                player: boughtPlayer.name,
-                price: boughtPlayer.price,
-                isOverseas: boughtPlayer.isOverseas,
-                totalBuys: auctionBuys.length
+                console.log('✅ Player sold:', data);
+                showSoldBroadcast(data.player, data.team, data.price);
+                
+                // Add to bid log
+                const soldItem = document.createElement('div');
+                soldItem.className = 'p-3 rounded-lg bg-green-900/30 border-l-4 border-green-500 slide-in';
+                soldItem.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="font-bold">${data.player}</span>
+                            <span class="text-gray-400 ml-2">→ ${data.team.toUpperCase()}</span>
+                        </div>
+                        <span class="font-bold text-green-400">₹${data.price} Cr</span>
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1">SOLD at ${new Date().toLocaleTimeString()}</div>
+                `;
+                bidLog.prepend(soldItem);
+                
+                // Store bought players in localStorage
+                if (data.team === userTeam?.id) {
+                    console.log('🎯 Player bought by our team! Storing in localStorage...');
+                    
+                    let isOverseasPlayer = false;
+                    
+                    if (data.isOverseas !== undefined) {
+                        isOverseasPlayer = data.isOverseas;
+                    } else if (data.nationality) {
+                        isOverseasPlayer = data.nationality.toString().toLowerCase() !== 'indian';
+                    } else if (currentPlayer && currentPlayer.nationality) {
+                        isOverseasPlayer = currentPlayer.nationality.toString().toLowerCase() !== 'indian';
+                    } else {
+                        const overseasKeywords = ['de', 'st', 'van', 'mc', 'o\'', 'afghan', 'australian', 'english', 'south african', 'west indian', 'sri lankan', 'bangladeshi', 'new zealander'];
+                        const playerNameLower = data.player.toLowerCase();
+                        isOverseasPlayer = overseasKeywords.some(keyword => playerNameLower.includes(keyword));
+                    }
+                    
+                    const boughtPlayer = {
+                        id: data.playerId || data.player?.replace(/\s+/g, '_').toLowerCase(),
+                        name: data.player,
+                        role: data.playerRole || data.role || currentPlayer?.role || 'Player',
+                        price: data.price,
+                        isOverseas: isOverseasPlayer,
+                        nationality: data.nationality || currentPlayer?.nationality || 'Indian',
+                        boughtAt: Date.now(),
+                        originalTeam: data.originalTeam || currentPlayer?.originalTeam || 'Unknown'
+                    };
+                    
+                    console.log('🛒 Player bought with overseas status:', {
+                        name: boughtPlayer.name,
+                        isOverseas: boughtPlayer.isOverseas,
+                        nationality: boughtPlayer.nationality,
+                        price: boughtPlayer.price
+                    });
+                    
+                    let auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
+                    const playerExists = auctionBuys.some(p => p.id === boughtPlayer.id);
+                    
+                    if (!playerExists) {
+                        auctionBuys.push(boughtPlayer);
+                        localStorage.setItem('auctionBuys', JSON.stringify(auctionBuys));
+                        
+                        console.log('💾 Saved auction buy to localStorage:', {
+                            player: boughtPlayer.name,
+                            price: boughtPlayer.price,
+                            isOverseas: boughtPlayer.isOverseas,
+                            totalBuys: auctionBuys.length
+                        });
+                        
+                        if (userSession) {
+                            userSession.auctionBuys = auctionBuys;
+                            localStorage.setItem('userSession', JSON.stringify(userSession));
+                        }
+                    } else {
+                        console.log('⚠️ Player already in auction buys:', boughtPlayer.name);
+                    }
+                    
+                    teamBudget -= data.price;
+                    purseRemaining.textContent = teamBudget.toFixed(2);
+                    
+                    if (isOverseasPlayer) {
+                        squadLimits.overseas++;
+                    } else {
+                        squadLimits.indian++;
+                    }
+                    squadLimits.total = squadLimits.indian + squadLimits.overseas;
+                    
+                    updateSquadLimits();
+                    
+                    console.log('📊 Squad status after purchase:', {
+                        budget: teamBudget,
+                        totalPlayers: squadLimits.total,
+                        indian: squadLimits.indian,
+                        overseas: squadLimits.overseas,
+                        auctionBuysCount: auctionBuys.length
+                    });
+                    
+                    socket.emit('requestSquadUpdate', {
+                        roomCode: currentRoomCode,
+                        username: currentUsername,
+                        sessionId: userSession.sessionId
+                    });
+                    
+                    socket.emit('playerBought', {
+                        roomCode: currentRoomCode,
+                        username: currentUsername,
+                        player: boughtPlayer,
+                        price: data.price,
+                        timestamp: Date.now()
+                    });
+                }
+                
+                setTimeout(() => {
+                    currentPlayerCard.classList.add('hidden');
+                    waitingAuction.classList.remove('hidden');
+                    biddingControls.classList.add('hidden');
+                    currentPlayer = null;
+                    
+                    saveCurrentState();
+                    
+                    setTimeout(() => {
+                        requestStateSync();
+                    }, 1000);
+                }, 3000);
             });
-            
-            // Also update session storage for immediate access
-            if (userSession) {
-                userSession.auctionBuys = auctionBuys;
-                localStorage.setItem('userSession', JSON.stringify(userSession));
-            }
-        } else {
-            console.log('⚠️ Player already in auction buys:', boughtPlayer.name);
-        }
-        
-        // Update budget display
-        teamBudget -= data.price;
-        purseRemaining.textContent = teamBudget.toFixed(2);
-        
-        // Update squad limits with CORRECT overseas count
-        if (isOverseasPlayer) {
-            squadLimits.overseas++;
-            console.log('➕ Incremented overseas count');
-        } else {
-            squadLimits.indian++;
-            console.log('➕ Incremented Indian count');
-        }
-        squadLimits.total = squadLimits.indian + squadLimits.overseas;
-        
-        updateSquadLimits();
-        
-        // Log squad status
-        console.log('📊 Squad status after purchase:', {
-            budget: teamBudget,
-            totalPlayers: squadLimits.total,
-            indian: squadLimits.indian,
-            overseas: squadLimits.overseas,
-            auctionBuysCount: auctionBuys.length
-        });
-        
-        // Request squad update from server (for server-side tracking)
-        socket.emit('requestSquadUpdate', {
-            roomCode: currentRoomCode,
-            username: currentUsername,
-            sessionId: userSession.sessionId
-        });
-        
-        // Also emit that we bought a player (for server to track)
-        socket.emit('playerBought', {
-            roomCode: currentRoomCode,
-            username: currentUsername,
-            player: boughtPlayer,
-            price: data.price,
-            timestamp: Date.now()
-        });
-    }
-    
-    // Clear current player after delay
-    setTimeout(() => {
-        currentPlayerCard.classList.add('hidden');
-        waitingAuction.classList.remove('hidden');
-        biddingControls.classList.add('hidden');
-        currentPlayer = null;
-        
-        // Save cleared state
-        saveCurrentState();
-        
-        // Request fresh state sync after player sold
-        setTimeout(() => {
-            requestStateSync();
-        }, 1000);
-    }, 3000);
-});
             
             socket.on('playerUnsoldBroadcast', (data) => {
                 console.log('❌ Player unsold popup received:', data);
@@ -1521,17 +1600,14 @@
                 `;
                 bidLog.prepend(unsoldItem);
                 
-                // Clear current player after delay
                 setTimeout(() => {
                     currentPlayerCard.classList.add('hidden');
                     waitingAuction.classList.remove('hidden');
                     biddingControls.classList.add('hidden');
                     currentPlayer = null;
                     
-                    // Save cleared state
                     saveCurrentState();
                     
-                    // Request fresh state sync after player unsold
                     setTimeout(() => {
                         requestStateSync();
                     }, 1000);
@@ -1560,180 +1636,107 @@
             });
             
             socket.on('auctionComplete', (data) => {
-    console.log('🏆 Auction complete:', data);
-    
-    // ✅ FIXED: Store COMPLETE squad data before redirecting
-    const completeSquadData = {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        team: userTeam,
-        budget: teamBudget,
-        squadLimits: squadLimits,
-        // Get retained players from localStorage
-        retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
-        // Get auction buys from localStorage or current data
-        auctionPlayers: getCurrentAuctionBuys(),
-        totalBudget: 100,
-        totalSpent: calculateTotalSpent(),
-        remainingBudget: teamBudget,
-        timestamp: Date.now()
-    };
-    
-    // Store in localStorage for playing11.html
-    localStorage.setItem('playing11SquadData', JSON.stringify(completeSquadData));
-    localStorage.setItem('auctionCompleted', 'true');
-    
-    // Show completion message
-    showAlert('Auction Complete', 'All players have been auctioned! Redirecting to Playing 11 selection...', '🏆');
-    
-    // Add to bid log
-    addBidToLog('SYSTEM', 'Auction pool completed!', 'COMPLETE');
-    
-    // Disable all buttons
-    document.querySelectorAll('button').forEach(btn => btn.disabled = true);
-    
-    // Show redirecting message
-    waitingAuction.classList.remove('hidden');
-    waitingAuction.innerHTML = `
-        <div class="text-6xl mb-4">🎉</div>
-        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
-        <p class="text-gray-300 mb-4">${data.message || 'Redirecting to Playing 11 selection...'}</p>
-        <div class="mobile-loader mx-auto my-4"></div>
-        <p class="text-gray-500">Loading your squad data...</p>
-        <div class="mt-6 flex items-center justify-center space-x-2">
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
-        </div>
-    `;
-    playerInfo.classList.add('hidden');
-    
-    // Wait 3 seconds to ensure data is saved, then redirect
-    setTimeout(() => {
-        console.log('🔗 Redirecting user to playing11.html with squad data');
-        window.location.href = 'playing11.html';
-    }, 3000);
-});
-
-// ✅ ADD THESE HELPER FUNCTIONS IN auctionpool.html
-// ✅ FIXED: Get real auction buys from localStorage or current data
-function getCurrentAuctionBuys() {
-    console.log('📂 Getting auction buys from localStorage...');
-    
-    // Try to get auction buys from localStorage
-    const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
-    
-    // Debug what we found
-    console.log('🔍 Found in localStorage:', {
-        count: auctionBuys.length,
-        firstPlayer: auctionBuys[0]?.name || 'none',
-        hasRealData: auctionBuys.length > 0 && auctionBuys[0].name !== 'Player 1'
-    });
-    
-    // Return only if we have real data
-    if (auctionBuys.length > 0 && auctionBuys[0].name !== 'Player 1') {
-        console.log('✅ Returning real auction buys from localStorage');
-        return auctionBuys;
-    }
-    
-    // If empty or dummy data, try to get from current state
-    console.log('⚠️ No valid auction buys in localStorage, checking current state...');
-    
-    // Return empty array instead of dummy data
-    return [];
-}
-
-function calculateTotalSpent() {
-    const auctionBuys = getCurrentAuctionBuys();
-    return auctionBuys.reduce((total, player) => total + (player.price || 0), 0);
-}
-            
-            socket.on('forceRedirectToPlaying11', (data) => {
-                console.log('🚀 Force redirect received:', data);
+                console.log('🏆 Auction complete:', data);
                 
-                const currentData = {
+                const completeSquadData = {
                     roomCode: currentRoomCode,
                     username: currentUsername,
                     team: userTeam,
                     budget: teamBudget,
-                    squadLimits: squadLimits
+                    squadLimits: squadLimits,
+                    retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
+                    auctionPlayers: getCurrentAuctionBuys(),
+                    totalBudget: 100,
+                    totalSpent: calculateTotalSpent(),
+                    remainingBudget: teamBudget,
+                    timestamp: Date.now()
                 };
                 
-                localStorage.setItem('auctionToPlaying11Data', JSON.stringify(currentData));
+                localStorage.setItem('playing11SquadData', JSON.stringify(completeSquadData));
+                localStorage.setItem('auctionCompleted', 'true');
                 
-                showAlert('Auction Complete', 'Redirecting to Playing 11 selection...', '🏏');
+                showAlert('Auction Complete', 'All players have been auctioned! Redirecting to Playing 11 selection...', '🏆');
+                
+                addBidToLog('SYSTEM', 'Auction pool completed!', 'COMPLETE');
+                
+                document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+                
+                waitingAuction.classList.remove('hidden');
+                waitingAuction.innerHTML = `
+                    <div class="text-6xl mb-4">🎉</div>
+                    <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+                    <p class="text-gray-300 mb-4">${data.message || 'Redirecting to Playing 11 selection...'}</p>
+                    <div class="mobile-loader mx-auto my-4"></div>
+                    <p class="text-gray-500">Loading your squad data...</p>
+                    <div class="mt-6 flex items-center justify-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                    </div>
+                `;
                 
                 setTimeout(() => {
-                    window.location.href = data.url;
-                }, 1000);
+                    console.log('🔗 Redirecting user to playing11.html');
+                    window.location.href = 'playing11.html';
+                }, 3000);
             });
-
-            // ✅ ADD THIS HANDLER for receiving squad data before redirect
-socket.on('preparePlaying11Squad', (data) => {
-    console.log('💾 Preparing squad data for playing 11:', data);
-    
-    if (data.squadData) {
-        // Store complete squad data for playing11.html
-        localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
-        
-        // Also store in user session
-        localStorage.setItem('userSession', JSON.stringify({
-            username: currentUsername,
-            roomCode: currentRoomCode,
-            team: userTeam,
-            sessionId: userSession.sessionId,
-            squadData: data.squadData
-        }));
-        
-        console.log('✅ Squad data stored for playing 11:', {
-            retained: data.squadData.retainedPlayers?.length || 0,
-            auction: data.squadData.auctionPlayers?.length || 0,
-            total: (data.squadData.retainedPlayers?.length || 0) + (data.squadData.auctionPlayers?.length || 0)
-        });
-    }
-});
-
-// ✅ ADD THIS HANDLER for redirect with squad data
-socket.on('redirectToPlaying11WithSquad', (data) => {
-    console.log('🚀 Redirecting to playing 11 with squad data:', data);
-    
-    // Show redirect message
-    showAlert('Auction Complete', 'All players auctioned! Redirecting to Playing 11 selection...', '🏆');
-    
-    // Update UI to show redirecting
-    waitingAuction.classList.remove('hidden');
-    waitingAuction.innerHTML = `
-        <div class="text-6xl mb-4">🎉</div>
-        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
-        <p class="text-gray-300 mb-4">${data.message || 'Redirecting to Playing 11 selection...'}</p>
-        <p class="text-yellow-400 mb-4">Finalizing your squad data...</p>
-        <p class="text-gray-500">You have been assigned: ${data.squadData ? 
-            `${(data.squadData.retainedPlayers?.length || 0) + (data.squadData.auctionPlayers?.length || 0)} players` : 
-            'Your squad'} 
-        </p>
-        <div class="mt-6 flex items-center justify-center space-x-2">
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
-        </div>
-    `;
-    
-    // Hide current player
-    currentPlayerCard.classList.add('hidden');
-    biddingControls.classList.add('hidden');
-    
-    // Disable all buttons
-    document.querySelectorAll('button').forEach(btn => btn.disabled = true);
-    
-    // Mark auction as completed
-    localStorage.setItem('auctionCompleted', 'true');
-    
-    // Redirect after delay
-    setTimeout(() => {
-        console.log('🔗 Redirecting to playing11.html');
-        window.location.href = 'playing11.html';
-    }, 3000);
-});
+            
+            socket.on('preparePlaying11Squad', (data) => {
+                console.log('💾 Preparing squad data for playing 11:', data);
+                
+                if (data.squadData) {
+                    localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+                    
+                    localStorage.setItem('userSession', JSON.stringify({
+                        username: currentUsername,
+                        roomCode: currentRoomCode,
+                        team: userTeam,
+                        sessionId: userSession.sessionId,
+                        squadData: data.squadData
+                    }));
+                    
+                    console.log('✅ Squad data stored for playing 11:', {
+                        retained: data.squadData.retainedPlayers?.length || 0,
+                        auction: data.squadData.auctionPlayers?.length || 0,
+                        total: (data.squadData.retainedPlayers?.length || 0) + (data.squadData.auctionPlayers?.length || 0)
+                    });
+                }
+            });
+            
+            socket.on('redirectToPlaying11WithSquad', (data) => {
+                console.log('🚀 Redirecting to playing 11 with squad data:', data);
+                
+                showAlert('Auction Complete', 'All players auctioned! Redirecting to Playing 11 selection...', '🏆');
+                
+                waitingAuction.classList.remove('hidden');
+                waitingAuction.innerHTML = `
+                    <div class="text-6xl mb-4">🎉</div>
+                    <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+                    <p class="text-gray-300 mb-4">${data.message || 'Redirecting to Playing 11 selection...'}</p>
+                    <p class="text-yellow-400 mb-4">Finalizing your squad data...</p>
+                    <p class="text-gray-500">You have been assigned: ${data.squadData ? 
+                        `${(data.squadData.retainedPlayers?.length || 0) + (data.squadData.auctionPlayers?.length || 0)} players` : 
+                        'Your squad'} 
+                    </p>
+                    <div class="mt-6 flex items-center justify-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                    </div>
+                `;
+                
+                currentPlayerCard.classList.add('hidden');
+                biddingControls.classList.add('hidden');
+                
+                document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+                
+                localStorage.setItem('auctionCompleted', 'true');
+                
+                setTimeout(() => {
+                    console.log('🔗 Redirecting to playing11.html');
+                    window.location.href = 'playing11.html';
+                }, 3000);
+            });
             
             socket.on('bidError', (data) => {
                 console.error('❌ Bid error:', data);
@@ -1745,257 +1748,218 @@ socket.on('redirectToPlaying11WithSquad', (data) => {
                 showAlert('Error', data.message, '❌');
             });
 
-            // ✅ ADD THIS FORCE REDIRECT HANDLER
-// ✅ ADD THIS FORCE REDIRECT HANDLER (AFTER YOUR OTHER SOCKET HANDLERS)
-// ✅ FIXED: Force redirect with squad data
-// ✅ ROBUST REDIRECT HANDLER
-socket.on('forceRedirectToPlaying11WithData', (data) => {
-    console.log('🚀 FORCE REDIRECT RECEIVED:', data);
-    
-    try {
-        // Store whatever data we have
-        if (data.squadData) {
-            localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
-            console.log('✅ Stored server squad data');
-            
-            // Also extract and store auction buys separately
-            if (data.squadData.auctionPlayers && data.squadData.auctionPlayers.length > 0) {
-                localStorage.setItem('auctionBuys', JSON.stringify(data.squadData.auctionPlayers));
-                console.log('✅ Stored auction buys:', data.squadData.auctionPlayers.length, 'players');
-            }
-        } else {
-            // Get REAL auction buys from current state
-            const realAuctionBuys = [];
-            
-            // Check if we have socket and can request real data
-            if (socket && socket.connected && currentUsername && currentRoomCode) {
-                // Request squad data synchronously
-                socket.emit('requestSquad', {
-                    roomCode: currentRoomCode,
-                    username: currentUsername,
-                    sessionId: userSession?.sessionId
-                }, (response) => {
-                    if (response && response.success && response.data) {
-                        const realData = {
+            socket.on('forceRedirectToPlaying11WithData', (data) => {
+                console.log('🚀 FORCE REDIRECT RECEIVED:', data);
+                
+                try {
+                    if (data.squadData) {
+                        localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+                        console.log('✅ Stored server squad data');
+                        
+                        if (data.squadData.auctionPlayers && data.squadData.auctionPlayers.length > 0) {
+                            localStorage.setItem('auctionBuys', JSON.stringify(data.squadData.auctionPlayers));
+                            console.log('✅ Stored auction buys:', data.squadData.auctionPlayers.length, 'players');
+                        }
+                    } else {
+                        if (socket && socket.connected && currentUsername && currentRoomCode) {
+                            socket.emit('requestSquad', {
+                                roomCode: currentRoomCode,
+                                username: currentUsername,
+                                sessionId: userSession?.sessionId
+                            }, (response) => {
+                                if (response && response.success && response.data) {
+                                    const realData = {
+                                        roomCode: currentRoomCode,
+                                        username: currentUsername,
+                                        team: userTeam,
+                                        budget: teamBudget,
+                                        retainedPlayers: response.data.retainedPlayers || [],
+                                        auctionPlayers: response.data.auctionPlayers || [],
+                                        timestamp: Date.now()
+                                    };
+                                    localStorage.setItem('playing11SquadData', JSON.stringify(realData));
+                                    localStorage.setItem('auctionBuys', JSON.stringify(response.data.auctionPlayers || []));
+                                    console.log('✅ Stored real squad data from server');
+                                }
+                            });
+                        }
+                        
+                        const localSquadData = {
                             roomCode: currentRoomCode,
                             username: currentUsername,
                             team: userTeam,
                             budget: teamBudget,
-                            retainedPlayers: response.data.retainedPlayers || [],
-                            auctionPlayers: response.data.auctionPlayers || [],
+                            retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
+                            auctionPlayers: [],
                             timestamp: Date.now()
                         };
-                        localStorage.setItem('playing11SquadData', JSON.stringify(realData));
-                        localStorage.setItem('auctionBuys', JSON.stringify(response.data.auctionPlayers || []));
-                        console.log('✅ Stored real squad data from server');
+                        localStorage.setItem('playing11SquadData', JSON.stringify(localSquadData));
+                        console.log('✅ Created local squad data (empty auction buys)');
                     }
-                });
-            }
+                    
+                    localStorage.setItem('auctionCompleted', 'true');
+                    
+                    const waitingAuction = document.getElementById('waitingAuction');
+                    const currentPlayerCard = document.getElementById('currentPlayerCard');
+                    const biddingControls = document.getElementById('biddingControls');
+                    
+                    if (waitingAuction) {
+                        waitingAuction.classList.remove('hidden');
+                        waitingAuction.innerHTML = `
+                            <div class="text-6xl mb-4">🎉</div>
+                            <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Complete!</h3>
+                            <p class="text-gray-300 mb-4">${data.message || 'Redirecting to Playing 11...'}</p>
+                            <div class="mt-6 flex items-center justify-center space-x-2">
+                                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                            </div>
+                        `;
+                    }
+                    
+                    if (currentPlayerCard) currentPlayerCard.classList.add('hidden');
+                    if (biddingControls) biddingControls.classList.add('hidden');
+                    
+                    document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+                    
+                    setTimeout(() => {
+                        console.log('🔗 FORCE REDIRECTING to playing11.html');
+                        window.location.href = 'playing11.html';
+                    }, 2000);
+                    
+                } catch (error) {
+                    console.error('❌ Redirect error:', error);
+                    setTimeout(() => {
+                        window.location.href = 'playing11.html';
+                    }, 1000);
+                }
+            });
             
-            // Create local squad data with empty auction buys (not dummy data)
-            const localSquadData = {
-                roomCode: currentRoomCode,
-                username: currentUsername,
-                team: userTeam,
-                budget: teamBudget,
-                retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
-                auctionPlayers: [], // Empty array, NOT dummy data
-                timestamp: Date.now()
-            };
-            localStorage.setItem('playing11SquadData', JSON.stringify(localSquadData));
-            console.log('✅ Created local squad data (empty auction buys)');
-        }
-        
-        // Always mark as completed
-        localStorage.setItem('auctionCompleted', 'true');
-        
-        // Update UI immediately
-        const waitingAuction = document.getElementById('waitingAuction');
-        const currentPlayerCard = document.getElementById('currentPlayerCard');
-        const biddingControls = document.getElementById('biddingControls');
-        
-        if (waitingAuction) {
-            waitingAuction.classList.remove('hidden');
-            waitingAuction.innerHTML = `
-                <div class="text-6xl mb-4">🎉</div>
-                <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Complete!</h3>
-                <p class="text-gray-300 mb-4">${data.message || 'Redirecting to Playing 11...'}</p>
-                <div class="mt-6 flex items-center justify-center space-x-2">
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
-                </div>
-            `;
-        }
-        
-        if (currentPlayerCard) currentPlayerCard.classList.add('hidden');
-        if (biddingControls) biddingControls.classList.add('hidden');
-        
-        // Disable buttons
-        document.querySelectorAll('button').forEach(btn => btn.disabled = true);
-        
-        // FORCE REDIRECT after 2 seconds
-        setTimeout(() => {
-            console.log('🔗 FORCE REDIRECTING to playing11.html');
-            window.location.href = 'playing11.html';
-        }, 2000);
-        
-    } catch (error) {
-        console.error('❌ Redirect error:', error);
-        // Still try to redirect
-        setTimeout(() => {
-            window.location.href = 'playing11.html';
-        }, 1000);
-    }
-});
-// ✅ ADD THESE HANDLERS in auctionpool.html (in setupSocketEvents or similar)
-socket.on('auctionEndedForUsers', (data) => {
-    console.log('🏁 Auction ended for users:', data);
-    
-    // Mark auction as completed
-    localStorage.setItem('auctionCompleted', 'true');
-    
-    // Store squad data for playing11
-    if (data.squadData) {
-        localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
-        console.log('💾 Stored squad data for playing11:', data.squadData);
-    }
-    
-    // Show redirect message
-    const waitingAuction = document.getElementById('waitingAuction');
-    if (waitingAuction) {
-        waitingAuction.classList.remove('hidden');
-        waitingAuction.innerHTML = `
-            <div class="text-6xl mb-4">🎉</div>
-            <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
-            <p class="text-gray-300 mb-4">${data.message || 'All players have been auctioned!'}</p>
-            <p class="text-yellow-400 mb-4">Preparing your squad data...</p>
-            <p class="text-gray-500">Redirecting to Playing 11 selection...</p>
-            <div class="mt-6 flex items-center justify-center space-x-2">
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
-            </div>
-        `;
-    }
-    
-    // Hide current player if showing
-    currentPlayerCard.classList.add('hidden');
-    biddingControls.classList.add('hidden');
-    
-    // Redirect after delay (give time for data to be stored)
-    setTimeout(() => {
-        console.log('🔗 Redirecting user to playing11.html');
-        
-        // Also store user session
-        localStorage.setItem('userSession', JSON.stringify({
-            username: currentUsername,
-            roomCode: currentRoomCode,
-            team: userTeam,
-            sessionId: userSession?.sessionId || Date.now().toString()
-        }));
-        
-        // Redirect to playing11
-        window.location.href = 'playing11.html';
-    }, 2000);
-});
+            socket.on('auctionEndedForUsers', (data) => {
+                console.log('🏁 Auction ended for users:', data);
+                
+                localStorage.setItem('auctionCompleted', 'true');
+                
+                if (data.squadData) {
+                    localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
+                    console.log('💾 Stored squad data for playing11:', data.squadData);
+                }
+                
+                const waitingAuction = document.getElementById('waitingAuction');
+                if (waitingAuction) {
+                    waitingAuction.classList.remove('hidden');
+                    waitingAuction.innerHTML = `
+                        <div class="text-6xl mb-4">🎉</div>
+                        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+                        <p class="text-gray-300 mb-4">${data.message || 'All players have been auctioned!'}</p>
+                        <p class="text-yellow-400 mb-4">Preparing your squad data...</p>
+                        <p class="text-gray-500">Redirecting to Playing 11 selection...</p>
+                        <div class="mt-6 flex items-center justify-center space-x-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                        </div>
+                    `;
+                }
+                
+                currentPlayerCard.classList.add('hidden');
+                biddingControls.classList.add('hidden');
+                
+                setTimeout(() => {
+                    console.log('🔗 Redirecting user to playing11.html');
+                    
+                    localStorage.setItem('userSession', JSON.stringify({
+                        username: currentUsername,
+                        roomCode: currentRoomCode,
+                        team: userTeam,
+                        sessionId: userSession?.sessionId || Date.now().toString()
+                    }));
+                    
+                    window.location.href = 'playing11.html';
+                }, 2000);
+            });
 
+            socket.on('forceRedirectToPlaying11', (data) => {
+                console.log('🚀 Force redirect received:', data);
+                
+                const currentData = {
+                    roomCode: currentRoomCode,
+                    username: currentUsername,
+                    team: userTeam,
+                    budget: teamBudget,
+                    squadLimits: squadLimits,
+                    retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
+                    auctionPlayers: JSON.parse(localStorage.getItem('auctionBuys') || '[]')
+                };
+                
+                localStorage.setItem('auctionToPlaying11Data', JSON.stringify(currentData));
+                localStorage.setItem('auctionCompleted', 'true');
+                
+                const waitingAuction = document.getElementById('waitingAuction');
+                if (waitingAuction) {
+                    waitingAuction.classList.remove('hidden');
+                    waitingAuction.innerHTML = `
+                        <div class="text-6xl mb-4">🚀</div>
+                        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
+                        <p class="text-gray-300 mb-4">${data.message || 'Redirecting to playing 11 selection...'}</p>
+                        <div class="mt-6 flex items-center justify-center space-x-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                        </div>
+                    `;
+                }
+                
+                currentPlayerCard.classList.add('hidden');
+                biddingControls.classList.add('hidden');
+                
+                setTimeout(() => {
+                    window.location.href = 'playing11.html';
+                }, 1500);
+            });
 
-
-// ✅ ADD THIS ALTERNATIVE HANDLER (backup)
-socket.on('forceRedirectToPlaying11', (data) => {
-    console.log('🚀 Force redirect received:', data);
-    
-    // Store current squad data
-    const currentData = {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        team: userTeam,
-        budget: teamBudget,
-        squadLimits: squadLimits,
-        retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
-        auctionPlayers: JSON.parse(localStorage.getItem('auctionBuys') || '[]')
-    };
-    
-    localStorage.setItem('auctionToPlaying11Data', JSON.stringify(currentData));
-    localStorage.setItem('auctionCompleted', 'true');
-    
-    // Show immediate redirect message
-    const waitingAuction = document.getElementById('waitingAuction');
-    if (waitingAuction) {
-        waitingAuction.classList.remove('hidden');
-        waitingAuction.innerHTML = `
-            <div class="text-6xl mb-4">🚀</div>
-            <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Completed!</h3>
-            <p class="text-gray-300 mb-4">${data.message || 'Redirecting to playing 11 selection...'}</p>
-            <div class="mt-6 flex items-center justify-center space-x-2">
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
-            </div>
-        `;
-    }
-    
-    // Hide current player
-    currentPlayerCard.classList.add('hidden');
-    biddingControls.classList.add('hidden');
-    
-    // Redirect immediately
-    setTimeout(() => {
-        window.location.href = 'playing11.html';
-    }, 1500);
-});
-
-// ✅ SIMPLE REDIRECT HANDLER - ALWAYS WORKS
-socket.on('simpleRedirectToPlaying11', (data) => {
-    console.log('🔗 Simple redirect received:', data);
-    
-    // Store minimal session data
-    localStorage.setItem('userSession', JSON.stringify({
-        username: currentUsername,
-        roomCode: currentRoomCode,
-        team: userTeam,
-        sessionId: userSession?.sessionId || Date.now().toString()
-    }));
-    
-    // Mark auction as completed
-    localStorage.setItem('auctionCompleted', 'true');
-    
-    // Create simple squad data from current state
-    const simpleSquadData = {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        team: userTeam,
-        budget: teamBudget,
-        squadLimits: squadLimits,
-        retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
-        auctionPlayers: getCurrentAuctionBuys(),
-        timestamp: Date.now()
-    };
-    
-    localStorage.setItem('playing11SquadData', JSON.stringify(simpleSquadData));
-    
-    console.log('💾 Stored squad data for redirect:', simpleSquadData);
-    
-    // Immediate redirect with simple message
-    waitingAuction.classList.remove('hidden');
-    waitingAuction.innerHTML = `
-        <div class="text-6xl mb-4">🚀</div>
-        <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Complete!</h3>
-        <p class="text-gray-300 mb-4">Redirecting to Playing 11 selection...</p>
-        <p class="text-sm text-gray-500">Please wait...</p>
-    `;
-    
-    // Hide everything else
-    currentPlayerCard.classList.add('hidden');
-    biddingControls.classList.add('hidden');
-    
-    // Redirect immediately
-    setTimeout(() => {
-        window.location.href = 'playing11.html';
-    }, 1000);
-});
-
+            socket.on('simpleRedirectToPlaying11', (data) => {
+                console.log('🔗 Simple redirect received:', data);
+                
+                localStorage.setItem('userSession', JSON.stringify({
+                    username: currentUsername,
+                    roomCode: currentRoomCode,
+                    team: userTeam,
+                    sessionId: userSession?.sessionId || Date.now().toString()
+                }));
+                
+                localStorage.setItem('auctionCompleted', 'true');
+                
+                const simpleSquadData = {
+                    roomCode: currentRoomCode,
+                    username: currentUsername,
+                    team: userTeam,
+                    budget: teamBudget,
+                    squadLimits: squadLimits,
+                    retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
+                    auctionPlayers: getCurrentAuctionBuys(),
+                    timestamp: Date.now()
+                };
+                
+                localStorage.setItem('playing11SquadData', JSON.stringify(simpleSquadData));
+                
+                console.log('💾 Stored squad data for redirect:', simpleSquadData);
+                
+                waitingAuction.classList.remove('hidden');
+                waitingAuction.innerHTML = `
+                    <div class="text-6xl mb-4">🚀</div>
+                    <h3 class="text-2xl font-bold text-green-400 mb-2">Auction Complete!</h3>
+                    <p class="text-gray-300 mb-4">Redirecting to Playing 11 selection...</p>
+                    <p class="text-sm text-gray-500">Please wait...</p>
+                `;
+                
+                currentPlayerCard.classList.add('hidden');
+                biddingControls.classList.add('hidden');
+                
+                setTimeout(() => {
+                    window.location.href = 'playing11.html';
+                }, 1000);
+            });
         }
 
         // ========== PAGE FUNCTIONS ==========
@@ -2106,28 +2070,11 @@ socket.on('simpleRedirectToPlaying11', (data) => {
             originalTeamName.textContent = currentPlayer.originalTeam || '-';
             
             if (currentPlayer.currentBidder) {
-    const bidderTeam = currentPlayer.currentBidder;
-    const teamName = bidderTeam.toUpperCase();
-    
-    // Update text and apply pill styling
-    highestBidder.textContent = teamName;
-    
-    // Remove any existing team classes
-    highestBidder.className = 'highest-bidder-pill';
-    
-    // Add specific team class if exists, else default
-    if (bidderTeam in teamColors) {
-        highestBidder.classList.add(bidderTeam);
-    } else {
-        // Default styling for unknown team
-        highestBidder.style.background = 'linear-gradient(45deg, #6366F1, #8B5CF6)';
-        highestBidder.style.color = 'white';
-        highestBidder.style.boxShadow = '0 0 20px #8B5CF6';
-    }
-} else {
-    highestBidder.textContent = 'No bids yet';
-    highestBidder.className = 'highest-bidder-pill no-bidder-pill';
-}
+                updateHighestBidderDisplay(currentPlayer.currentBidder);
+            } else {
+                highestBidder.textContent = 'No bids yet';
+                highestBidder.className = 'highest-bidder-pill no-bidder-pill';
+            }
             
             const isOverseas = currentPlayer.nationality?.toString().toLowerCase() !== 'indian';
             if (isOverseas) {
@@ -2146,6 +2093,21 @@ socket.on('simpleRedirectToPlaying11', (data) => {
             document.getElementById('statSixes').textContent = currentPlayer.sixes || '0';
             document.getElementById('statFifties').textContent = currentPlayer.fifties || '0';
             document.getElementById('statHundreds').textContent = currentPlayer.hundreds || '0';
+        }
+        
+        function updateHighestBidderDisplay(teamId) {
+            const teamName = teamId.toUpperCase();
+            highestBidder.textContent = teamName;
+            
+            highestBidder.className = 'highest-bidder-pill';
+            
+            if (teamId in teamColors) {
+                highestBidder.classList.add(teamId);
+            } else {
+                highestBidder.style.background = 'linear-gradient(45deg, #6366F1, #8B5CF6)';
+                highestBidder.style.color = 'white';
+                highestBidder.style.boxShadow = '0 0 20px #8B5CF6';
+            }
         }
         
         function toggleStats() {
@@ -2258,28 +2220,11 @@ socket.on('simpleRedirectToPlaying11', (data) => {
                 if (response && response.success) {
                     console.log('✅ Bid successfully placed');
                     
-                    // Optimistic update
                     currentBid.textContent = `₹${bidAmount} Cr`;
                     currentBid.classList.add('bounce');
                     setTimeout(() => currentBid.classList.remove('bounce'), 500);
                     
-                    if (userTeam && userTeam.id) {
-    const teamName = userTeam.id.toUpperCase();
-    highestBidder.textContent = teamName;
-    
-    // Apply pill styling
-    highestBidder.className = 'highest-bidder-pill';
-    
-    // Add team-specific class
-    if (userTeam.id in teamColors) {
-        highestBidder.classList.add(userTeam.id);
-    } else {
-        // Default styling
-        highestBidder.style.background = 'linear-gradient(45deg, #10B981, #34D399)';
-        highestBidder.style.color = 'white';
-        highestBidder.style.boxShadow = '0 0 20px #10B981';
-    }
-}
+                    updateHighestBidderDisplay(userTeam.id);
                     
                     addBidToLog(userTeam.id, bidAmount);
                     
@@ -2402,7 +2347,6 @@ socket.on('simpleRedirectToPlaying11', (data) => {
                     console.error('❌ Failed to get squad data:', response?.message);
                     showAlert('Error', response?.message || 'Failed to load squad data', '❌');
                     
-                    // Show offline squad data as fallback
                     const offlineSquadData = {
                         team: userTeam,
                         retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
@@ -2469,7 +2413,7 @@ socket.on('simpleRedirectToPlaying11', (data) => {
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-yellow-400">My Squad - ${squadData.team.name}</h2>
                         <button onclick="this.parentElement.parentElement.parentElement.remove()" 
-                                class="text-2xl hover:text-yellow-400">✕</button>
+                                class="text-2xl hover:text-yellow-400 transition-colors">✕</button>
                     </div>
                     
                     <!-- Budget Summary -->
@@ -2595,7 +2539,7 @@ socket.on('simpleRedirectToPlaying11', (data) => {
                 <div class="text-6xl mb-4">❌</div>
                 <h3 class="text-2xl font-bold text-red-400 mb-2">Error</h3>
                 <p class="text-gray-300 mb-4">${message}</p>
-                <button onclick="goToLogin()" class="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
+                <button onclick="goToLogin()" class="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all">
                     Go to Login
                 </button>
             `;
@@ -2662,102 +2606,102 @@ socket.on('simpleRedirectToPlaying11', (data) => {
             }, 3000);
         }
 
+        // ========== AUCTION BUYS FUNCTIONS ==========
+        function getCurrentAuctionBuys() {
+            console.log('📂 Getting auction buys from localStorage...');
+            
+            const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
+            
+            console.log('🔍 Found in localStorage:', {
+                count: auctionBuys.length,
+                firstPlayer: auctionBuys[0]?.name || 'none',
+                hasRealData: auctionBuys.length > 0 && auctionBuys[0].name !== 'Player 1'
+            });
+            
+            if (auctionBuys.length > 0 && auctionBuys[0].name !== 'Player 1') {
+                console.log('✅ Returning real auction buys from localStorage');
+                return auctionBuys;
+            }
+            
+            console.log('⚠️ No valid auction buys in localStorage, checking current state...');
+            
+            return [];
+        }
+        
+        function calculateTotalSpent() {
+            const auctionBuys = getCurrentAuctionBuys();
+            return auctionBuys.reduce((total, player) => total + (player.price || 0), 0);
+        }
+        
+        function redirectToPlaying11Fallback() {
+            console.log('🔄 Fallback redirect triggered');
+            
+            const squadData = {
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                team: userTeam,
+                budget: teamBudget,
+                squadLimits: squadLimits,
+                retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
+                auctionPlayers: JSON.parse(localStorage.getItem('auctionBuys') || '[]'),
+                timestamp: Date.now()
+            };
+            
+            localStorage.setItem('playing11SquadData', JSON.stringify(squadData));
+            localStorage.setItem('auctionCompleted', 'true');
+            localStorage.setItem('userSession', JSON.stringify({
+                username: currentUsername,
+                roomCode: currentRoomCode,
+                team: userTeam,
+                sessionId: userSession?.sessionId || Date.now().toString()
+            }));
+            
+            console.log('💾 Fallback squad data stored:', squadData);
+            
+            if (waitingAuction) {
+                waitingAuction.classList.remove('hidden');
+                waitingAuction.innerHTML = `
+                    <div class="text-6xl mb-4">🔗</div>
+                    <h3 class="text-2xl font-bold text-green-400 mb-2">Fallback Redirect</h3>
+                    <p class="text-gray-300 mb-4">Auction completed! Redirecting...</p>
+                `;
+            }
+            
+            setTimeout(() => {
+                window.location.href = 'playing11.html';
+            }, 1000);
+        }
+        
+        function debugAuctionBuys() {
+            const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
+            console.log('🔍 Debug auction buys:', {
+                count: auctionBuys.length,
+                players: auctionBuys.map(p => `${p.name} - ₹${p.price} Cr`),
+                localStorageSize: JSON.stringify(auctionBuys).length
+            });
+            
+            if (auctionBuys.length === 0) {
+                console.log('❌ No auction buys found in localStorage');
+            }
+            
+            return auctionBuys;
+        }
+        
         // ========== EXPOSE FUNCTIONS TO GLOBAL SCOPE ==========
         window.reconnectWithSession = reconnectWithSession;
         window.goToLogin = goToLogin;
         window.closeAlert = closeAlert;
         window.forceReconnect = forceReconnect;
         window.closeBackWarning = closeBackWarning;
+        window.redirectToPlaying11Fallback = redirectToPlaying11Fallback;
+        window.debugAuctionBuys = debugAuctionBuys;
 
-        console.log('✅ Auction pool page loaded with back button protection');
-        // ✅ GLOBAL FALLBACK REDIRECT FUNCTION
-function redirectToPlaying11Fallback() {
-    console.log('🔄 Fallback redirect triggered');
-    
-    // Create squad data from whatever we have
-    const squadData = {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        team: userTeam,
-        budget: teamBudget,
-        squadLimits: squadLimits,
-        retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
-        auctionPlayers: JSON.parse(localStorage.getItem('auctionBuys') || '[]'),
-        timestamp: Date.now()
-    };
-    
-    // Store data
-    localStorage.setItem('playing11SquadData', JSON.stringify(squadData));
-    localStorage.setItem('auctionCompleted', 'true');
-    localStorage.setItem('userSession', JSON.stringify({
-        username: currentUsername,
-        roomCode: currentRoomCode,
-        team: userTeam,
-        sessionId: userSession?.sessionId || Date.now().toString()
-    }));
-    
-    console.log('💾 Fallback squad data stored:', squadData);
-    
-    // Show message
-    const waitingAuction = document.getElementById('waitingAuction');
-    if (waitingAuction) {
-        waitingAuction.classList.remove('hidden');
-        waitingAuction.innerHTML = `
-            <div class="text-6xl mb-4">🔗</div>
-            <h3 class="text-2xl font-bold text-green-400 mb-2">Fallback Redirect</h3>
-            <p class="text-gray-300 mb-4">Auction completed! Redirecting...</p>
-        `;
-    }
-    
-    // Redirect
-    setTimeout(() => {
-        window.location.href = 'playing11.html';
-    }, 1000);
-}
-
-// Helper function to debug localStorage auction buys
-function debugAuctionBuys() {
-    const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
-    console.log('🔍 Debug auction buys:', {
-        count: auctionBuys.length,
-        players: auctionBuys.map(p => `${p.name} - ₹${p.price} Cr`),
-        localStorageSize: JSON.stringify(auctionBuys).length
-    });
-    
-    if (auctionBuys.length === 0) {
-        console.log('❌ No auction buys found in localStorage');
-    }
-    
-    return auctionBuys;
-}
-
-// Call this periodically to check localStorage
-setInterval(() => {
-    debugAuctionBuys();
-}, 30000); // Every 30 seconds
-
-// Expose to window for debugging
-window.redirectToPlaying11Fallback = redirectToPlaying11Fallback;
-
-// ... all your existing code ...
-
-// ✅ DEBUG: Show manual redirect button if stuck on auctionpool page
-// Add this at the very end, before the closing script tag
-setTimeout(() => {
-    const debugBtn = document.getElementById('debugRedirectBtn');
-    if (debugBtn && window.location.href.includes('auctionpool.html')) {
-        debugBtn.classList.remove('hidden');
-        console.log('⚠️ Debug redirect button enabled - manual redirect available');
+        // Debug localStorage periodically
+        setInterval(() => {
+            debugAuctionBuys();
+        }, 30000);
         
-        // Also show alert to user
-        showAlert('Manual Redirect', 
-            'If you are stuck here, click the "Debug Redirect" button to manually go to Playing 11 selection.', 
-            '🔧');
-    }
-}, 10000); // 10 seconds
-
-console.log('✅ Auction pool page loaded with debug redirect system');
-
+        console.log('✅ Auction pool page loaded with enhanced styling');
     </script>
 </body>
 </html>
