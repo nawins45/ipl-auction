@@ -17,30 +17,27 @@
             min-height: 100vh;
         }
         
-        .drag-area {
+        .player-list {
             min-height: 200px;
-            border: 2px dashed rgba(255, 255, 255, 0.2);
             border-radius: 12px;
             transition: all 0.3s;
             background: rgba(255, 255, 255, 0.05);
         }
         
-        .drag-area.drag-over {
-            border-color: #F59E0B;
-            background: rgba(245, 158, 11, 0.1);
-            box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
-        }
-        
-        .player-drag-item {
-            cursor: move;
+        .player-item {
+            cursor: pointer;
             transition: all 0.2s;
             user-select: none;
         }
         
-        .player-drag-item.dragging {
-            opacity: 0.5;
-            transform: scale(0.95);
-            z-index: 1000;
+        .player-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .player-item.selected {
+            border: 2px solid #F59E0B;
+            background: rgba(245, 158, 11, 0.1);
         }
         
         .slot-item {
@@ -48,10 +45,15 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.03);
             transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .slot-item.empty {
+            border: 2px dashed rgba(255, 255, 255, 0.1);
         }
         
         .slot-item.has-player {
@@ -59,9 +61,10 @@
             background: rgba(34, 197, 94, 0.1);
         }
         
-        .slot-item.drag-over {
+        .slot-item.selected-slot {
             border-color: #F59E0B;
             background: rgba(245, 158, 11, 0.2);
+            animation: pulse-border 1.5s infinite;
         }
         
         .role-badge {
@@ -135,9 +138,33 @@
             background-clip: text;
             animation: shimmer 3s linear infinite;
         }
+        
+        /* Slot selection animation */
+        @keyframes pulse-border {
+            0%, 100% { border-color: #F59E0B; }
+            50% { border-color: #FFD700; }
+        }
+        
+        .selection-instruction {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(245, 158, 11, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            z-index: 1000;
+            display: none;
+        }
     </style>
 </head>
 <body class="text-white">
+    <!-- Selection Instruction Banner -->
+    <div id="selectionInstruction" class="selection-instruction">
+        Click a slot first, then click a player to assign
+    </div>
+    
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
         <header class="glass-panel rounded-2xl p-6 mb-8">
@@ -185,12 +212,15 @@
                         <span>Your Squad</span>
                         <span id="squadCount" class="text-sm font-normal text-gray-400">0 players</span>
                     </h2>
-                    <div id="availablePlayers" class="drag-area p-4 min-h-[300px] max-h-[400px] overflow-y-auto">
+                    <div id="availablePlayers" class="player-list p-4 min-h-[300px] max-h-[400px] overflow-y-auto">
                         <!-- Players will be loaded here -->
                         <div class="text-center text-gray-500 py-12">
                             <div class="text-4xl mb-4 animate-pulse">⏳</div>
                             <p>Loading your squad...</p>
                         </div>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-400 text-center">
+                        <span id="selectionModeText">Click a slot first, then click player to assign</span>
                     </div>
                 </div>
                 
@@ -253,28 +283,30 @@
                         </div>
                     </div>
                 </div>
+                
                 <!-- Captain Selection -->
-<div class="glass-panel rounded-2xl p-6" id="captainSection">
-    <h2 class="text-xl font-bold text-green-400 mb-4">Captain Selection</h2>
-    <div id="captainSelection" class="text-center p-4 bg-gray-800/30 rounded-lg">
-        <p class="text-gray-400 mb-3">Select your captain from Playing 11:</p>
-        <div id="captainCandidates" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            <!-- Captain candidates will appear here -->
-        </div>
-        <div class="mt-4">
-            <div id="selectedCaptainDisplay" class="hidden">
-                <div class="flex items-center justify-center space-x-3">
-                    <span class="text-green-400">✅</span>
-                    <span class="text-yellow-400 font-bold" id="captainName">Captain Name</span>
-                    <span class="text-green-400">(Captain)</span>
+                <div class="glass-panel rounded-2xl p-6" id="captainSection">
+                    <h2 class="text-xl font-bold text-green-400 mb-4">Captain Selection</h2>
+                    <div id="captainSelection" class="text-center p-4 bg-gray-800/30 rounded-lg">
+                        <p class="text-gray-400 mb-3">Select your captain from Playing 11:</p>
+                        <div id="captainCandidates" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            <!-- Captain candidates will appear here -->
+                        </div>
+                        <div class="mt-4">
+                            <div id="selectedCaptainDisplay" class="hidden">
+                                <div class="flex items-center justify-center space-x-3">
+                                    <span class="text-green-400">✅</span>
+                                    <span class="text-yellow-400 font-bold" id="captainName">Captain Name</span>
+                                    <span class="text-green-400">(Captain)</span>
+                                </div>
+                            </div>
+                            <div id="noCaptainWarning" class="text-red-400 text-sm mt-2 hidden">
+                                ⚠️ Please select a captain
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div id="noCaptainWarning" class="text-red-400 text-sm mt-2 hidden">
-                ⚠️ Please select a captain
-            </div>
-        </div>
-    </div>
-</div>
+                
                 <!-- Role Distribution -->
                 <div class="glass-panel rounded-2xl p-6">
                     <h2 class="text-xl font-bold text-cyan-400 mb-4">Role Distribution</h2>
@@ -323,7 +355,7 @@
                     <div class="text-2xl text-yellow-400">👥</div>
                     <div>
                         <h4 class="font-semibold text-yellow-400">Select Playing 11</h4>
-                        <p class="text-sm text-gray-400">Drag exactly 11 players from your squad to the Playing 11 area</p>
+                        <p class="text-sm text-gray-400">1. Click a slot in Playing 11 area<br>2. Click a player from your squad to assign</p>
                     </div>
                 </div>
                 <div class="flex items-start space-x-3 p-3 player-card rounded-lg">
@@ -418,105 +450,103 @@
     <script>
         // ✅ FIX 5: Add Data Loading on Page Load - PASTE THIS AT THE BEGINNING
         document.addEventListener('DOMContentLoaded', function() {
-    console.log('🏏 Playing 11 page loading...');
-    
-    // Check if we have squad data from auction
-    const squadData = JSON.parse(localStorage.getItem('playing11SquadData') || '{}');
-    const auctionCompleted = localStorage.getItem('auctionCompleted') === 'true';
-    
-    // Check if we have REAL data (not dummy data)
-    const hasRealAuctionData = squadData.auctionPlayers && 
-                              squadData.auctionPlayers.length > 0 && 
-                              squadData.auctionPlayers[0].name !== 'Player 1';
-    
-    if (!auctionCompleted || !squadData.roomCode || !hasRealAuctionData) {
-        console.error('❌ No valid squad data found:', {
-            auctionCompleted,
-            hasRoomCode: !!squadData.roomCode,
-            auctionPlayers: squadData.auctionPlayers?.length || 0,
-            hasRealData: hasRealAuctionData
-        });
-        
-        showAlert('Data Loading', 'Loading your squad data from server...', '⏳');
-        
-        // Try to load from localStorage backup
-        const backupData = loadBackupSquadData();
-        if (backupData) {
-            console.log('✅ Loaded backup squad data');
-            initializePlaying11Page(backupData);
-        } else {
-            // Show error and try to reconnect
-            setTimeout(() => {
-                showAlert('Data Error', 
-                    'Could not load your squad data. Please wait or contact auctioneer.', 
-                    '❌');
+            console.log('🏏 Playing 11 page loading...');
+            
+            // Check if we have squad data from auction
+            const squadData = JSON.parse(localStorage.getItem('playing11SquadData') || '{}');
+            const auctionCompleted = localStorage.getItem('auctionCompleted') === 'true';
+            
+            // Check if we have REAL data (not dummy data)
+            const hasRealAuctionData = squadData.auctionPlayers && 
+                                      squadData.auctionPlayers.length > 0 && 
+                                      squadData.auctionPlayers[0].name !== 'Player 1';
+            
+            if (!auctionCompleted || !squadData.roomCode || !hasRealAuctionData) {
+                console.error('❌ No valid squad data found:', {
+                    auctionCompleted,
+                    hasRoomCode: !!squadData.roomCode,
+                    auctionPlayers: squadData.auctionPlayers?.length || 0,
+                    hasRealData: hasRealAuctionData
+                });
                 
-                // Add retry button
-                const waitingDiv = document.createElement('div');
-                waitingDiv.className = 'text-center mt-4';
-                waitingDiv.innerHTML = `
-                    <button onclick="retryLoadSquadData()" 
-                            class="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
-                        🔄 Retry Loading Squad Data
-                    </button>
-                `;
-                document.getElementById('availablePlayers')?.appendChild(waitingDiv);
-            }, 2000);
-        }
-        
-        return;
-    }
-    
-    console.log('✅ Valid squad data loaded:', {
-        retained: squadData.retainedPlayers?.length || 0,
-        auction: squadData.auctionPlayers?.length || 0,
-        total: (squadData.retainedPlayers?.length || 0) + (squadData.auctionPlayers?.length || 0)
-    });
-    
-    // Initialize page with squad data
-    initializePlaying11Page(squadData);
-});
+                showAlert('Data Loading', 'Loading your squad data from server...', '⏳');
+                
+                // Try to load from localStorage backup
+                const backupData = loadBackupSquadData();
+                if (backupData) {
+                    console.log('✅ Loaded backup squad data');
+                    initializePlaying11Page(backupData);
+                } else {
+                    // Show error and try to reconnect
+                    setTimeout(() => {
+                        showAlert('Data Error', 
+                            'Could not load your squad data. Please wait or contact auctioneer.', 
+                            '❌');
+                        
+                        // Add retry button
+                        const waitingDiv = document.createElement('div');
+                        waitingDiv.className = 'text-center mt-4';
+                        waitingDiv.innerHTML = `
+                            <button onclick="retryLoadSquadData()" 
+                                    class="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
+                                🔄 Retry Loading Squad Data
+                            </button>
+                        `;
+                        document.getElementById('availablePlayers')?.appendChild(waitingDiv);
+                    }, 2000);
+                }
+                
+                return;
+            }
+            
+            console.log('✅ Valid squad data loaded:', {
+                retained: squadData.retainedPlayers?.length || 0,
+                auction: squadData.auctionPlayers?.length || 0,
+                total: (squadData.retainedPlayers?.length || 0) + (squadData.auctionPlayers?.length || 0)
+            });
+            
+            // Initialize page with squad data
+            initializePlaying11Page(squadData);
+        });
 
-// Helper function to load backup squad data
-function loadBackupSquadData() {
-    try {
-        // Try to get from user session
-        const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-        if (userSession.squadData) {
-            return userSession.squadData;
+        // Helper function to load backup squad data
+        function loadBackupSquadData() {
+            try {
+                // Try to get from user session
+                const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+                if (userSession.squadData) {
+                    return userSession.squadData;
+                }
+                
+                // Try to get from auction buys
+                const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
+                const retainedPlayers = JSON.parse(localStorage.getItem('retainedPlayers') || '[]');
+                
+                if (auctionBuys.length > 0 || retainedPlayers.length > 0) {
+                    return {
+                        roomCode: userSession.roomCode,
+                        username: userSession.username,
+                        team: userSession.team,
+                        retainedPlayers: retainedPlayers,
+                        auctionPlayers: auctionBuys,
+                        budget: 100,
+                        timestamp: Date.now()
+                    };
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Error loading backup data:', error);
+                return null;
+            }
         }
-        
-        // Try to get from auction buys
-        const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
-        const retainedPlayers = JSON.parse(localStorage.getItem('retainedPlayers') || '[]');
-        
-        if (auctionBuys.length > 0 || retainedPlayers.length > 0) {
-            return {
-                roomCode: userSession.roomCode,
-                username: userSession.username,
-                team: userSession.team,
-                retainedPlayers: retainedPlayers,
-                auctionPlayers: auctionBuys,
-                budget: 100,
-                timestamp: Date.now()
-            };
+
+        // Retry function
+        function retryLoadSquadData() {
+            console.log('🔄 Retrying to load squad data...');
+            location.reload();
         }
-        
-        return null;
-    } catch (error) {
-        console.error('Error loading backup data:', error);
-        return null;
-    }
-}
 
-// Retry function
-function retryLoadSquadData() {
-    console.log('🔄 Retrying to load squad data...');
-    location.reload();
-}
-
-// Expose to window
-window.retryLoadSquadData = retryLoadSquadData;
         function initializePlaying11Page(squadData) {
             console.log('🏆 Total squad players:', 
                 (squadData.retainedPlayers?.length || 0) + 
@@ -530,6 +560,10 @@ window.retryLoadSquadData = retryLoadSquadData;
             window.userTeam = squadData.team;
             window.userSessionId = squadData.sessionId;
             
+            // NEW: Selection mode variables
+            window.selectedSlot = null;
+            window.slotType = null;
+            
             // Display team info
             if (squadData.team) {
                 displayTeamInfo(squadData.team);
@@ -541,7 +575,6 @@ window.retryLoadSquadData = retryLoadSquadData;
             processSquadData(squadData);
             
             // Initialize UI components
-            initializeDragAndDrop();
             createPlaying11Slots();
             createImpactPlayerSlots();
             
@@ -563,10 +596,13 @@ window.retryLoadSquadData = retryLoadSquadData;
         let allPlayers = [];
         let playing11 = [];
         let impactPlayers = [];
-        let draggedPlayer = null;
         let maxImpactPlayers = 1;
         let userSessionId = null;
         window.selectedCaptain = null;
+        
+        // NEW: Selection mode variables
+        let selectedSlot = null;
+        let slotType = null;
 
         // ========== DOM ELEMENTS ==========
         const teamHeader = document.getElementById('teamHeader');
@@ -609,6 +645,7 @@ window.retryLoadSquadData = retryLoadSquadData;
                         name: player.name,
                         role: player.role,
                         isOverseas: player.isOverseas,
+                        nationality: player.nationality,
                         price: 0, // Retained players don't cost auction money
                         source: 'retained',
                         stats: player.stats || {}
@@ -623,6 +660,7 @@ window.retryLoadSquadData = retryLoadSquadData;
                         name: player.name,
                         role: player.role,
                         isOverseas: player.isOverseas,
+                        nationality: player.nationality,
                         price: player.price || 0,
                         source: 'auction',
                         stats: player.stats || {}
@@ -669,64 +707,107 @@ window.retryLoadSquadData = retryLoadSquadData;
         }
         
         function createPlayerElement(player) {
-    const playerEl = document.createElement('div');
-    playerEl.className = 'player-drag-item player-card rounded-xl p-3 mb-3 hover:scale-[1.02] transition-transform duration-200';
-    playerEl.setAttribute('data-player-id', player.id);
-    playerEl.setAttribute('draggable', 'true');
-    
-    // Determine role class and icon
-    let roleClass = 'role-batsman';
-    let roleDisplay = player.role || 'Player';
-    let roleIcon = '🏏';
-    
-    if (player.role) {
-        const roleLower = player.role.toLowerCase();
-        if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin')) {
-            roleClass = 'role-bowler';
-            roleIcon = '🎯';
-        } else if (roleLower.includes('all') || roleLower.includes('ar')) {
-            roleClass = 'role-allrounder';
-            roleIcon = '⚡';
-        } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
-            roleClass = 'role-wk';
-            roleIcon = '🧤';
-        }
-    }
-    
-    // ✅ FIX: Show correct overseas status
-    const isOverseas = player.isOverseas === true || 
-                      (player.nationality && player.nationality.toString().toLowerCase() !== 'IND');
-    
-    playerEl.innerHTML = `
-        <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-lg">
-                    <span class="text-lg">${roleIcon}</span>
-                </div>
-                <div class="min-w-0 flex-1">
-                    <div class="font-medium truncate">${player.name}</div>
-                    <div class="flex items-center space-x-2 mt-1">
-                        <span class="${roleClass} role-badge">${roleDisplay}</span>
-                        ${isOverseas ? 
-                            '<span class="text-xs px-2 py-1 bg-gradient-to-r from-purple-900/30 to-pink-900/30 text-purple-300 rounded">✈️ Overseas</span>' : 
-                            '<span class="text-xs px-2 py-1 bg-gradient-to-r from-green-900/30 to-emerald-900/30 text-green-300 rounded">🇮🇳 Indian</span>'}
+            const playerEl = document.createElement('div');
+            playerEl.className = 'player-item player-card rounded-xl p-3 mb-3 hover:scale-[1.02] transition-all duration-200';
+            playerEl.setAttribute('data-player-id', player.id);
+            
+            // Determine role class and icon
+            let roleClass = 'role-batsman';
+            let roleDisplay = player.role || 'Player';
+            let roleIcon = '🏏';
+            
+            if (player.role) {
+                const roleLower = player.role.toLowerCase();
+                if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin')) {
+                    roleClass = 'role-bowler';
+                    roleIcon = '🎯';
+                } else if (roleLower.includes('all') || roleLower.includes('ar')) {
+                    roleClass = 'role-allrounder';
+                    roleIcon = '⚡';
+                } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
+                    roleClass = 'role-wk';
+                    roleIcon = '🧤';
+                }
+            }
+            
+            const isOverseas = player.isOverseas === true || 
+                              (player.nationality && player.nationality.toString().toLowerCase() !== 'IND');
+            
+            playerEl.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-lg">
+                            <span class="text-lg">${roleIcon}</span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-medium truncate">${player.name}</div>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="${roleClass} role-badge">${roleDisplay}</span>
+                                ${isOverseas ? 
+                                    '<span class="text-xs px-2 py-1 bg-gradient-to-r from-purple-900/30 to-pink-900/30 text-purple-300 rounded">✈️ Overseas</span>' : 
+                                    '<span class="text-xs px-2 py-1 bg-gradient-to-r from-green-900/30 to-emerald-900/30 text-green-300 rounded">🇮🇳 Indian</span>'}
+                            </div>
+                            ${player.nationality ? `<div class="text-xs text-gray-500 mt-1">${player.nationality}</div>` : ''}
+                        </div>
                     </div>
-                    ${player.nationality ? `<div class="text-xs text-gray-500 mt-1">${player.nationality}</div>` : ''}
+                    <div class="text-right">
+                        <div class="text-sm text-gray-400">${player.source === 'retained' ? 'Retained' : 'Bought'}</div>
+                        <div class="font-bold text-yellow-400">${player.source === 'retained' ? 'Free' : `₹${player.price} Cr`}</div>
+                    </div>
                 </div>
-            </div>
-            <div class="text-right">
-                <div class="text-sm text-gray-400">${player.source === 'retained' ? 'Retained' : 'Bought'}</div>
-                <div class="font-bold text-yellow-400">${player.source === 'retained' ? 'Free' : `₹${player.price} Cr`}</div>
-            </div>
-        </div>
-    `;
-    
-    // Add drag event listeners
-    playerEl.addEventListener('dragstart', handleDragStart);
-    playerEl.addEventListener('dragend', handleDragEnd);
-    
-    return playerEl;
-}
+            `;
+            
+            // Add click event listener for player selection
+            playerEl.addEventListener('click', () => handlePlayerClick(player));
+            
+            return playerEl;
+        }
+        
+        function handlePlayerClick(player) {
+            if (!selectedSlot || !slotType) {
+                showAlert('Select Slot First', 'Please click a slot in Playing 11 or Impact Players area first', '⚠️');
+                return;
+            }
+            
+            // Check if player is already in playing11
+            if (slotType === 'playing11' && isPlayerInImpactPlayers(player.id)) {
+                showAlert('Duplicate Player', 'This player is already in Impact Players. Cannot add to Playing 11.', '❌');
+                return;
+            }
+            
+            // Check if player is already in impact players
+            if (slotType === 'impact' && isPlayerInPlaying11(player.id)) {
+                showAlert('Duplicate Player', 'This player is already in Playing 11. Cannot add to Impact Players.', '❌');
+                return;
+            }
+            
+            // Check if player is already in a different slot of same type
+            if (slotType === 'playing11') {
+                const existingIndex = playing11.findIndex(p => p && p.id === player.id);
+                if (existingIndex !== -1) {
+                    // Move player from old slot to new slot
+                    playing11[existingIndex] = null;
+                    clearSlotDisplay('playing11', existingIndex);
+                }
+                addToPlaying11(player, selectedSlot);
+            } else if (slotType === 'impact') {
+                const existingIndex = impactPlayers.findIndex(p => p && p.id === player.id);
+                if (existingIndex !== -1) {
+                    // Move player from old slot to new slot
+                    impactPlayers[existingIndex] = null;
+                    clearSlotDisplay('impact', existingIndex);
+                }
+                addToImpactPlayers(player, selectedSlot);
+            }
+            
+            // Remove player from available list
+            removeFromAvailablePlayers(player.id);
+            
+            // Clear selection
+            clearSlotSelection();
+            
+            updateAllCounts();
+        }
         
         function requestSquadFromServer() {
             if (socket && socket.connected) {
@@ -746,7 +827,7 @@ window.retryLoadSquadData = retryLoadSquadData;
             
             for (let i = 1; i <= 11; i++) {
                 const slot = document.createElement('div');
-                slot.className = 'slot-item hover:border-yellow-400/50 transition-all duration-200';
+                slot.className = 'slot-item empty hover:border-yellow-400/50 transition-all duration-200';
                 slot.setAttribute('data-slot-type', 'playing11');
                 slot.setAttribute('data-slot-index', i - 1);
                 slot.innerHTML = `
@@ -756,11 +837,8 @@ window.retryLoadSquadData = retryLoadSquadData;
                     </div>
                 `;
                 
-                // Add drag event listeners
-                slot.addEventListener('dragover', handleDragOver);
-                slot.addEventListener('dragenter', handleDragEnter);
-                slot.addEventListener('dragleave', handleDragLeave);
-                slot.addEventListener('drop', handleDrop);
+                // Add click event listener for slot selection
+                slot.addEventListener('click', () => handleSlotClick('playing11', i - 1));
                 
                 playing11Slots.appendChild(slot);
             }
@@ -770,10 +848,9 @@ window.retryLoadSquadData = retryLoadSquadData;
             impactPlayerSlots.innerHTML = '';
             impactPlayers = new Array(maxImpactPlayers).fill(null);
             
-            // Create slots based on max impact players (default 1, can be up to 3)
             for (let i = 1; i <= maxImpactPlayers; i++) {
                 const slot = document.createElement('div');
-                slot.className = 'slot-item hover:border-purple-400/50 transition-all duration-200';
+                slot.className = 'slot-item empty hover:border-purple-400/50 transition-all duration-200';
                 slot.setAttribute('data-slot-type', 'impact');
                 slot.setAttribute('data-slot-index', i - 1);
                 slot.innerHTML = `
@@ -783,11 +860,8 @@ window.retryLoadSquadData = retryLoadSquadData;
                     </div>
                 `;
                 
-                // Add drag event listeners
-                slot.addEventListener('dragover', handleDragOver);
-                slot.addEventListener('dragenter', handleDragEnter);
-                slot.addEventListener('dragleave', handleDragLeave);
-                slot.addEventListener('drop', handleDrop);
+                // Add click event listener for slot selection
+                slot.addEventListener('click', () => handleSlotClick('impact', i - 1));
                 
                 impactPlayerSlots.appendChild(slot);
             }
@@ -795,115 +869,63 @@ window.retryLoadSquadData = retryLoadSquadData;
             updateImpactPlayerSlots();
         }
         
+        function handleSlotClick(type, index) {
+            // Clear previous selection
+            clearSlotSelection();
+            
+            // Set new selection
+            selectedSlot = index;
+            slotType = type;
+            
+            // Highlight selected slot
+            const slotsContainer = type === 'playing11' ? playing11Slots : impactPlayerSlots;
+            const slot = slotsContainer.children[index];
+            slot.classList.remove('empty');
+            slot.classList.add('selected-slot');
+            
+            // Show instruction
+            document.getElementById('selectionInstruction').style.display = 'block';
+            
+            // Update selection mode text
+            const modeText = type === 'playing11' ? 
+                `Click a player to assign to Slot ${index + 1} in Playing 11` :
+                `Click a player to assign to Impact Player ${index + 1}`;
+            document.getElementById('selectionModeText').textContent = modeText;
+            document.getElementById('selectionModeText').classList.add('text-yellow-400');
+            
+            console.log(`🎯 Selected ${type} slot ${index}`);
+        }
+        
+        function clearSlotSelection() {
+            if (selectedSlot !== null && slotType) {
+                const slotsContainer = slotType === 'playing11' ? playing11Slots : impactPlayerSlots;
+                const slot = slotsContainer.children[selectedSlot];
+                if (slot) {
+                    slot.classList.remove('selected-slot');
+                    if (!playing11[selectedSlot] && slotType === 'playing11') {
+                        slot.classList.add('empty');
+                    }
+                    if (!impactPlayers[selectedSlot] && slotType === 'impact') {
+                        slot.classList.add('empty');
+                    }
+                }
+            }
+            
+            selectedSlot = null;
+            slotType = null;
+            
+            // Hide instruction
+            document.getElementById('selectionInstruction').style.display = 'none';
+            
+            // Reset selection mode text
+            document.getElementById('selectionModeText').textContent = 'Click a slot first, then click player to assign';
+            document.getElementById('selectionModeText').classList.remove('text-yellow-400');
+        }
+        
         function updateImpactPlayerSlots() {
             impactPlayersCount.textContent = `${impactPlayers.filter(p => p !== null).length}/${maxImpactPlayers} selected`;
         }
 
-        // ========== DRAG AND DROP FUNCTIONS ==========
-        function initializeDragAndDrop() {
-            // Add drag events to available players area
-            availablePlayers.addEventListener('dragover', handleDragOver);
-            availablePlayers.addEventListener('dragenter', (e) => {
-                e.preventDefault();
-                availablePlayers.classList.add('drag-over');
-            });
-            availablePlayers.addEventListener('dragleave', (e) => {
-                if (!availablePlayers.contains(e.relatedTarget)) {
-                    availablePlayers.classList.remove('drag-over');
-                }
-            });
-            availablePlayers.addEventListener('drop', (e) => {
-                e.preventDefault();
-                availablePlayers.classList.remove('drag-over');
-                
-                if (draggedPlayer) {
-                    const playerId = draggedPlayer.getAttribute('data-player-id');
-                    removePlayerFromAllSlots(playerId);
-                    updateAllCounts();
-                }
-            });
-        }
-        
-        function handleDragStart(e) {
-            draggedPlayer = e.target.closest('.player-drag-item');
-            if (!draggedPlayer) return;
-            
-            e.dataTransfer.setData('text/plain', draggedPlayer.getAttribute('data-player-id'));
-            draggedPlayer.classList.add('dragging');
-            
-            // Add clone for drag image
-            setTimeout(() => {
-                draggedPlayer.classList.add('opacity-0');
-            }, 0);
-        }
-        
-        function handleDragEnd(e) {
-            if (draggedPlayer) {
-                draggedPlayer.classList.remove('dragging', 'opacity-0');
-                draggedPlayer = null;
-            }
-            
-            // Remove drag-over class from all slots
-            document.querySelectorAll('.drag-over').forEach(el => {
-                el.classList.remove('drag-over');
-            });
-            availablePlayers.classList.remove('drag-over');
-        }
-        
-        function handleDragOver(e) {
-            e.preventDefault();
-        }
-        
-        function handleDragEnter(e) {
-            e.preventDefault();
-            e.target.closest('.slot-item')?.classList.add('drag-over');
-        }
-        
-        function handleDragLeave(e) {
-            if (!e.target.contains(e.relatedTarget)) {
-                e.target.classList.remove('drag-over');
-            }
-        }
-        
-        function handleDrop(e) {
-            e.preventDefault();
-            e.target.classList.remove('drag-over');
-            
-            const playerId = e.dataTransfer.getData('text/plain');
-            const slot = e.target.closest('.slot-item');
-            
-            if (!playerId || !slot) return;
-            
-            const slotType = slot.getAttribute('data-slot-type');
-            const slotIndex = parseInt(slot.getAttribute('data-slot-index'));
-            
-            const playerData = getPlayerById(playerId);
-            if (!playerData) return;
-            
-            // Check if player is already in playing11 or impact players
-            if (isPlayerInPlaying11(playerId) && slotType !== 'playing11') {
-                showAlert('Duplicate Player', 'This player is already in Playing 11. Cannot add to Impact Players.', '❌');
-                return;
-            }
-            
-            if (isPlayerInImpactPlayers(playerId) && slotType !== 'impact') {
-                showAlert('Duplicate Player', 'This player is already in Impact Players. Cannot add to Playing 11.', '❌');
-                return;
-            }
-            
-            // Add to appropriate slot
-            if (slotType === 'playing11') {
-                addToPlaying11(playerData, slotIndex);
-            } else if (slotType === 'impact') {
-                addToImpactPlayers(playerData, slotIndex);
-            }
-            
-            // Remove from available players
-            removeFromAvailablePlayers(playerId);
-            
-            updateAllCounts();
-        }
-        
         // ========== PLAYER MANAGEMENT FUNCTIONS ==========
         function getPlayerById(playerId) {
             return allPlayers.find(player => player.id === playerId);
@@ -918,7 +940,7 @@ window.retryLoadSquadData = retryLoadSquadData;
         }
         
         function addToPlaying11(playerData, slotIndex) {
-            // If slot already has a player, remove it first
+            // If slot already has a player, return it to available
             if (playing11[slotIndex]) {
                 const oldPlayerId = playing11[slotIndex].id;
                 returnToAvailablePlayers(oldPlayerId);
@@ -935,19 +957,13 @@ window.retryLoadSquadData = retryLoadSquadData;
         }
         
         function addToImpactPlayers(playerData, slotIndex) {
-            // Check if player is already in playing11
-            if (isPlayerInPlaying11(playerData.id)) {
-                showAlert('Duplicate Player', 'This player is already in Playing 11. Cannot add to Impact Players.', '❌');
-                return;
-            }
-            
             // Check impact player limit
             if (impactPlayers.filter(p => p !== null).length >= maxImpactPlayers && !impactPlayers[slotIndex]) {
                 showAlert('Limit Reached', `Maximum ${maxImpactPlayers} impact players allowed`, '❌');
                 return;
             }
             
-            // If slot already has a player, remove it first
+            // If slot already has a player, return it to available
             if (impactPlayers[slotIndex]) {
                 const oldPlayerId = impactPlayers[slotIndex].id;
                 returnToAvailablePlayers(oldPlayerId);
@@ -961,25 +977,6 @@ window.retryLoadSquadData = retryLoadSquadData;
             
             // Highlight the slot
             highlightSlot('impact', slotIndex);
-        }
-        
-        function removePlayerFromAllSlots(playerId) {
-            // Remove from playing11
-            const playing11Index = playing11.findIndex(player => player && player.id === playerId);
-            if (playing11Index !== -1) {
-                playing11[playing11Index] = null;
-                clearSlotDisplay('playing11', playing11Index);
-            }
-            
-            // Remove from impact players
-            const impactIndex = impactPlayers.findIndex(player => player && player.id === playerId);
-            if (impactIndex !== -1) {
-                impactPlayers[impactIndex] = null;
-                clearSlotDisplay('impact', impactIndex);
-            }
-            
-            // Return to available players
-            returnToAvailablePlayers(playerId);
         }
         
         function returnToAvailablePlayers(playerId) {
@@ -1031,6 +1028,7 @@ window.retryLoadSquadData = retryLoadSquadData;
                     <div class="text-xs text-gray-400 mt-2">${slotType === 'playing11' ? `Slot ${slotIndex + 1}` : 'Impact'}</div>
                 </div>
             `;
+            slot.classList.remove('empty');
             slot.classList.add('has-player');
         }
 
@@ -1106,6 +1104,7 @@ window.retryLoadSquadData = retryLoadSquadData;
                 </div>
             `;
             slot.classList.remove('has-player');
+            slot.classList.add('empty');
         }
         
         function highlightSlot(slotType, slotIndex) {
@@ -1125,7 +1124,7 @@ window.retryLoadSquadData = retryLoadSquadData;
         }
         
         function highlightAvailablePlayers() {
-            const players = availablePlayers.querySelectorAll('.player-drag-item');
+            const players = availablePlayers.querySelectorAll('.player-item');
             players.forEach((player, index) => {
                 setTimeout(() => {
                     player.classList.add('highlight');
@@ -1283,80 +1282,67 @@ window.retryLoadSquadData = retryLoadSquadData;
 
         // ========== SUBMISSION FUNCTIONS ==========
         submitPlaying11Btn.addEventListener('click', () => {
-    if (!validateSelection()) {
-        showAlert('Validation Error', 'Please fix all validation errors before submitting.', '❌');
-        return;
-    }
-    
-    // Prepare submission data
-    const playing11Final = playing11.filter(player => player !== null);
-    const impactPlayersFinal = impactPlayers.filter(player => player !== null);
-    
-    // Check if we have a captain
-    if (!window.selectedCaptain) {
-        showAlert('Captain Required', 'Please select a captain from your Playing 11.', '❌');
-        return;
-    }
-    
-    // Show confirmation
-    const confirmationMessage = `
-        Confirm submission of your Playing 11?
-        
-        Playing 11: ${playing11Final.length} players
-        Impact Players: ${impactPlayersFinal.length} player(s)
-        Captain: ${window.selectedCaptain.name}
-        
-        This action cannot be undone.
-    `;
-    
-    if (confirm(confirmationMessage.replace(/\n\s*/g, '\n'))) {
-        submitPlaying11WithCaptain(playing11Final, impactPlayersFinal, window.selectedCaptain);
-    }
-});
+            if (!validateSelection()) {
+                showAlert('Validation Error', 'Please fix all validation errors before submitting.', '❌');
+                return;
+            }
+            
+            // Prepare submission data with exact slot positions
+            const playing11Final = playing11.map((player, index) => ({
+                ...player,
+                slotPosition: index + 1 // Add position information
+            })).filter(player => player !== null);
+            
+            const impactPlayersFinal = impactPlayers.filter(player => player !== null);
+            
+            // Check if we have a captain
+            if (!window.selectedCaptain) {
+                showAlert('Captain Required', 'Please select a captain from your Playing 11.', '❌');
+                return;
+            }
+            
+            // Show confirmation
+            const confirmationMessage = `
+                Confirm submission of your Playing 11?
+                
+                Playing 11: ${playing11Final.length} players (with exact positions)
+                Impact Players: ${impactPlayersFinal.length} player(s)
+                Captain: ${window.selectedCaptain.name}
+                
+                This action cannot be undone.
+            `;
+            
+            if (confirm(confirmationMessage.replace(/\n\s*/g, '\n'))) {
+                submitPlaying11WithCaptain(playing11Final, impactPlayersFinal, window.selectedCaptain);
+            }
+        });
 
-function submitPlaying11WithCaptain(playing11Data, impactPlayersData, captain) {
-    // Include captain in submission
-    const submissionData = {
-        roomCode: currentRoomCode,
-        username: currentUsername,
-        playing11: playing11Data,
-        impactPlayers: impactPlayersData,
-        captain: captain,
-        sessionId: userSessionId
-    };
-    
-    console.log('📤 Submitting Playing 11 with captain:', {
-        playing11: playing11Data.length,
-        impact: impactPlayersData.length,
-        captain: captain.name
-    });
-    
-    // Use the new socket event
-    socket.emit('submitPlaying11WithCaptain', submissionData);
-    
-    submitPlaying11Btn.disabled = true;
-    submitPlaying11Btn.innerHTML = `
-        <div class="flex items-center justify-center space-x-2">
-            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-            <span>Submitting...</span>
-        </div>
-    `;
-}
-        
-        function submitPlaying11(playing11Data, impactPlayersData) {
-            // Include captain in submission
+        function submitPlaying11WithCaptain(playing11Data, impactPlayersData, captain) {
+            // Include captain and slot positions in submission
             const submissionData = {
                 roomCode: currentRoomCode,
                 username: currentUsername,
-                playing11: playing11Data,
+                playing11: playing11Data, // This now includes slotPosition for each player
                 impactPlayers: impactPlayersData,
-                captain: window.selectedCaptain, // Include captain
-                sessionId: userSessionId
+                captain: captain,
+                sessionId: userSessionId,
+                submissionTime: new Date().toISOString()
             };
             
-            console.log('📤 Submitting with captain:', window.selectedCaptain);
+            console.log('📤 Submitting Playing 11 with exact positions:', {
+                playing11: playing11Data.map(p => ({ name: p.name, position: p.slotPosition })),
+                impact: impactPlayersData.length,
+                captain: captain.name
+            });
             
-            socket.emit('submitPlaying11', submissionData);
+            // Use socket to submit
+            if (socket) {
+                socket.emit('submitPlaying11WithCaptain', submissionData);
+            } else {
+                // Fallback: Store in localStorage and show success
+                localStorage.setItem('submittedPlaying11', JSON.stringify(submissionData));
+                showSuccessModal();
+            }
             
             submitPlaying11Btn.disabled = true;
             submitPlaying11Btn.innerHTML = `
@@ -1413,8 +1399,7 @@ function submitPlaying11WithCaptain(playing11Data, impactPlayersData, captain) {
         // ========== SOCKET FUNCTIONS ==========
         function initializeSocket() {
             console.log('🔌 Connecting to socket server...');
-            socket = io(window.BACKEND_URL,{ transports: ["websocket", "polling"],}
-        );
+            socket = io(window.BACKEND_URL, { transports: ["websocket", "polling"] });
             
             socket.on('connect', () => {
                 console.log('✅ Connected to server');
@@ -1473,42 +1458,50 @@ function submitPlaying11WithCaptain(playing11Data, impactPlayersData, captain) {
             });
             
             socket.on('playing11SubmittedSuccess', (data) => {
-    console.log('✅ Playing 11 submitted successfully:', data);
-    
-    // Store submission status
-    localStorage.setItem('playing11Submitted', 'true');
-    localStorage.setItem('submissionTime', new Date().toISOString());
-    
-    // Update UI
-    submitPlaying11Btn.innerHTML = '✅ Submitted Successfully!';
-    submitPlaying11Btn.disabled = true;
-    
-    // Show success modal
-    showSuccessModal();
-    
-    // Update status badge
-    validationStatus.classList.remove('hidden');
-    statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-900/30';
-    statusBadge.innerHTML = `
-        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-        <span class="text-sm font-medium text-green-400">Submitted ✓</span>
-    `;
-    
-    // Disable drag and drop
-    document.querySelectorAll('.player-drag-item').forEach(item => {
-        item.setAttribute('draggable', 'false');
-        item.classList.add('opacity-50');
-    });
-});
+                console.log('✅ Playing 11 submitted successfully:', data);
+                
+                // Store submission status
+                localStorage.setItem('playing11Submitted', 'true');
+                localStorage.setItem('submissionTime', new Date().toISOString());
+                localStorage.setItem('submittedPlaying11', JSON.stringify({
+                    playing11: playing11,
+                    impactPlayers: impactPlayers,
+                    captain: window.selectedCaptain
+                }));
+                
+                // Update UI
+                submitPlaying11Btn.innerHTML = '✅ Submitted Successfully!';
+                submitPlaying11Btn.disabled = true;
+                
+                // Show success modal
+                showSuccessModal();
+                
+                // Update status badge
+                validationStatus.classList.remove('hidden');
+                statusBadge.className = 'flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-900/30';
+                statusBadge.innerHTML = `
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-sm font-medium text-green-400">Submitted ✓</span>
+                `;
+                
+                // Disable click events
+                document.querySelectorAll('.slot-item').forEach(item => {
+                    item.style.pointerEvents = 'none';
+                });
+                document.querySelectorAll('.player-item').forEach(item => {
+                    item.style.pointerEvents = 'none';
+                    item.classList.add('opacity-50');
+                });
+            });
 
-socket.on('playing11Error', (data) => {
-    console.error('❌ Playing 11 submission error:', data);
-    showAlert('Submission Error', data.message, '❌');
-    
-    // Re-enable submit button
-    submitPlaying11Btn.disabled = false;
-    submitPlaying11Btn.innerHTML = '✅ Submit Playing 11';
-});
+            socket.on('playing11Error', (data) => {
+                console.error('❌ Playing 11 submission error:', data);
+                showAlert('Submission Error', data.message, '❌');
+                
+                // Re-enable submit button
+                submitPlaying11Btn.disabled = false;
+                submitPlaying11Btn.innerHTML = '✅ Submit Playing 11';
+            });
             
             socket.on('teamRated', (data) => {
                 console.log('Team rated by auctioneer:', data);
@@ -1551,6 +1544,7 @@ socket.on('playing11Error', (data) => {
         window.closeSuccessModal = closeSuccessModal;
         window.closeAlertModal = closeAlertModal;
         window.requestSquadFromServer = requestSquadFromServer;
+        window.retryLoadSquadData = retryLoadSquadData;
 
         console.log('✅ Playing 11 page loaded');
     </script>
