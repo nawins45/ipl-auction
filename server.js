@@ -550,6 +550,7 @@ function startPlayerAuction(roomCode, player) {
             role: currentPlayer.role,
             bowlingType: currentPlayer.bowlingType,
             nationality: currentPlayer.nationality,
+            isOverseas: currentPlayer.nationality?.toString().toLowerCase() !== 'indian',
             basePrice: currentPlayer.basePrice,
             currentBid: auction.currentBid,
             currentBidder: null,
