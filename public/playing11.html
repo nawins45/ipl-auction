@@ -418,34 +418,105 @@
     <script>
         // ✅ FIX 5: Add Data Loading on Page Load - PASTE THIS AT THE BEGINNING
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🏏 Playing 11 page loading...');
-            
-            // Check if we have squad data from auction
-            const squadData = JSON.parse(localStorage.getItem('playing11SquadData') || '{}');
-            const auctionCompleted = localStorage.getItem('auctionCompleted') === 'true';
-            
-            if (!auctionCompleted || !squadData.roomCode) {
-                console.error('❌ No valid squad data found');
-                showAlert('Error', 'No squad data found. Please complete the auction first.', '❌');
-                
-                setTimeout(() => {
-                    // Redirect back to auction or login
-                    const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-                    if (userSession.roomCode) {
-                        window.location.href = `auctionpool.html?roomCode=${userSession.roomCode}`;
-                    } else {
-                        window.location.href = 'login.html';
-                    }
-                }, 3000);
-                return;
-            }
-            
-            console.log('✅ Squad data loaded:', squadData);
-            
-            // Initialize page with squad data
-            initializePlaying11Page(squadData);
+    console.log('🏏 Playing 11 page loading...');
+    
+    // Check if we have squad data from auction
+    const squadData = JSON.parse(localStorage.getItem('playing11SquadData') || '{}');
+    const auctionCompleted = localStorage.getItem('auctionCompleted') === 'true';
+    
+    // Check if we have REAL data (not dummy data)
+    const hasRealAuctionData = squadData.auctionPlayers && 
+                              squadData.auctionPlayers.length > 0 && 
+                              squadData.auctionPlayers[0].name !== 'Player 1';
+    
+    if (!auctionCompleted || !squadData.roomCode || !hasRealAuctionData) {
+        console.error('❌ No valid squad data found:', {
+            auctionCompleted,
+            hasRoomCode: !!squadData.roomCode,
+            auctionPlayers: squadData.auctionPlayers?.length || 0,
+            hasRealData: hasRealAuctionData
         });
+        
+        showAlert('Data Loading', 'Loading your squad data from server...', '⏳');
+        
+        // Try to load from localStorage backup
+        const backupData = loadBackupSquadData();
+        if (backupData) {
+            console.log('✅ Loaded backup squad data');
+            initializePlaying11Page(backupData);
+        } else {
+            // Show error and try to reconnect
+            setTimeout(() => {
+                showAlert('Data Error', 
+                    'Could not load your squad data. Please wait or contact auctioneer.', 
+                    '❌');
+                
+                // Add retry button
+                const waitingDiv = document.createElement('div');
+                waitingDiv.className = 'text-center mt-4';
+                waitingDiv.innerHTML = `
+                    <button onclick="retryLoadSquadData()" 
+                            class="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
+                        🔄 Retry Loading Squad Data
+                    </button>
+                `;
+                document.getElementById('availablePlayers')?.appendChild(waitingDiv);
+            }, 2000);
+        }
+        
+        return;
+    }
+    
+    console.log('✅ Valid squad data loaded:', {
+        retained: squadData.retainedPlayers?.length || 0,
+        auction: squadData.auctionPlayers?.length || 0,
+        total: (squadData.retainedPlayers?.length || 0) + (squadData.auctionPlayers?.length || 0)
+    });
+    
+    // Initialize page with squad data
+    initializePlaying11Page(squadData);
+});
 
+// Helper function to load backup squad data
+function loadBackupSquadData() {
+    try {
+        // Try to get from user session
+        const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+        if (userSession.squadData) {
+            return userSession.squadData;
+        }
+        
+        // Try to get from auction buys
+        const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
+        const retainedPlayers = JSON.parse(localStorage.getItem('retainedPlayers') || '[]');
+        
+        if (auctionBuys.length > 0 || retainedPlayers.length > 0) {
+            return {
+                roomCode: userSession.roomCode,
+                username: userSession.username,
+                team: userSession.team,
+                retainedPlayers: retainedPlayers,
+                auctionPlayers: auctionBuys,
+                budget: 100,
+                timestamp: Date.now()
+            };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error loading backup data:', error);
+        return null;
+    }
+}
+
+// Retry function
+function retryLoadSquadData() {
+    console.log('🔄 Retrying to load squad data...');
+    location.reload();
+}
+
+// Expose to window
+window.retryLoadSquadData = retryLoadSquadData;
         function initializePlaying11Page(squadData) {
             console.log('🏆 Total squad players:', 
                 (squadData.retainedPlayers?.length || 0) + 

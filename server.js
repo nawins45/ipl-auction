@@ -893,26 +893,28 @@ function handleAuctionComplete(roomCode) {
             const squadData = getUserSquad(roomCode, user.username);
             
             console.log(`   ↳ Preparing squad for ${user.username}:`, {
-                retained: squadData.retainedPlayers?.length || 0,
-                auction: squadData.auctionPlayers?.length || 0,
-                total: squadData.retainedPlayers?.length + squadData.auctionPlayers?.length
+                retained: user.retainedPlayers?.length || 0,
+                auction: user.auctionPlayers?.length || 0,
+                total: (user.retainedPlayers?.length || 0) + (user.auctionPlayers?.length || 0)
             });
             
-            // Store squad data for playing11.html
+            // Create complete playing 11 data with REAL auction players
             const playing11Data = {
                 roomCode: roomCode,
                 username: user.username,
                 team: user.team,
+                // Use actual retained players from user object
                 retainedPlayers: user.retainedPlayers || [],
+                // Use actual auction players from user object (NOT dummy data)
                 auctionPlayers: user.auctionPlayers || [],
                 budget: squadData.remainingBudget || squadData.budget || 100,
                 totalBudget: squadData.totalBudget || 100,
-                totalSpent: calculateTotalSpent(user),
+                totalSpent: (user.auctionPlayers || []).reduce((sum, player) => sum + (player.price || 0), 0),
                 remainingBudget: squadData.remainingBudget || squadData.budget || 100,
                 squadLimits: {
                     total: (user.retainedPlayers?.length || 0) + (user.auctionPlayers?.length || 0),
-                    indian: squadData.squadLimits?.indian || 0,
-                    overseas: squadData.squadLimits?.overseas || 0,
+                    indian: countIndianPlayers(user),
+                    overseas: countOverseasPlayers(user),
                     maxSquad: room.rules?.squadSize || 25
                 },
                 rules: room.rules || { totalPurse: 100, squadSize: 25, impactPlayers: 1 },
@@ -921,15 +923,19 @@ function handleAuctionComplete(roomCode) {
                 timestamp: Date.now()
             };
             
-            // Also send a simple redirect as backup
-io.to(user.socketId).emit('simpleRedirectToPlaying11', {
-    message: 'Auction completed. Redirecting to Playing 11 selection...',
-    roomCode: roomCode,
-    username: user.username,
-    force: true
-});
+            console.log(`   ✅ Real auction players: ${playing11Data.auctionPlayers.length} players`);
             
-            console.log(`   ✅ Sent squad data and redirect to ${user.username}`);
+            // Send squad data to user WITH redirect command
+            io.to(user.socketId).emit('forceRedirectToPlaying11WithData', {
+                message: 'Auction completed! Redirecting to Playing 11 selection...',
+                roomCode: roomCode,
+                username: user.username,
+                squadData: playing11Data,
+                redirectUrl: 'playing11.html',
+                force: true
+            });
+            
+            console.log(`   ✅ Sent REAL squad data and redirect to ${user.username}`);
             
             // Store in user object for backup
             user.playing11Data = playing11Data;
@@ -963,6 +969,17 @@ io.to(user.socketId).emit('simpleRedirectToPlaying11', {
     console.log(`   Auctioneer redirected to validation`);
 }
 
+// Helper function to count Indian players
+function countIndianPlayers(user) {
+    const allPlayers = [...(user.retainedPlayers || []), ...(user.auctionPlayers || [])];
+    return allPlayers.filter(player => !player.isOverseas).length;
+}
+
+// Helper function to count Overseas players
+function countOverseasPlayers(user) {
+    const allPlayers = [...(user.retainedPlayers || []), ...(user.auctionPlayers || [])];
+    return allPlayers.filter(player => player.isOverseas).length;
+}
 // Helper function to calculate total spent
 function calculateTotalSpent(user) {
     return (user.auctionPlayers || []).reduce((sum, player) => sum + (player.price || 0), 0);

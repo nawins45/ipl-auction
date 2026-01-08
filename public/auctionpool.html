@@ -545,6 +545,12 @@
             <button onclick="closeAlert()" class="text-gray-400 hover:text-white">✕</button>
         </div>
     </div>
+    <!-- Add this with your other buttons -->
+<button onclick="debugAuctionBuys()" 
+        class="px-3 py-2 bg-gradient-to-r from-gray-600 to-gray-800 rounded-lg font-semibold text-sm"
+        title="Debug Auction Buys">
+    🔍 Debug Buys
+</button>
 
     <script>
         // ========== GLOBAL VARIABLES ==========
@@ -1194,61 +1200,128 @@
             });
             
             socket.on('playerSold', (data) => {
-                console.log('✅ Player sold:', data);
-                showSoldBroadcast(data.player, data.team, data.price);
-                
-                // Add to bid log
-                const soldItem = document.createElement('div');
-                soldItem.className = 'p-3 rounded-lg bg-green-900/30 border-l-4 border-green-500 slide-in';
-                soldItem.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <span class="font-bold">${data.player}</span>
-                            <span class="text-gray-400 ml-2">→ ${data.team.toUpperCase()}</span>
-                        </div>
-                        <span class="font-bold text-green-400">₹${data.price} Cr</span>
-                    </div>
-                    <div class="text-xs text-gray-400 mt-1">SOLD at ${new Date().toLocaleTimeString()}</div>
-                `;
-                bidLog.prepend(soldItem);
-                
-                // Update squad if it's our team
-                if (data.team === userTeam?.id) {
-                    teamBudget -= data.price;
-                    purseRemaining.textContent = teamBudget.toFixed(2);
-                    
-                    if (data.isOverseas) {
-                        squadLimits.overseas++;
-                    } else {
-                        squadLimits.indian++;
-                    }
-                    squadLimits.total = squadLimits.indian + squadLimits.overseas;
-                    
-                    updateSquadLimits();
-                    
-                    socket.emit('requestSquadUpdate', {
-                        roomCode: currentRoomCode,
-                        username: currentUsername,
-                        sessionId: userSession.sessionId
-                    });
-                }
-                
-                // Clear current player after delay
-                setTimeout(() => {
-                    currentPlayerCard.classList.add('hidden');
-                    waitingAuction.classList.remove('hidden');
-                    biddingControls.classList.add('hidden');
-                    currentPlayer = null;
-                    
-                    // Save cleared state
-                    saveCurrentState();
-                    
-                    // Request fresh state sync after player sold
-                    setTimeout(() => {
-                        requestStateSync();
-                    }, 1000);
-                }, 3000);
+    console.log('✅ Player sold:', data);
+    showSoldBroadcast(data.player, data.team, data.price);
+    
+    // Add to bid log
+    const soldItem = document.createElement('div');
+    soldItem.className = 'p-3 rounded-lg bg-green-900/30 border-l-4 border-green-500 slide-in';
+    soldItem.innerHTML = `
+        <div class="flex justify-between items-center">
+            <div>
+                <span class="font-bold">${data.player}</span>
+                <span class="text-gray-400 ml-2">→ ${data.team.toUpperCase()}</span>
+            </div>
+            <span class="font-bold text-green-400">₹${data.price} Cr</span>
+        </div>
+        <div class="text-xs text-gray-400 mt-1">SOLD at ${new Date().toLocaleTimeString()}</div>
+    `;
+    bidLog.prepend(soldItem);
+    
+    // ✅ FIX: Store bought players in localStorage
+    // Update squad if it's our team
+    if (data.team === userTeam?.id) {
+        console.log('🎯 Player bought by our team! Storing in localStorage...');
+        
+        // Create player object with proper data
+        const boughtPlayer = {
+            id: data.playerId || data.player?.replace(/\s+/g, '_').toLowerCase(),
+            name: data.player,
+            role: data.playerRole || data.role || 'Player', // Try to get role from data
+            price: data.price,
+            isOverseas: data.isOverseas || false,
+            boughtAt: Date.now(),
+            // Store additional info if available
+            originalTeam: data.originalTeam,
+            playerStats: data.stats || {}
+        };
+        
+        console.log('🛒 Player bought:', boughtPlayer);
+        
+        // Get current auction buys from localStorage
+        let auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
+        
+        // Check if player already exists (prevent duplicates)
+        const playerExists = auctionBuys.some(p => p.id === boughtPlayer.id);
+        
+        if (!playerExists) {
+            // Add the new player
+            auctionBuys.push(boughtPlayer);
+            
+            // Save back to localStorage
+            localStorage.setItem('auctionBuys', JSON.stringify(auctionBuys));
+            
+            console.log('💾 Saved auction buy to localStorage:', {
+                player: boughtPlayer.name,
+                price: boughtPlayer.price,
+                totalBuys: auctionBuys.length
             });
+            
+            // Also update session storage for immediate access
+            if (userSession) {
+                userSession.auctionBuys = auctionBuys;
+                localStorage.setItem('userSession', JSON.stringify(userSession));
+            }
+        } else {
+            console.log('⚠️ Player already in auction buys:', boughtPlayer.name);
+        }
+        
+        // Update budget display
+        teamBudget -= data.price;
+        purseRemaining.textContent = teamBudget.toFixed(2);
+        
+        // Update squad limits
+        if (data.isOverseas) {
+            squadLimits.overseas++;
+        } else {
+            squadLimits.indian++;
+        }
+        squadLimits.total = squadLimits.indian + squadLimits.overseas;
+        
+        updateSquadLimits();
+        
+        // Log squad status
+        console.log('📊 Squad status after purchase:', {
+            budget: teamBudget,
+            totalPlayers: squadLimits.total,
+            indian: squadLimits.indian,
+            overseas: squadLimits.overseas,
+            auctionBuysCount: auctionBuys.length
+        });
+        
+        // Request squad update from server (for server-side tracking)
+        socket.emit('requestSquadUpdate', {
+            roomCode: currentRoomCode,
+            username: currentUsername,
+            sessionId: userSession.sessionId
+        });
+        
+        // Also emit that we bought a player (for server to track)
+        socket.emit('playerBought', {
+            roomCode: currentRoomCode,
+            username: currentUsername,
+            player: boughtPlayer,
+            price: data.price,
+            timestamp: Date.now()
+        });
+    }
+    
+    // Clear current player after delay
+    setTimeout(() => {
+        currentPlayerCard.classList.add('hidden');
+        waitingAuction.classList.remove('hidden');
+        biddingControls.classList.add('hidden');
+        currentPlayer = null;
+        
+        // Save cleared state
+        saveCurrentState();
+        
+        // Request fresh state sync after player sold
+        setTimeout(() => {
+            requestStateSync();
+        }, 1000);
+    }, 3000);
+});
             
             socket.on('playerUnsoldBroadcast', (data) => {
                 console.log('❌ Player unsold popup received:', data);
@@ -1364,21 +1437,31 @@
 });
 
 // ✅ ADD THESE HELPER FUNCTIONS IN auctionpool.html
+// ✅ FIXED: Get real auction buys from localStorage or current data
 function getCurrentAuctionBuys() {
+    console.log('📂 Getting auction buys from localStorage...');
+    
     // Try to get auction buys from localStorage
     const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
     
-    // If empty, create from current squad data
-    if (auctionBuys.length === 0 && squadLimits.total > 0) {
-        return [{
-            name: 'Player 1',
-            role: 'Batsman',
-            price: 2.00,
-            isOverseas: false
-        }]; // Default fallback
+    // Debug what we found
+    console.log('🔍 Found in localStorage:', {
+        count: auctionBuys.length,
+        firstPlayer: auctionBuys[0]?.name || 'none',
+        hasRealData: auctionBuys.length > 0 && auctionBuys[0].name !== 'Player 1'
+    });
+    
+    // Return only if we have real data
+    if (auctionBuys.length > 0 && auctionBuys[0].name !== 'Player 1') {
+        console.log('✅ Returning real auction buys from localStorage');
+        return auctionBuys;
     }
     
-    return auctionBuys;
+    // If empty or dummy data, try to get from current state
+    console.log('⚠️ No valid auction buys in localStorage, checking current state...');
+    
+    // Return empty array instead of dummy data
+    return [];
 }
 
 function calculateTotalSpent() {
@@ -1495,19 +1578,53 @@ socket.on('forceRedirectToPlaying11WithData', (data) => {
         if (data.squadData) {
             localStorage.setItem('playing11SquadData', JSON.stringify(data.squadData));
             console.log('✅ Stored server squad data');
+            
+            // Also extract and store auction buys separately
+            if (data.squadData.auctionPlayers && data.squadData.auctionPlayers.length > 0) {
+                localStorage.setItem('auctionBuys', JSON.stringify(data.squadData.auctionPlayers));
+                console.log('✅ Stored auction buys:', data.squadData.auctionPlayers.length, 'players');
+            }
         } else {
-            // Create local squad data
+            // Get REAL auction buys from current state
+            const realAuctionBuys = [];
+            
+            // Check if we have socket and can request real data
+            if (socket && socket.connected && currentUsername && currentRoomCode) {
+                // Request squad data synchronously
+                socket.emit('requestSquad', {
+                    roomCode: currentRoomCode,
+                    username: currentUsername,
+                    sessionId: userSession?.sessionId
+                }, (response) => {
+                    if (response && response.success && response.data) {
+                        const realData = {
+                            roomCode: currentRoomCode,
+                            username: currentUsername,
+                            team: userTeam,
+                            budget: teamBudget,
+                            retainedPlayers: response.data.retainedPlayers || [],
+                            auctionPlayers: response.data.auctionPlayers || [],
+                            timestamp: Date.now()
+                        };
+                        localStorage.setItem('playing11SquadData', JSON.stringify(realData));
+                        localStorage.setItem('auctionBuys', JSON.stringify(response.data.auctionPlayers || []));
+                        console.log('✅ Stored real squad data from server');
+                    }
+                });
+            }
+            
+            // Create local squad data with empty auction buys (not dummy data)
             const localSquadData = {
                 roomCode: currentRoomCode,
                 username: currentUsername,
                 team: userTeam,
                 budget: teamBudget,
                 retainedPlayers: JSON.parse(localStorage.getItem('retainedPlayers') || '[]'),
-                auctionPlayers: JSON.parse(localStorage.getItem('auctionBuys') || '[]'),
+                auctionPlayers: [], // Empty array, NOT dummy data
                 timestamp: Date.now()
             };
             localStorage.setItem('playing11SquadData', JSON.stringify(localSquadData));
-            console.log('✅ Created local squad data');
+            console.log('✅ Created local squad data (empty auction buys)');
         }
         
         // Always mark as completed
@@ -2399,6 +2516,27 @@ function redirectToPlaying11Fallback() {
         window.location.href = 'playing11.html';
     }, 1000);
 }
+
+// Helper function to debug localStorage auction buys
+function debugAuctionBuys() {
+    const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
+    console.log('🔍 Debug auction buys:', {
+        count: auctionBuys.length,
+        players: auctionBuys.map(p => `${p.name} - ₹${p.price} Cr`),
+        localStorageSize: JSON.stringify(auctionBuys).length
+    });
+    
+    if (auctionBuys.length === 0) {
+        console.log('❌ No auction buys found in localStorage');
+    }
+    
+    return auctionBuys;
+}
+
+// Call this periodically to check localStorage
+setInterval(() => {
+    debugAuctionBuys();
+}, 30000); // Every 30 seconds
 
 // Expose to window for debugging
 window.redirectToPlaying11Fallback = redirectToPlaying11Fallback;
