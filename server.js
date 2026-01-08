@@ -696,7 +696,7 @@ function handlePlayerSold(roomCode) {
     
     // REMOVED: Overseas limit check during auction pool
     // Overseas limit only applies during retention phase, not auction pool
-    const isOverseas = currentPlayer.nationality?.toString().toLowerCase() !== 'indian';
+    const isOverseas = !isIndian(currentPlayer.nationality);
     
     // Check budget
     if (auction.currentBid > buyingTeamUser.budget) {
