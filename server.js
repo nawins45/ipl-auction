@@ -1081,6 +1081,44 @@ function testRedirectToPlaying11() {
         window.location.href = 'playing11.html';
     }, 1000);
 }
+// Add this helper function at the top of server.js (with other helper functions)
+function isIndian(nationality) {
+    if (!nationality) return true; // Default to Indian if unknown
+    
+    const natStr = nationality.toString().trim().toUpperCase();
+    
+    // Check for various ways Indian nationality might be represented
+    return natStr === 'INDIAN' || 
+           natStr === 'IND' || 
+           natStr === 'INDIA' ||
+           natStr === 'IND ' ||
+           natStr.includes('IND') ||  // This will catch "IND"
+           natStr === 'IN' ||        // Just in case
+           natStr === '🇮🇳' ||      // Emoji
+           natStr === 'I' ||         // Abbreviation
+           natStr === 'INDN' ||      // Variant
+           natStr === 'INDIAN ';     // With space
+}
+
+// Also update the formatPlayerForAuction function to standardize nationality
+function formatPlayerForAuction(player) {
+    const basePrice = parseFloat(player['Base price']?.replace('cr', '')?.replace('Cr', '') || '2');
+    
+    // ✅ FIX: Standardize nationality
+    let nationality = player['Nationality'] || player.nationality || 'IND';
+    nationality = nationality.toString().trim().toUpperCase();
+    
+    return {
+        id: player['player name']?.replace(/\s+/g, '_') || player.id,
+        name: player['player name'] || player.name,
+        role: player['player role'] || player.role,
+        bowlingType: player['bowling type'] || player.bowlingType,
+        nationality: nationality,  // Now standardized to uppercase
+        originalTeam: normalizeTeamName(player['Team name'] || player.team),
+        basePrice: basePrice,
+       
+    };
+}
 
 // Call this from console for testing:
 // testRedirectToPlaying11()

@@ -695,7 +695,7 @@ window.retryLoadSquadData = retryLoadSquadData;
     
     // ✅ FIX: Show correct overseas status
     const isOverseas = player.isOverseas === true || 
-                      (player.nationality && player.nationality.toString().toLowerCase() !== 'indian');
+                      (player.nationality && player.nationality.toString().toLowerCase() !== 'IND');
     
     playerEl.innerHTML = `
         <div class="flex items-center justify-between">
