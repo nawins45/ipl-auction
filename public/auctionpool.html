@@ -1233,12 +1233,12 @@
         }
         // Method 2: Determine from nationality if available
         else if (data.nationality) {
-            isOverseasPlayer = data.nationality.toString().toLowerCase() !== 'india';
+            isOverseasPlayer = data.nationality.toString().toLowerCase() !== 'indian';
             console.log('✅ Determined overseas from nationality:', data.nationality, '->', isOverseasPlayer);
         }
         // Method 3: Check if we have current player data
         else if (currentPlayer && currentPlayer.nationality) {
-            isOverseasPlayer = currentPlayer.nationality.toString().toLowerCase() !== 'india';
+            isOverseasPlayer = currentPlayer.nationality.toString().toLowerCase() !== 'indian';
             console.log('✅ Determined overseas from current player:', currentPlayer.nationality, '->', isOverseasPlayer);
         }
         // Method 4: Check player name for known overseas players (fallback)
@@ -1972,7 +1972,7 @@ socket.on('simpleRedirectToPlaying11', (data) => {
                 highestBidder.style.color = '#D1D5DB';
             }
             
-            const isOverseas = currentPlayer.nationality?.toString().toLowerCase() !== 'india';
+            const isOverseas = currentPlayer.nationality?.toString().toLowerCase() !== 'indian';
             if (isOverseas) {
                 playerOverseasBadge.classList.remove('hidden');
             } else {
