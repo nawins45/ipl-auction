@@ -1218,25 +1218,55 @@
     `;
     bidLog.prepend(soldItem);
     
-    // ✅ FIX: Store bought players in localStorage
+    // ✅ FIXED: Store bought players in localStorage with CORRECT overseas status
     // Update squad if it's our team
     if (data.team === userTeam?.id) {
         console.log('🎯 Player bought by our team! Storing in localStorage...');
+        
+        // ✅ FIX: Determine overseas status correctly
+        let isOverseasPlayer = false;
+        
+        // Method 1: Use isOverseas from server data if available
+        if (data.isOverseas !== undefined) {
+            isOverseasPlayer = data.isOverseas;
+            console.log('✅ Using server-provided overseas status:', isOverseasPlayer);
+        }
+        // Method 2: Determine from nationality if available
+        else if (data.nationality) {
+            isOverseasPlayer = data.nationality.toString().toLowerCase() !== 'indian';
+            console.log('✅ Determined overseas from nationality:', data.nationality, '->', isOverseasPlayer);
+        }
+        // Method 3: Check if we have current player data
+        else if (currentPlayer && currentPlayer.nationality) {
+            isOverseasPlayer = currentPlayer.nationality.toString().toLowerCase() !== 'indian';
+            console.log('✅ Determined overseas from current player:', currentPlayer.nationality, '->', isOverseasPlayer);
+        }
+        // Method 4: Check player name for known overseas players (fallback)
+        else {
+            const overseasKeywords = ['de', 'st', 'van', 'mc', 'o\'', 'afghan', 'australian', 'english', 'south african', 'west indian', 'sri lankan', 'bangladeshi', 'new zealander'];
+            const playerNameLower = data.player.toLowerCase();
+            isOverseasPlayer = overseasKeywords.some(keyword => playerNameLower.includes(keyword));
+            console.log('⚠️ Fallback: Determined overseas from name pattern:', playerNameLower, '->', isOverseasPlayer);
+        }
         
         // Create player object with proper data
         const boughtPlayer = {
             id: data.playerId || data.player?.replace(/\s+/g, '_').toLowerCase(),
             name: data.player,
-            role: data.playerRole || data.role || 'Player', // Try to get role from data
+            role: data.playerRole || data.role || currentPlayer?.role || 'Player',
             price: data.price,
-            isOverseas: data.isOverseas || false,
+            isOverseas: isOverseasPlayer,  // ✅ CORRECT overseas status
+            nationality: data.nationality || currentPlayer?.nationality || 'Indian',
             boughtAt: Date.now(),
-            // Store additional info if available
-            originalTeam: data.originalTeam,
-            playerStats: data.stats || {}
+            originalTeam: data.originalTeam || currentPlayer?.originalTeam || 'Unknown'
         };
         
-        console.log('🛒 Player bought:', boughtPlayer);
+        console.log('🛒 Player bought with CORRECT overseas status:', {
+            name: boughtPlayer.name,
+            isOverseas: boughtPlayer.isOverseas,
+            nationality: boughtPlayer.nationality,
+            price: boughtPlayer.price
+        });
         
         // Get current auction buys from localStorage
         let auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
@@ -1254,6 +1284,7 @@
             console.log('💾 Saved auction buy to localStorage:', {
                 player: boughtPlayer.name,
                 price: boughtPlayer.price,
+                isOverseas: boughtPlayer.isOverseas,
                 totalBuys: auctionBuys.length
             });
             
@@ -1270,11 +1301,13 @@
         teamBudget -= data.price;
         purseRemaining.textContent = teamBudget.toFixed(2);
         
-        // Update squad limits
-        if (data.isOverseas) {
+        // Update squad limits with CORRECT overseas count
+        if (isOverseasPlayer) {
             squadLimits.overseas++;
+            console.log('➕ Incremented overseas count');
         } else {
             squadLimits.indian++;
+            console.log('➕ Incremented Indian count');
         }
         squadLimits.total = squadLimits.indian + squadLimits.overseas;
         

@@ -669,57 +669,64 @@ window.retryLoadSquadData = retryLoadSquadData;
         }
         
         function createPlayerElement(player) {
-            const playerEl = document.createElement('div');
-            playerEl.className = 'player-drag-item player-card rounded-xl p-3 mb-3 hover:scale-[1.02] transition-transform duration-200';
-            playerEl.setAttribute('data-player-id', player.id);
-            playerEl.setAttribute('draggable', 'true');
-            
-            // Determine role class and icon
-            let roleClass = 'role-batsman';
-            let roleDisplay = player.role || 'Player';
-            let roleIcon = '🏏';
-            
-            if (player.role) {
-                const roleLower = player.role.toLowerCase();
-                if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin')) {
-                    roleClass = 'role-bowler';
-                    roleIcon = '🎯';
-                } else if (roleLower.includes('all') || roleLower.includes('ar')) {
-                    roleClass = 'role-allrounder';
-                    roleIcon = '⚡';
-                } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
-                    roleClass = 'role-wk';
-                    roleIcon = '🧤';
-                }
-            }
-            
-            playerEl.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-lg">
-                            <span class="text-lg">${roleIcon}</span>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <div class="font-medium truncate">${player.name}</div>
-                            <div class="flex items-center space-x-2 mt-1">
-                                <span class="${roleClass} role-badge">${roleDisplay}</span>
-                                ${player.isOverseas ? '<span class="text-xs px-2 py-1 bg-gradient-to-r from-purple-900/30 to-pink-900/30 text-purple-300 rounded">✈️ Overseas</span>' : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-sm text-gray-400">${player.source === 'retained' ? 'Retained' : 'Bought'}</div>
-                        <div class="font-bold text-yellow-400">${player.source === 'retained' ? 'Free' : `₹${player.price} Cr`}</div>
-                    </div>
-                </div>
-            `;
-            
-            // Add drag event listeners
-            playerEl.addEventListener('dragstart', handleDragStart);
-            playerEl.addEventListener('dragend', handleDragEnd);
-            
-            return playerEl;
+    const playerEl = document.createElement('div');
+    playerEl.className = 'player-drag-item player-card rounded-xl p-3 mb-3 hover:scale-[1.02] transition-transform duration-200';
+    playerEl.setAttribute('data-player-id', player.id);
+    playerEl.setAttribute('draggable', 'true');
+    
+    // Determine role class and icon
+    let roleClass = 'role-batsman';
+    let roleDisplay = player.role || 'Player';
+    let roleIcon = '🏏';
+    
+    if (player.role) {
+        const roleLower = player.role.toLowerCase();
+        if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin')) {
+            roleClass = 'role-bowler';
+            roleIcon = '🎯';
+        } else if (roleLower.includes('all') || roleLower.includes('ar')) {
+            roleClass = 'role-allrounder';
+            roleIcon = '⚡';
+        } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
+            roleClass = 'role-wk';
+            roleIcon = '🧤';
         }
+    }
+    
+    // ✅ FIX: Show correct overseas status
+    const isOverseas = player.isOverseas === true || 
+                      (player.nationality && player.nationality.toString().toLowerCase() !== 'indian');
+    
+    playerEl.innerHTML = `
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-lg">
+                    <span class="text-lg">${roleIcon}</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="font-medium truncate">${player.name}</div>
+                    <div class="flex items-center space-x-2 mt-1">
+                        <span class="${roleClass} role-badge">${roleDisplay}</span>
+                        ${isOverseas ? 
+                            '<span class="text-xs px-2 py-1 bg-gradient-to-r from-purple-900/30 to-pink-900/30 text-purple-300 rounded">✈️ Overseas</span>' : 
+                            '<span class="text-xs px-2 py-1 bg-gradient-to-r from-green-900/30 to-emerald-900/30 text-green-300 rounded">🇮🇳 Indian</span>'}
+                    </div>
+                    ${player.nationality ? `<div class="text-xs text-gray-500 mt-1">${player.nationality}</div>` : ''}
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-400">${player.source === 'retained' ? 'Retained' : 'Bought'}</div>
+                <div class="font-bold text-yellow-400">${player.source === 'retained' ? 'Free' : `₹${player.price} Cr`}</div>
+            </div>
+        </div>
+    `;
+    
+    // Add drag event listeners
+    playerEl.addEventListener('dragstart', handleDragStart);
+    playerEl.addEventListener('dragend', handleDragEnd);
+    
+    return playerEl;
+}
         
         function requestSquadFromServer() {
             if (socket && socket.connected) {

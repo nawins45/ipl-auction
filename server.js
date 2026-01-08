@@ -743,14 +743,18 @@ function handlePlayerSold(roomCode) {
     console.log(`   Player is overseas: ${isOverseas ? 'Yes' : 'No'}`);
     
     // Broadcast sale to ALL
-    io.to(roomCode).emit('playerSold', {
-        player: currentPlayer.name,
-        team: currentPlayer.soldTo,
-        price: currentPlayer.soldPrice,
-        isOverseas: isOverseas,
-        buyerUsername: buyingTeamUser.username
-    });
-    
+    // Broadcast sale to ALL
+io.to(roomCode).emit('playerSold', {
+    player: currentPlayer.name,
+    playerId: currentPlayer.id,
+    team: currentPlayer.soldTo,
+    price: currentPlayer.soldPrice,
+    isOverseas: isOverseas,
+    playerRole: currentPlayer.role,
+    nationality: currentPlayer.nationality,  // Add this
+    originalTeam: currentPlayer.originalTeam,  // Add this
+    buyerUsername: buyingTeamUser.username
+});
     // Send squad update to buying team
     const squadData = getUserSquad(roomCode, buyingTeamUser.username);
     if (squadData && buyingTeamUser.socketId) {
