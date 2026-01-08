@@ -152,7 +152,7 @@
             width: 100%;
             height: 100%;
             z-index: -10;
-            opacity: 0.1;
+            opacity: 45;
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
@@ -226,6 +226,129 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Add this to your CSS section */
+.highest-bidder-pill {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 50px; /* Pill shape */
+    font-weight: 700;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: relative;
+    box-shadow: 0 0 20px currentColor; /* Glow effect */
+    animation: pulseGlow 1.5s infinite alternate;
+    transition: all 0.3s ease;
+    border: 2px solid currentColor;
+}
+
+/* Enhanced glow animation */
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 0 10px currentColor;
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 20px currentColor, 0 0 30px rgba(255, 255, 255, 0.2);
+        transform: scale(1.05);
+    }
+    100% {
+        box-shadow: 0 0 25px currentColor, 0 0 40px rgba(255, 255, 255, 0.3);
+        transform: scale(1.03);
+    }
+}
+
+/* Team-specific glow colors */
+.highest-bidder-pill.csk {
+    background: linear-gradient(45deg, #FFCC00, #FFD700);
+    color: #000;
+}
+.highest-bidder-pill.mi {
+    background: linear-gradient(45deg, #0048A0, #0066CC);
+    color: white;
+}
+.highest-bidder-pill.rcb {
+    background: linear-gradient(45deg, #D5152C, #FF0000);
+    color: white;
+}
+.highest-bidder-pill.kkr {
+    background: linear-gradient(45deg, #3A225D, #5A2D8C);
+    color: white;
+}
+.highest-bidder-pill.dc {
+    background: linear-gradient(45deg, #004C93, #0066CC);
+    color: white;
+}
+.highest-bidder-pill.pbks {
+    background: linear-gradient(45deg, #ED1B24, #FF4444);
+    color: white;
+}
+.highest-bidder-pill.rr {
+    background: linear-gradient(45deg, #FF4C93, #FF80AB);
+    color: white;
+}
+.highest-bidder-pill.srh {
+    background: linear-gradient(45deg, #FF6F3D, #FF8C66);
+    color: white;
+}
+.highest-bidder-pill.gt {
+    background: linear-gradient(45deg, #1E2D4A, #2A3D66);
+    color: white;
+}
+.highest-bidder-pill.lsg {
+    background: linear-gradient(45deg, #A5E1F4, #00BFFF);
+    color: #000;
+}
+
+/* Default style when no bidder */
+.no-bidder-pill {
+    background: linear-gradient(45deg, #4B5563, #6B7280);
+    color: #D1D5DB;
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 14px;
+    border: 2px solid #9CA3AF;
+}
+
+/* Hover effect */
+.highest-bidder-pill:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 30px currentColor, 0 0 50px rgba(255, 255, 255, 0.4);
+}
+/* Add sparkle effect for highest bidder */
+.highest-bidder-pill::before {
+    content: '✨';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 12px;
+    animation: sparkle 1.5s infinite;
+}
+
+@keyframes sparkle {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+/* Trophy icon for current highest bidder */
+.highest-bidder-pill::after {
+    content: '👑';
+    position: absolute;
+    top: -10px;
+    left: -8px;
+    font-size: 14px;
+    animation: bounce 0.5s infinite alternate;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .highest-bidder-pill {
+        padding: 6px 12px;
+        font-size: 14px;
+    }
+}
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen text-white">
@@ -340,8 +463,11 @@
                                 <div class="text-right">
                                     <div class="text-2xl font-bold text-yellow-400 mb-1">Current Bid</div>
                                     <div id="currentBid" class="text-4xl font-black">₹0 Cr</div>
+                                    <div class="mb-1 text-sm text-gray-400">Highest Bidder:</div>
+                                     <div id="highestBidderContainer" class="inline-block">
                                     <div id="highestBidder" class="text-lg text-gray-300 mt-2">No bids yet</div>
                                 </div>
+
                             </div>
                             
                             <!-- Base Price -->
@@ -1197,6 +1323,26 @@
                 
                 // Save state
                 saveCurrentState();
+                if (data.currentBidder) {
+    const teamName = data.currentBidder.toUpperCase();
+    highestBidder.textContent = teamName;
+    
+    // Apply pill styling
+    highestBidder.className = 'highest-bidder-pill';
+    
+    // Add team-specific class
+    if (data.currentBidder in teamColors) {
+        highestBidder.classList.add(data.currentBidder);
+    } else {
+        // Default styling
+        highestBidder.style.background = 'linear-gradient(45deg, #6366F1, #8B5CF6)';
+        highestBidder.style.color = 'white';
+        highestBidder.style.boxShadow = '0 0 20px #8B5CF6';
+    }
+} else {
+    highestBidder.textContent = 'No bids yet';
+    highestBidder.className = 'highest-bidder-pill no-bidder-pill';
+}
             });
             
             socket.on('playerSold', (data) => {
@@ -1960,17 +2106,28 @@ socket.on('simpleRedirectToPlaying11', (data) => {
             originalTeamName.textContent = currentPlayer.originalTeam || '-';
             
             if (currentPlayer.currentBidder) {
-                highestBidder.textContent = currentPlayer.currentBidder.toUpperCase();
-                const teamColors = {
-                    'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
-                    'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
-                    'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
-                };
-                highestBidder.style.color = teamColors[currentPlayer.currentBidder] || '#FFFFFF';
-            } else {
-                highestBidder.textContent = 'No bids yet';
-                highestBidder.style.color = '#D1D5DB';
-            }
+    const bidderTeam = currentPlayer.currentBidder;
+    const teamName = bidderTeam.toUpperCase();
+    
+    // Update text and apply pill styling
+    highestBidder.textContent = teamName;
+    
+    // Remove any existing team classes
+    highestBidder.className = 'highest-bidder-pill';
+    
+    // Add specific team class if exists, else default
+    if (bidderTeam in teamColors) {
+        highestBidder.classList.add(bidderTeam);
+    } else {
+        // Default styling for unknown team
+        highestBidder.style.background = 'linear-gradient(45deg, #6366F1, #8B5CF6)';
+        highestBidder.style.color = 'white';
+        highestBidder.style.boxShadow = '0 0 20px #8B5CF6';
+    }
+} else {
+    highestBidder.textContent = 'No bids yet';
+    highestBidder.className = 'highest-bidder-pill no-bidder-pill';
+}
             
             const isOverseas = currentPlayer.nationality?.toString().toLowerCase() !== 'indian';
             if (isOverseas) {
@@ -2107,14 +2264,22 @@ socket.on('simpleRedirectToPlaying11', (data) => {
                     setTimeout(() => currentBid.classList.remove('bounce'), 500);
                     
                     if (userTeam && userTeam.id) {
-                        highestBidder.textContent = userTeam.id.toUpperCase();
-                        const teamColors = {
-                            'csk': '#FFCC00', 'mi': '#0048A0', 'rcb': '#D5152C',
-                            'kkr': '#3A225D', 'dc': '#004C93', 'pbks': '#ED1B24',
-                            'rr': '#FF4C93', 'srh': '#FF6F3D', 'gt': '#1E2D4A', 'lsg': '#A5E1F4'
-                        };
-                        highestBidder.style.color = teamColors[userTeam.id] || '#FFFFFF';
-                    }
+    const teamName = userTeam.id.toUpperCase();
+    highestBidder.textContent = teamName;
+    
+    // Apply pill styling
+    highestBidder.className = 'highest-bidder-pill';
+    
+    // Add team-specific class
+    if (userTeam.id in teamColors) {
+        highestBidder.classList.add(userTeam.id);
+    } else {
+        // Default styling
+        highestBidder.style.background = 'linear-gradient(45deg, #10B981, #34D399)';
+        highestBidder.style.color = 'white';
+        highestBidder.style.boxShadow = '0 0 20px #10B981';
+    }
+}
                     
                     addBidToLog(userTeam.id, bidAmount);
                     
