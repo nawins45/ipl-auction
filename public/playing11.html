@@ -698,9 +698,20 @@ window.retryLoadSquadData = retryLoadSquadData;
         }
     }
     
-    // ✅ FIX: Show correct overseas status
-    const isOverseas = player.isOverseas === true || 
-                      (player.nationality && player.nationality.toString().toLowerCase() !== 'IND');
+    // ✅ FIXED: Correct overseas status check
+    // First check if isOverseas is explicitly set to true/false
+    let isOverseas = player.isOverseas === true;
+    
+    // If not explicitly set, check nationality
+    if (player.isOverseas === undefined && player.nationality) {
+        const nationality = player.nationality.toString().toLowerCase();
+        isOverseas = !(nationality.includes('ind') || nationality.includes('india') || nationality === 'indian');
+    }
+    
+    // If still not determined, default to Indian
+    if (player.isOverseas === undefined && !player.nationality) {
+        isOverseas = false;
+    }
     
     playerEl.innerHTML = `
         <div class="flex items-center justify-between">
@@ -930,10 +941,14 @@ window.retryLoadSquadData = retryLoadSquadData;
                 returnToAvailablePlayers(oldPlayerId);
             }
             
+            // ✅ FIXED: Use consistent overseas status function
+            const isOverseas = checkIfOverseas(playerData);
+            
             // Add to playing11 array with slot position
             playing11[slotIndex] = {
                 ...playerData,
-                slotPosition: slotIndex + 1 // Store the exact position (1-11)
+                slotPosition: slotIndex + 1, // Store the exact position (1-11)
+                isOverseas: isOverseas // Ensure consistent overseas status
             };
             
             // Update slot display
@@ -965,14 +980,37 @@ window.retryLoadSquadData = retryLoadSquadData;
                 returnToAvailablePlayers(oldPlayerId);
             }
             
-            // Add to impactPlayers array
-            impactPlayers[slotIndex] = playerData;
+            // ✅ FIXED: Use consistent overseas status function
+            const isOverseas = checkIfOverseas(playerData);
+            
+            // Add to impactPlayers array with consistent overseas status
+            impactPlayers[slotIndex] = {
+                ...playerData,
+                isOverseas: isOverseas
+            };
             
             // Update slot display
             updateSlotDisplay('impact', slotIndex, playerData);
             
             // Highlight the slot
             highlightSlot('impact', slotIndex);
+        }
+        
+        // ✅ NEW: Helper function to check overseas status consistently
+        function checkIfOverseas(player) {
+            // First check if isOverseas is explicitly set to true/false
+            if (player.isOverseas === true || player.isOverseas === false) {
+                return player.isOverseas;
+            }
+            
+            // If not explicitly set, check nationality
+            if (player.nationality) {
+                const nationality = player.nationality.toString().toLowerCase();
+                return !(nationality.includes('ind') || nationality.includes('india') || nationality === 'indian');
+            }
+            
+            // Default to Indian if no information
+            return false;
         }
         
         function removePlayerFromAllSlots(playerId) {
@@ -1035,6 +1073,9 @@ window.retryLoadSquadData = retryLoadSquadData;
                 }
             }
             
+            // ✅ FIXED: Use consistent overseas check
+            const isOverseas = checkIfOverseas(playerData);
+            
             slot.innerHTML = `
                 <div class="text-center w-full p-2">
                     <div class="font-medium text-sm truncate mb-1">${playerData.name}</div>
@@ -1042,7 +1083,7 @@ window.retryLoadSquadData = retryLoadSquadData;
                         <span class="text-xs">${roleIcon}</span>
                         <span class="${roleClass} role-badge text-xs">${playerData.role || 'Player'}</span>
                     </div>
-                    ${playerData.isOverseas ? '<div class="text-xs text-purple-300 mt-1">✈️ Overseas</div>' : ''}
+                    ${isOverseas ? '<div class="text-xs text-purple-300 mt-1">✈️ Overseas</div>' : ''}
                     <div class="text-xs text-gray-400 mt-2">${slotType === 'playing11' ? `Slot ${slotIndex + 1}` : 'Impact'}</div>
                 </div>
             `;
@@ -1202,9 +1243,9 @@ window.retryLoadSquadData = retryLoadSquadData;
             // Get selected captain
             const hasCaptain = window.selectedCaptain !== undefined && window.selectedCaptain !== null;
             
-            // Check overseas count (max 4)
+            // Check overseas count (max 4) - using consistent check
             const overseasCount = playing11.filter(player => 
-                player && player.isOverseas
+                player && checkIfOverseas(player)
             ).length;
             
             // Check wicket keeper count (min 1)
@@ -1307,18 +1348,28 @@ window.retryLoadSquadData = retryLoadSquadData;
             // Prepare submission data WITH POSITIONS
             const playing11Final = playing11
                 .filter(player => player !== null)
-                .map((player, index) => ({
-                    ...player,
-                    slotPosition: index + 1, // Exact position (1-11)
-                    isCaptain: window.selectedCaptain?.id === player.id
-                }));
+                .map((player, index) => {
+                    // ✅ Ensure consistent overseas status
+                    const isOverseas = checkIfOverseas(player);
+                    return {
+                        ...player,
+                        slotPosition: index + 1, // Exact position (1-11)
+                        isCaptain: window.selectedCaptain?.id === player.id,
+                        isOverseas: isOverseas // Use consistent overseas status
+                    };
+                });
             
             const impactPlayersFinal = impactPlayers
                 .filter(player => player !== null)
-                .map((player, index) => ({
-                    ...player,
-                    impactSlot: index + 1 // Impact player position
-                }));
+                .map((player, index) => {
+                    // ✅ Ensure consistent overseas status
+                    const isOverseas = checkIfOverseas(player);
+                    return {
+                        ...player,
+                        impactSlot: index + 1, // Impact player position
+                        isOverseas: isOverseas // Use consistent overseas status
+                    };
+                });
             
             // Check if we have a captain
             if (!window.selectedCaptain) {
@@ -1356,7 +1407,7 @@ window.retryLoadSquadData = retryLoadSquadData;
             };
             
             console.log('📤 Submitting Playing 11 with positions:', {
-                playing11: playing11Data.map(p => ({name: p.name, position: p.slotPosition, captain: p.isCaptain})),
+                playing11: playing11Data.map(p => ({name: p.name, position: p.slotPosition, captain: p.isCaptain, overseas: p.isOverseas})),
                 impact: impactPlayersData.length,
                 captain: window.selectedCaptain.name
             });
