@@ -1116,7 +1116,21 @@ function formatPlayerForAuction(player) {
         nationality: nationality,  // Now standardized to uppercase
         originalTeam: normalizeTeamName(player['Team name'] || player.team),
         basePrice: basePrice,
-       
+        totalRuns: player['total runs'] || player.totalRuns || 0,
+        highestScore: player['highest score'] || player.highestScore || '0',
+        strikeRate: player['strike rate'] || player.strikeRate || 0,
+        fours: player["4's"] || player.fours || 0,
+        sixes: player["6's"] || player.sixes || 0,
+        fifties: player["50's"] || player.fifties || 0,
+        hundreds: player["100's"] || player.hundreds || 0,
+        wickets: player.wickets || 0,
+        bestBowling: player['best '] || player.bestBowling || '0/0',
+        economyRate: player['economy rate'] || player.economyRate || 0,
+        currentBid: basePrice,
+        currentBidder: null,
+        sold: false,
+        soldTo: null,
+        soldPrice: 0
     };
 }
 
