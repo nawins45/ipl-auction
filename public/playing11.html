@@ -154,8 +154,8 @@
                 <div class="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-4">
                     <!-- Session Info -->
                     <div class="text-center md:text-right">
-                        <div class="text-sm text-gray-400">Room: <span id="roomCodeDisplay" class="font-bold text-yellow-400"></span></div>
-                        <div class="text-sm text-gray-400">User: <span id="usernameDisplay" class="font-bold text-cyan-400"></span></div>
+                        <div class="text-sm text-gray-400">Room: <span id="roomCodeDisplay" class="font-bold text-yellow-400">---</span></div>
+                        <div class="text-sm text-gray-400">User: <span id="usernameDisplay" class="font-bold text-cyan-400">---</span></div>
                     </div>
                     
                     <!-- Validation Status -->
@@ -418,144 +418,71 @@
     </style>
 
     <script>
-        // ✅ FIX 5: Add Data Loading on Page Load - PASTE THIS AT THE BEGINNING
+        // ========== INITIALIZATION ==========
         document.addEventListener('DOMContentLoaded', function() {
-    console.log('🏏 Playing 11 page loading...');
-    
-    // Check if we have squad data from auction
-    const squadData = JSON.parse(localStorage.getItem('playing11SquadData') || '{}');
-    const auctionCompleted = localStorage.getItem('auctionCompleted') === 'true';
-    
-    // Check if we have REAL data (not dummy data)
-    const hasRealAuctionData = squadData.auctionPlayers && 
-                              squadData.auctionPlayers.length > 0 && 
-                              squadData.auctionPlayers[0].name !== 'Player 1';
-    
-    if (!auctionCompleted || !squadData.roomCode || !hasRealAuctionData) {
-        console.error('❌ No valid squad data found:', {
-            auctionCompleted,
-            hasRoomCode: !!squadData.roomCode,
-            auctionPlayers: squadData.auctionPlayers?.length || 0,
-            hasRealData: hasRealAuctionData
-        });
-        
-        showAlert('Data Loading', 'Loading your squad data from server...', '⏳');
-        
-        // Try to load from localStorage backup
-        const backupData = loadBackupSquadData();
-        if (backupData) {
-            console.log('✅ Loaded backup squad data');
-            initializePlaying11Page(backupData);
-        } else {
-            // Show error and try to reconnect
-            setTimeout(() => {
-                showAlert('Data Error', 
-                    'Could not load your squad data. Please wait or contact auctioneer.', 
-                    '❌');
+            console.log('🏏 Playing 11 page loading...');
+            
+            // Try multiple sources for room code
+            const squadData = JSON.parse(localStorage.getItem('playing11SquadData') || '{}');
+            const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+            const auctionData = JSON.parse(localStorage.getItem('auctionData') || '{}');
+            
+            console.log('🔍 Checking data sources:', {
+                squadData: !!squadData.roomCode,
+                userSession: !!userSession.roomCode,
+                auctionData: !!auctionData.roomCode
+            });
+            
+            // Priority: squadData > userSession > auctionData
+            let roomCode = squadData.roomCode || userSession.roomCode || auctionData.roomCode;
+            let username = squadData.username || userSession.username || auctionData.username;
+            let team = squadData.team || userSession.team || auctionData.team;
+            let sessionId = squadData.sessionId || userSession.sessionId;
+            
+            console.log('📋 Extracted data:', { roomCode, username, team: team?.name });
+            
+            if (!roomCode) {
+                console.error('❌ No room code found in any data source');
+                showAlert('Room Error', 'No room code found. Please return to auction room.', '❌');
                 
-                // Add retry button
+                // Add button to go back
                 const waitingDiv = document.createElement('div');
                 waitingDiv.className = 'text-center mt-4';
                 waitingDiv.innerHTML = `
-                    <button onclick="retryLoadSquadData()" 
+                    <button onclick="window.location.href='auction.html'" 
                             class="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
-                        🔄 Retry Loading Squad Data
+                        🔙 Return to Auction
                     </button>
                 `;
                 document.getElementById('availablePlayers')?.appendChild(waitingDiv);
-            }, 2000);
-        }
-        
-        return;
-    }
-    
-    console.log('✅ Valid squad data loaded:', {
-        retained: squadData.retainedPlayers?.length || 0,
-        auction: squadData.auctionPlayers?.length || 0,
-        total: (squadData.retainedPlayers?.length || 0) + (squadData.auctionPlayers?.length || 0)
-    });
-    
-    // Initialize page with squad data
-    initializePlaying11Page(squadData);
-});
-
-// Helper function to load backup squad data
-function loadBackupSquadData() {
-    try {
-        // Try to get from user session
-        const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-        if (userSession.squadData) {
-            return userSession.squadData;
-        }
-        
-        // Try to get from auction buys
-        const auctionBuys = JSON.parse(localStorage.getItem('auctionBuys') || '[]');
-        const retainedPlayers = JSON.parse(localStorage.getItem('retainedPlayers') || '[]');
-        
-        if (auctionBuys.length > 0 || retainedPlayers.length > 0) {
-            return {
-                roomCode: userSession.roomCode,
-                username: userSession.username,
-                team: userSession.team,
-                retainedPlayers: retainedPlayers,
-                auctionPlayers: auctionBuys,
-                budget: 100,
-                timestamp: Date.now()
-            };
-        }
-        
-        return null;
-    } catch (error) {
-        console.error('Error loading backup data:', error);
-        return null;
-    }
-}
-
-// Retry function
-function retryLoadSquadData() {
-    console.log('🔄 Retrying to load squad data...');
-    location.reload();
-}
-
-// Expose to window
-window.retryLoadSquadData = retryLoadSquadData;
-
-        function initializePlaying11Page(squadData) {
-            console.log('🏆 Total squad players:', 
-                (squadData.retainedPlayers?.length || 0) + 
-                (squadData.auctionPlayers?.length || 0)
-            );
-            
-            // Set global variables
-            window.squadData = squadData;
-            window.currentRoomCode = squadData.roomCode;
-            window.currentUsername = squadData.username;
-            window.userTeam = squadData.team;
-            window.userSessionId = squadData.sessionId;
-            
-            // Display team info
-            if (squadData.team) {
-                displayTeamInfo(squadData.team);
-                roomCodeDisplay.textContent = squadData.roomCode;
-                usernameDisplay.textContent = squadData.username;
+                return;
             }
             
-            // Process squad data
-            processSquadData(squadData);
+            // Store in global variables
+            window.currentRoomCode = roomCode;
+            window.currentUsername = username;
+            window.userTeam = team;
+            window.userSessionId = sessionId;
             
-            // Initialize UI components
-            initializeDragAndDrop();
-            createPlaying11Slots();
-            createImpactPlayerSlots();
+            // Display room info immediately
+            roomCodeDisplay.textContent = roomCode;
+            usernameDisplay.textContent = username || 'Player';
             
-            // Update statistics
-            updateStatistics(squadData);
+            // Initialize with available data
+            const initialData = {
+                roomCode: roomCode,
+                username: username,
+                team: team,
+                sessionId: sessionId,
+                retainedPlayers: squadData.retainedPlayers || [],
+                auctionPlayers: squadData.auctionPlayers || [],
+                budget: squadData.budget || 100,
+                rules: squadData.rules || { impactPlayers: 1 }
+            };
             
-            // Initialize socket connection
-            initializeSocket();
-            
-            console.log('✅ Playing 11 page initialized successfully');
-        }
+            console.log('✅ Initializing with data:', initialData);
+            initializePlaying11Page(initialData);
+        });
 
         // ========== GLOBAL VARIABLES ==========
         let socket = null;
@@ -597,10 +524,7 @@ window.retryLoadSquadData = retryLoadSquadData;
 
         // ========== SQUAD DATA PROCESSING ==========
         function processSquadData(data) {
-            console.log('🔄 Processing squad data:', {
-                retained: data.retainedPlayers?.length || 0,
-                auction: data.auctionPlayers?.length || 0
-            });
+            console.log('🔄 Processing squad data:', data);
             
             allPlayers = [];
             
@@ -613,7 +537,7 @@ window.retryLoadSquadData = retryLoadSquadData;
                         role: player.role,
                         isOverseas: player.isOverseas,
                         nationality: player.nationality,
-                        price: 0, // Retained players don't cost auction money
+                        price: 0,
                         source: 'retained',
                         stats: player.stats || {}
                     });
@@ -674,78 +598,73 @@ window.retryLoadSquadData = retryLoadSquadData;
         }
         
         function createPlayerElement(player) {
-    const playerEl = document.createElement('div');
-    playerEl.className = 'player-drag-item player-card rounded-xl p-3 mb-3 hover:scale-[1.02] transition-transform duration-200';
-    playerEl.setAttribute('data-player-id', player.id);
-    playerEl.setAttribute('draggable', 'true');
-    
-    // Determine role class and icon
-    let roleClass = 'role-batsman';
-    let roleDisplay = player.role || 'Player';
-    let roleIcon = '🏏';
-    
-    if (player.role) {
-        const roleLower = player.role.toLowerCase();
-        if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin')) {
-            roleClass = 'role-bowler';
-            roleIcon = '🎯';
-        } else if (roleLower.includes('all') || roleLower.includes('ar')) {
-            roleClass = 'role-allrounder';
-            roleIcon = '⚡';
-        } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
-            roleClass = 'role-wk';
-            roleIcon = '🧤';
-        }
-    }
-    
-    // ✅ FIXED: Correct overseas status check
-    // First check if isOverseas is explicitly set to true/false
-    let isOverseas = player.isOverseas === true;
-    
-    // If not explicitly set, check nationality
-    if (player.isOverseas === undefined && player.nationality) {
-        const nationality = player.nationality.toString().toLowerCase();
-        isOverseas = !(nationality.includes('ind') || nationality.includes('india') || nationality === 'indian');
-    }
-    
-    // If still not determined, default to Indian
-    if (player.isOverseas === undefined && !player.nationality) {
-        isOverseas = false;
-    }
-    
-    playerEl.innerHTML = `
-        <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-lg">
-                    <span class="text-lg">${roleIcon}</span>
-                </div>
-                <div class="min-w-0 flex-1">
-                    <div class="font-medium truncate">${player.name}</div>
-                    <div class="flex items-center space-x-2 mt-1">
-                        <span class="${roleClass} role-badge">${roleDisplay}</span>
-                        ${isOverseas ? 
-                            '<span class="text-xs px-2 py-1 bg-gradient-to-r from-purple-900/30 to-pink-900/30 text-purple-300 rounded">✈️ Overseas</span>' : 
-                            '<span class="text-xs px-2 py-1 bg-gradient-to-r from-green-900/30 to-emerald-900/30 text-green-300 rounded">🇮🇳 Indian</span>'}
+            const playerEl = document.createElement('div');
+            playerEl.className = 'player-drag-item player-card rounded-xl p-3 mb-3 hover:scale-[1.02] transition-transform duration-200';
+            playerEl.setAttribute('data-player-id', player.id);
+            playerEl.setAttribute('draggable', 'true');
+            
+            // Determine role class and icon
+            let roleClass = 'role-batsman';
+            let roleDisplay = player.role || 'Player';
+            let roleIcon = '🏏';
+            
+            if (player.role) {
+                const roleLower = player.role.toLowerCase();
+                if (roleLower.includes('bowl') || roleLower.includes('pace') || roleLower.includes('spin')) {
+                    roleClass = 'role-bowler';
+                    roleIcon = '🎯';
+                } else if (roleLower.includes('all') || roleLower.includes('ar')) {
+                    roleClass = 'role-allrounder';
+                    roleIcon = '⚡';
+                } else if (roleLower.includes('wk') || roleLower.includes('keep')) {
+                    roleClass = 'role-wk';
+                    roleIcon = '🧤';
+                }
+            }
+            
+            // Check overseas status
+            let isOverseas = player.isOverseas === true;
+            if (player.isOverseas === undefined && player.nationality) {
+                const nationality = player.nationality.toString().toLowerCase();
+                isOverseas = !(nationality.includes('ind') || nationality.includes('india') || nationality === 'indian');
+            }
+            if (player.isOverseas === undefined && !player.nationality) {
+                isOverseas = false;
+            }
+            
+            playerEl.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-lg">
+                            <span class="text-lg">${roleIcon}</span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-medium truncate">${player.name}</div>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="${roleClass} role-badge">${roleDisplay}</span>
+                                ${isOverseas ? 
+                                    '<span class="text-xs px-2 py-1 bg-gradient-to-r from-purple-900/30 to-pink-900/30 text-purple-300 rounded">✈️ Overseas</span>' : 
+                                    '<span class="text-xs px-2 py-1 bg-gradient-to-r from-green-900/30 to-emerald-900/30 text-green-300 rounded">🇮🇳 Indian</span>'}
+                            </div>
+                            ${player.nationality ? `<div class="text-xs text-gray-500 mt-1">${player.nationality}</div>` : ''}
+                        </div>
                     </div>
-                    ${player.nationality ? `<div class="text-xs text-gray-500 mt-1">${player.nationality}</div>` : ''}
+                    <div class="text-right">
+                        <div class="text-sm text-gray-400">${player.source === 'retained' ? 'Retained' : 'Bought'}</div>
+                        <div class="font-bold text-yellow-400">${player.source === 'retained' ? 'Free' : `₹${player.price} Cr`}</div>
+                    </div>
                 </div>
-            </div>
-            <div class="text-right">
-                <div class="text-sm text-gray-400">${player.source === 'retained' ? 'Retained' : 'Bought'}</div>
-                <div class="font-bold text-yellow-400">${player.source === 'retained' ? 'Free' : `₹${player.price} Cr`}</div>
-            </div>
-        </div>
-    `;
-    
-    // Add drag event listeners
-    playerEl.addEventListener('dragstart', handleDragStart);
-    playerEl.addEventListener('dragend', handleDragEnd);
-    
-    return playerEl;
-}
+            `;
+            
+            // Add drag event listeners
+            playerEl.addEventListener('dragstart', handleDragStart);
+            playerEl.addEventListener('dragend', handleDragEnd);
+            
+            return playerEl;
+        }
         
         function requestSquadFromServer() {
-            if (socket && socket.connected) {
+            if (socket && socket.connected && currentRoomCode) {
                 socket.emit('requestSquad', {
                     roomCode: currentRoomCode,
                     username: currentUsername,
@@ -765,7 +684,7 @@ window.retryLoadSquadData = retryLoadSquadData;
                 slot.className = 'slot-item hover:border-yellow-400/50 transition-all duration-200';
                 slot.setAttribute('data-slot-type', 'playing11');
                 slot.setAttribute('data-slot-index', i - 1);
-                slot.setAttribute('data-slot-number', i); // Add slot number
+                slot.setAttribute('data-slot-number', i);
                 slot.innerHTML = `
                     <div class="text-center">
                         <div class="text-2xl mb-1 text-yellow-400/50">${i}</div>
@@ -787,7 +706,6 @@ window.retryLoadSquadData = retryLoadSquadData;
             impactPlayerSlots.innerHTML = '';
             impactPlayers = new Array(maxImpactPlayers).fill(null);
             
-            // Create slots based on max impact players (default 1, can be up to 3)
             for (let i = 1; i <= maxImpactPlayers; i++) {
                 const slot = document.createElement('div');
                 slot.className = 'slot-item hover:border-purple-400/50 transition-all duration-200';
@@ -800,7 +718,6 @@ window.retryLoadSquadData = retryLoadSquadData;
                     </div>
                 `;
                 
-                // Add drag event listeners
                 slot.addEventListener('dragover', handleDragOver);
                 slot.addEventListener('dragenter', handleDragEnter);
                 slot.addEventListener('dragleave', handleDragLeave);
@@ -818,7 +735,6 @@ window.retryLoadSquadData = retryLoadSquadData;
 
         // ========== DRAG AND DROP FUNCTIONS ==========
         function initializeDragAndDrop() {
-            // Add drag events to available players area
             availablePlayers.addEventListener('dragover', handleDragOver);
             availablePlayers.addEventListener('dragenter', (e) => {
                 e.preventDefault();
@@ -848,7 +764,6 @@ window.retryLoadSquadData = retryLoadSquadData;
             e.dataTransfer.setData('text/plain', draggedPlayer.getAttribute('data-player-id'));
             draggedPlayer.classList.add('dragging');
             
-            // Add clone for drag image
             setTimeout(() => {
                 draggedPlayer.classList.add('opacity-0');
             }, 0);
@@ -860,7 +775,6 @@ window.retryLoadSquadData = retryLoadSquadData;
                 draggedPlayer = null;
             }
             
-            // Remove drag-over class from all slots
             document.querySelectorAll('.drag-over').forEach(el => {
                 el.classList.remove('drag-over');
             });
@@ -941,14 +855,13 @@ window.retryLoadSquadData = retryLoadSquadData;
                 returnToAvailablePlayers(oldPlayerId);
             }
             
-            // ✅ FIXED: Use consistent overseas status function
             const isOverseas = checkIfOverseas(playerData);
             
             // Add to playing11 array with slot position
             playing11[slotIndex] = {
                 ...playerData,
-                slotPosition: slotIndex + 1, // Store the exact position (1-11)
-                isOverseas: isOverseas // Ensure consistent overseas status
+                slotPosition: slotIndex + 1,
+                isOverseas: isOverseas
             };
             
             // Update slot display
@@ -980,7 +893,6 @@ window.retryLoadSquadData = retryLoadSquadData;
                 returnToAvailablePlayers(oldPlayerId);
             }
             
-            // ✅ FIXED: Use consistent overseas status function
             const isOverseas = checkIfOverseas(playerData);
             
             // Add to impactPlayers array with consistent overseas status
@@ -996,20 +908,16 @@ window.retryLoadSquadData = retryLoadSquadData;
             highlightSlot('impact', slotIndex);
         }
         
-        // ✅ NEW: Helper function to check overseas status consistently
         function checkIfOverseas(player) {
-            // First check if isOverseas is explicitly set to true/false
             if (player.isOverseas === true || player.isOverseas === false) {
                 return player.isOverseas;
             }
             
-            // If not explicitly set, check nationality
             if (player.nationality) {
                 const nationality = player.nationality.toString().toLowerCase();
                 return !(nationality.includes('ind') || nationality.includes('india') || nationality === 'indian');
             }
             
-            // Default to Indian if no information
             return false;
         }
         
@@ -1073,7 +981,6 @@ window.retryLoadSquadData = retryLoadSquadData;
                 }
             }
             
-            // ✅ FIXED: Use consistent overseas check
             const isOverseas = checkIfOverseas(playerData);
             
             slot.innerHTML = `
@@ -1243,7 +1150,7 @@ window.retryLoadSquadData = retryLoadSquadData;
             // Get selected captain
             const hasCaptain = window.selectedCaptain !== undefined && window.selectedCaptain !== null;
             
-            // Check overseas count (max 4) - using consistent check
+            // Check overseas count (max 4)
             const overseasCount = playing11.filter(player => 
                 player && checkIfOverseas(player)
             ).length;
@@ -1349,25 +1256,23 @@ window.retryLoadSquadData = retryLoadSquadData;
             const playing11Final = playing11
                 .filter(player => player !== null)
                 .map((player, index) => {
-                    // ✅ Ensure consistent overseas status
                     const isOverseas = checkIfOverseas(player);
                     return {
                         ...player,
-                        slotPosition: index + 1, // Exact position (1-11)
+                        slotPosition: index + 1,
                         isCaptain: window.selectedCaptain?.id === player.id,
-                        isOverseas: isOverseas // Use consistent overseas status
+                        isOverseas: isOverseas
                     };
                 });
             
             const impactPlayersFinal = impactPlayers
                 .filter(player => player !== null)
                 .map((player, index) => {
-                    // ✅ Ensure consistent overseas status
                     const isOverseas = checkIfOverseas(player);
                     return {
                         ...player,
-                        impactSlot: index + 1, // Impact player position
-                        isOverseas: isOverseas // Use consistent overseas status
+                        impactSlot: index + 1,
+                        isOverseas: isOverseas
                     };
                 });
             
@@ -1395,6 +1300,11 @@ window.retryLoadSquadData = retryLoadSquadData;
 
         function submitPlaying11WithPositions(playing11Data, impactPlayersData) {
             console.log('🚀 Starting submission process...');
+            console.log('📋 Room Code:', currentRoomCode);
+            console.log('👤 Username:', currentUsername);
+            console.log('🏏 Playing 11:', playing11Data.length, 'players');
+            console.log('⭐ Impact Players:', impactPlayersData.length, 'players');
+            console.log('👑 Captain:', window.selectedCaptain?.name);
             
             if (!currentRoomCode) {
                 showAlert('Error', 'Room code not found. Please refresh the page.', '❌');
@@ -1411,29 +1321,18 @@ window.retryLoadSquadData = retryLoadSquadData;
                 roomCode: currentRoomCode,
                 username: currentUsername,
                 team: userTeam,
-                playing11: playing11Data, // Includes positions and captain flag
+                playing11: playing11Data,
                 impactPlayers: impactPlayersData,
                 captain: window.selectedCaptain,
                 submittedAt: new Date().toISOString(),
                 sessionId: userSessionId
             };
             
-            console.log('📤 Submitting Playing 11 with positions:', {
-                roomCode: currentRoomCode,
-                username: currentUsername,
-                team: userTeam?.name,
-                playing11: playing11Data.map(p => ({name: p.name, position: p.slotPosition, captain: p.isCaptain})),
-                impact: impactPlayersData.length,
-                captain: window.selectedCaptain.name
-            });
+            console.log('📤 Submitting Playing 11 data:', submissionData);
             
-            // Send to server - try both event names
+            // Send to server - try the correct event name
             console.log('📤 Emitting submitPlaying11 event...');
             socket.emit('submitPlaying11', submissionData);
-            
-            // Also try the other event name as backup
-            console.log('📤 Also emitting playing11Submitted event...');
-            socket.emit('playing11Submitted', submissionData);
             
             // Update UI
             submitPlaying11Btn.disabled = true;
@@ -1508,12 +1407,14 @@ window.retryLoadSquadData = retryLoadSquadData;
             
             socket.on('connect', () => {
                 console.log('✅ Connected to server');
+                console.log('📋 Joining room:', currentRoomCode);
                 
-                // Join the playing11 room - FIXED: Don't join validation room, just join the main room
+                // Join the playing11 room
                 socket.emit('joinPlaying11', {
                     roomCode: currentRoomCode,
                     username: currentUsername,
-                    sessionId: userSessionId
+                    sessionId: userSessionId,
+                    team: userTeam
                 });
             });
             
@@ -1522,7 +1423,6 @@ window.retryLoadSquadData = retryLoadSquadData;
                 showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
             });
             
-            // ✅ FIXED: Listen for room joined confirmation
             socket.on('playing11Joined', (data) => {
                 console.log('✅ Joined playing11 room:', data);
                 
@@ -1563,7 +1463,6 @@ window.retryLoadSquadData = retryLoadSquadData;
                 showAlert('Squad Loaded', `Your squad of ${allPlayers.length} players is ready!`, '✅');
             });
             
-            // ✅ FIXED: Listen for both possible success events
             socket.on('playing11SubmittedSuccess', (data) => {
                 console.log('✅ Playing 11 submitted successfully:', data);
                 
@@ -1600,7 +1499,6 @@ window.retryLoadSquadData = retryLoadSquadData;
                 });
             });
 
-            // ✅ FIXED: Also listen for generic success event
             socket.on('submissionSuccess', (data) => {
                 console.log('✅ Submission successful:', data);
                 showAlert('Success', 'Playing 11 submitted successfully!', '✅');
@@ -1644,9 +1542,9 @@ window.retryLoadSquadData = retryLoadSquadData;
                 showAlert('Disconnected', 'Lost connection to server. Attempting to reconnect...', '⚠️');
             });
             
-            // ✅ Add this for debugging: log all socket events
+            // Add this for debugging: log all socket events
             socket.onAny((eventName, ...args) => {
-                console.log(`🔍 Socket event received: ${eventName}`, args);
+                console.log(`🔍 Socket event: ${eventName}`, args);
             });
         }
 
