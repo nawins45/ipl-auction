@@ -329,7 +329,6 @@
                     if (currentRoomCode) {
                         roomCodeDisplay.textContent = currentRoomCode;
                         initializeSocket();
-                        loadTeams();
                     } else {
                         showAlert('No Room', 'No room found. Please return to control panel.', '❌');
                         setTimeout(() => {
@@ -360,23 +359,29 @@
                 });
             });
             
+            socket.on('validationJoined', (data) => {
+                console.log('✅ Joined validation room:', data);
+                // Load teams after successfully joining
+                loadTeams();
+            });
+            
             socket.on('connect_error', (error) => {
                 updateConnectionStatus('Connection Error', 'red');
                 console.error('❌ Connection error:', error);
             });
             
-            // ✅ FIXED: Listen for the correct socket event from playing11.html
-            socket.on('playing11Submitted', (data) => {
-                console.log('📥 Playing 11 submitted:', data);
-                showAlert('New Submission', `${data.username} (${data.team.name}) submitted playing 11!`, '✅');
+            // Listen for playing 11 submissions from users
+            socket.on('submitPlaying11', (data) => {
+                console.log('📥 Playing 11 submitted by user:', {
+                    username: data.username,
+                    team: data.team?.name || data.team,
+                    playing11: data.playing11?.length || 0,
+                    impactPlayers: data.impactPlayers?.length || 0,
+                    captain: data.captain?.name || 'No captain'
+                });
+                
+                showAlert('New Submission', `${data.username} (${data.team?.name || data.team}) submitted playing 11!`, '✅');
                 loadTeams(); // Refresh teams list
-            });
-            
-            // ✅ Also listen for the success event that playing11.html emits
-            socket.on('playing11SubmittedSuccess', (data) => {
-                console.log('📥 Playing 11 submission success:', data);
-                showAlert('Submission Confirmed', `${data.username} submitted playing 11 successfully!`, '✅');
-                loadTeams();
             });
             
             socket.on('allPlaying11Submitted', (data) => {
@@ -386,11 +391,13 @@
             });
             
             socket.on('teamsForValidation', (data) => {
-                console.log('👥 Teams loaded:', data);
-                if (data.teams) {
+                console.log('👥 Teams loaded for validation:', data);
+                if (data && data.teams) {
                     teams = data.teams;
+                } else if (Array.isArray(data)) {
+                    teams = data;
                 } else {
-                    teams = data; // Handle both formats
+                    teams = [];
                 }
                 renderTeams();
                 updateStats();
@@ -421,10 +428,21 @@
                 console.error('❌ Socket error:', data);
                 showAlert('Error', data.message, '❌');
             });
+            
+            socket.on('roomNotFound', (data) => {
+                console.error('❌ Room not found:', data);
+                showAlert('Room Error', 'Validation room not found. Please return to control panel.', '❌');
+                setTimeout(() => {
+                    window.location.href = 'auctioneer.html';
+                }, 3000);
+            });
         }
         
         function loadTeams() {
-            if (!currentRoomCode || !currentSessionId) return;
+            if (!currentRoomCode || !currentSessionId) {
+                console.error('❌ Cannot load teams: Missing room code or session ID');
+                return;
+            }
             
             console.log('🔄 Loading teams for validation...');
             socket.emit('getTeamsForValidation', {
@@ -455,12 +473,12 @@
                 teamCard.className = 'glass-panel rounded-xl p-4 cursor-pointer hover:bg-gray-800/30 transition-all duration-300 slide-in';
                 teamCard.onclick = () => openTeamDetails(index);
                 
-                // ✅ FIXED: Handle both team formats
+                // Extract team info with fallbacks
                 const teamName = team.team?.name || team.teamName || team.name || 'Unknown Team';
                 const teamColor = team.team?.color || '#666666';
                 const teamLogo = team.team?.logo || null;
                 const username = team.username || team.user || 'Unknown User';
-                const submitted = team.playing11Submitted || team.submitted || false;
+                const submitted = team.submitPlaying11 || team.submitted || team.playing11?.length > 0 || false;
                 const rating = team.rating;
                 const ratingComments = team.ratingComments || '';
                 
@@ -507,22 +525,11 @@
             teamsCount.textContent = teams.length;
         }
         
-        function updateStats() {
-            const submitted = teams.filter(t => t.playing11Submitted || t.submitted).length;
-            const rated = teams.filter(t => t.rating !== null && t.rating !== undefined).length;
-            const pending = teams.length - rated;
-            
-            totalTeams.textContent = teams.length;
-            submittedTeams.textContent = submitted;
-            ratedTeams.textContent = rated;
-            pendingTeams.textContent = pending;
-        }
-        
         function openTeamDetails(index) {
             currentTeamIndex = index;
             const team = teams[index];
             
-            // ✅ FIXED: Handle both team formats
+            // Extract team info with fallbacks
             const teamName = team.team?.name || team.teamName || team.name || 'Unknown Team';
             const currentRatingValue = team.rating || 0;
             const ratingComments = team.ratingComments || '';
@@ -534,7 +541,7 @@
             document.getElementById('ratingComments').value = ratingComments;
             
             // Update team stats
-            const squadSize = team.squadLimits?.total || team.totalPlayers || 0;
+            const squadSize = team.squadLimits?.total || team.totalPlayers || team.retainedPlayers?.length + team.auctionPlayers?.length || 0;
             const budget = team.budget || team.remainingBudget || 0;
             const overseas = team.squadLimits?.overseas || team.overseasCount || 0;
             const indian = team.squadLimits?.indian || squadSize - overseas || 0;
@@ -582,6 +589,11 @@
             const comments = document.getElementById('ratingComments').value.trim();
             const username = team.username || team.user;
             
+            if (!username) {
+                showAlert('Error', 'Cannot rate team: No username found', '❌');
+                return;
+            }
+            
             socket.emit('rateTeam', {
                 roomCode: currentRoomCode,
                 username: username,
@@ -596,85 +608,98 @@
             const modal = document.getElementById('teamModal');
             const modalContent = document.getElementById('teamModalContent');
             
-            // ✅ FIXED: Handle both team formats
+            // Extract team info with fallbacks
             const teamName = team.team?.name || team.teamName || team.name || 'Unknown Team';
             const username = team.username || team.user || 'Unknown User';
             const teamColor = team.team?.color || '#666666';
             const teamLogo = team.team?.logo || null;
             
-            // Get playing 11 data
+            // Get playing 11 data with fallbacks
             const playing11 = team.playing11 || [];
             const impactPlayers = team.impactPlayers || [];
             const captain = team.captain || {};
             
             // Build playing 11 table
-            const playing11Table = playing11.length > 0 ? `
-                <div class="mb-6">
-                    <h4 class="text-xl font-bold text-green-400 mb-3 flex items-center gap-2">
-                        <span>🏏</span>
-                        Playing 11 
-                        ${captain.name ? `<span class="text-sm text-yellow-400">(Captain: ${captain.name})</span>` : ''}
-                    </h4>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="bg-gray-800/50">
-                                    <th class="p-3 text-left">#</th>
-                                    <th class="p-3 text-left">Player</th>
-                                    <th class="p-3 text-left">Role</th>
-                                    <th class="p-3 text-left">Overseas</th>
-                                    <th class="p-3 text-left">Captain</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${playing11.map((player, idx) => `
-                                    <tr class="border-b border-gray-700/50 hover:bg-gray-800/30">
-                                        <td class="p-3 font-bold ${player.isCaptain ? 'text-yellow-400' : ''}">
-                                            ${player.slotPosition || idx + 1}
-                                        </td>
-                                        <td class="p-3 ${player.isCaptain ? 'font-bold text-yellow-400' : ''}">${player.name}</td>
-                                        <td class="p-3">${player.role || 'Player'}</td>
-                                        <td class="p-3">${player.isOverseas ? 'Yes ✈️' : 'No 🇮🇳'}</td>
-                                        <td class="p-3">${player.isCaptain ? '⭐ Captain' : ''}</td>
+            let playing11Table = '';
+            if (playing11.length > 0) {
+                playing11Table = `
+                    <div class="mb-6">
+                        <h4 class="text-xl font-bold text-green-400 mb-3 flex items-center gap-2">
+                            <span>🏏</span>
+                            Playing 11 
+                            ${captain.name ? `<span class="text-sm text-yellow-400">(Captain: ${captain.name})</span>` : ''}
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="bg-gray-800/50">
+                                        <th class="p-3 text-left">#</th>
+                                        <th class="p-3 text-left">Player</th>
+                                        <th class="p-3 text-left">Role</th>
+                                        <th class="p-3 text-left">Overseas</th>
+                                        <th class="p-3 text-left">Captain</th>
                                     </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    ${playing11.map((player, idx) => {
+                                        const isCaptain = player.isCaptain || captain.id === player.id || captain.name === player.name;
+                                        return `
+                                            <tr class="border-b border-gray-700/50 hover:bg-gray-800/30">
+                                                <td class="p-3 font-bold ${isCaptain ? 'text-yellow-400' : ''}">
+                                                    ${player.slotPosition || idx + 1}
+                                                </td>
+                                                <td class="p-3 ${isCaptain ? 'font-bold text-yellow-400' : ''}">${player.name}</td>
+                                                <td class="p-3">${player.role || 'Player'}</td>
+                                                <td class="p-3">${player.isOverseas ? 'Yes ✈️' : 'No 🇮🇳'}</td>
+                                                <td class="p-3">${isCaptain ? '⭐ Captain' : ''}</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-            ` : '<p class="text-gray-400 mb-6">No playing 11 submitted yet.</p>';
+                `;
+            } else {
+                playing11Table = '<p class="text-gray-400 mb-6">No playing 11 submitted yet.</p>';
+            }
             
             // Build impact players table
-            const impactTable = impactPlayers.length > 0 ? `
-                <div class="mb-6">
-                    <h4 class="text-xl font-bold text-blue-400 mb-3">⚡ Impact Players</h4>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="bg-gray-800/50">
-                                    <th class="p-3 text-left">#</th>
-                                    <th class="p-3 text-left">Player</th>
-                                    <th class="p-3 text-left">Role</th>
-                                    <th class="p-3 text-left">Overseas</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${impactPlayers.map((player, idx) => `
-                                    <tr class="border-b border-gray-700/50 hover:bg-gray-800/30">
-                                        <td class="p-3 font-bold">${idx + 1}</td>
-                                        <td class="p-3">${player.name}</td>
-                                        <td class="p-3">${player.role || 'Player'}</td>
-                                        <td class="p-3">${player.isOverseas ? 'Yes ✈️' : 'No 🇮🇳'}</td>
+            let impactTable = '';
+            if (impactPlayers.length > 0) {
+                impactTable = `
+                    <div class="mb-6">
+                        <h4 class="text-xl font-bold text-blue-400 mb-3">⚡ Impact Players</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="bg-gray-800/50">
+                                        <th class="p-3 text-left">#</th>
+                                        <th class="p-3 text-left">Player</th>
+                                        <th class="p-3 text-left">Role</th>
+                                        <th class="p-3 text-left">Overseas</th>
                                     </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    ${impactPlayers.map((player, idx) => `
+                                        <tr class="border-b border-gray-700/50 hover:bg-gray-800/30">
+                                            <td class="p-3 font-bold">${idx + 1}</td>
+                                            <td class="p-3">${player.name}</td>
+                                            <td class="p-3">${player.role || 'Player'}</td>
+                                            <td class="p-3">${player.isOverseas ? 'Yes ✈️' : 'No 🇮🇳'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-            ` : '<p class="text-gray-400 mb-6">No impact players selected.</p>';
+                `;
+            } else {
+                impactTable = '<p class="text-gray-400 mb-6">No impact players selected.</p>';
+            }
             
             // Build squad summary
-            const squadSize = team.squadLimits?.total || team.totalPlayers || 0;
+            const squadSize = team.squadLimits?.total || team.totalPlayers || team.retainedPlayers?.length + team.auctionPlayers?.length || 0;
             const budget = team.budget || team.remainingBudget || 0;
             const overseas = team.squadLimits?.overseas || team.overseasCount || 0;
             const indian = team.squadLimits?.indian || squadSize - overseas || 0;
@@ -774,7 +799,6 @@
             const sortedTeams = [...ratedTeamsList].sort((a, b) => b.rating - a.rating);
             
             rankingPreview.innerHTML = sortedTeams.map((team, index) => {
-                // ✅ FIXED: Handle both team formats
                 const teamName = team.team?.name || team.teamName || team.name || 'Unknown Team';
                 const username = team.username || team.user || '';
                 
