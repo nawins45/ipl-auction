@@ -350,6 +350,14 @@
             socket.on('connect', () => {
                 updateConnectionStatus('Connected', 'green');
                 console.log('✅ Connected to validation');
+                
+                // Join the validation room
+                socket.emit('joinValidation', {
+                    roomCode: currentRoomCode,
+                    sessionId: currentSessionId,
+                    username: currentUsername,
+                    isAuctioneer: true
+                });
             });
             
             socket.on('connect_error', (error) => {
@@ -357,36 +365,51 @@
                 console.error('❌ Connection error:', error);
             });
             
+            // ✅ FIXED: Listen for the correct socket event from playing11.html
             socket.on('playing11Submitted', (data) => {
                 console.log('📥 Playing 11 submitted:', data);
-                showAlert('New Submission', `${data.username} (${data.team}) submitted playing 11`, '✅');
+                showAlert('New Submission', `${data.username} (${data.team.name}) submitted playing 11!`, '✅');
                 loadTeams(); // Refresh teams list
+            });
+            
+            // ✅ Also listen for the success event that playing11.html emits
+            socket.on('playing11SubmittedSuccess', (data) => {
+                console.log('📥 Playing 11 submission success:', data);
+                showAlert('Submission Confirmed', `${data.username} submitted playing 11 successfully!`, '✅');
+                loadTeams();
             });
             
             socket.on('allPlaying11Submitted', (data) => {
                 console.log('🎉 All playing 11 submitted:', data);
-                showAlert('All Submitted', 'All users have submitted their playing 11!', '🎉');
+                showAlert('All Submitted', 'All users have submitted their playing 11! Start rating teams.', '🎉');
                 loadTeams();
-            });
-            
-            socket.on('ratingSuccess', (data) => {
-                console.log('⭐ Rating success:', data);
-                showAlert('Rating Submitted', data.message, '⭐');
-                loadTeams(); // Refresh to show updated rating
             });
             
             socket.on('teamsForValidation', (data) => {
                 console.log('👥 Teams loaded:', data);
-                teams = data.teams;
+                if (data.teams) {
+                    teams = data.teams;
+                } else {
+                    teams = data; // Handle both formats
+                }
                 renderTeams();
                 updateStats();
                 updateRankingPreview();
                 checkAllRated();
             });
             
+            socket.on('ratingSuccess', (data) => {
+                console.log('⭐ Rating success:', data);
+                showAlert('Rating Submitted', `Rating ${data.rating}/10 saved for ${data.username}`, '⭐');
+                loadTeams(); // Refresh to show updated rating
+            });
+            
             socket.on('finalResultsPublished', (data) => {
                 console.log('🏆 Results published:', data);
                 showAlert('Results Published', 'Final results have been published to all users!', '🏆');
+                
+                // Store results data
+                localStorage.setItem('finalResults', JSON.stringify(data));
                 
                 // Redirect auctioneer after delay
                 setTimeout(() => {
@@ -403,6 +426,7 @@
         function loadTeams() {
             if (!currentRoomCode || !currentSessionId) return;
             
+            console.log('🔄 Loading teams for validation...');
             socket.emit('getTeamsForValidation', {
                 roomCode: currentRoomCode,
                 sessionId: currentSessionId
@@ -412,11 +436,15 @@
         function renderTeams() {
             teamsList.innerHTML = '';
             
-            if (teams.length === 0) {
+            if (!teams || teams.length === 0) {
                 teamsList.innerHTML = `
                     <div class="text-center py-8">
                         <div class="text-4xl mb-3">😔</div>
                         <p class="text-gray-400">No teams found</p>
+                        <button onclick="loadTeams()" 
+                                class="mt-3 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-semibold">
+                            🔄 Load Teams
+                        </button>
                     </div>
                 `;
                 return;
@@ -427,28 +455,37 @@
                 teamCard.className = 'glass-panel rounded-xl p-4 cursor-pointer hover:bg-gray-800/30 transition-all duration-300 slide-in';
                 teamCard.onclick = () => openTeamDetails(index);
                 
+                // ✅ FIXED: Handle both team formats
+                const teamName = team.team?.name || team.teamName || team.name || 'Unknown Team';
+                const teamColor = team.team?.color || '#666666';
+                const teamLogo = team.team?.logo || null;
+                const username = team.username || team.user || 'Unknown User';
+                const submitted = team.playing11Submitted || team.submitted || false;
+                const rating = team.rating;
+                const ratingComments = team.ratingComments || '';
+                
                 // Status badges
-                const submittedBadge = team.playing11Submitted ? 
+                const submittedBadge = submitted ? 
                     '<span class="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">Submitted</span>' :
                     '<span class="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs">Pending</span>';
                 
-                const ratingBadge = team.rating ? 
-                    `<span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">${team.rating}/10</span>` :
+                const ratingBadge = rating ? 
+                    `<span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">${rating}/10</span>` :
                     '<span class="px-2 py-1 bg-gray-500/20 text-gray-400 rounded-full text-xs">Not Rated</span>';
                 
                 teamCard.innerHTML = `
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
                             <div class="w-12 h-12 rounded-full flex items-center justify-center" 
-                                 style="background: ${team.team.color}20; border: 2px solid ${team.team.color}">
-                                ${team.team.logo ? 
-                                    `<img src="${team.team.logo}" alt="${team.team.name}" class="w-8 h-8">` :
-                                    `<span class="text-xl">🏏</span>`
+                                 style="background: ${teamColor}20; border: 2px solid ${teamColor}">
+                                ${teamLogo ? 
+                                    `<img src="${teamLogo}" alt="${teamName}" class="w-8 h-8 rounded-full">` :
+                                    `<span class="text-xl font-bold" style="color: ${teamColor}">${teamName.charAt(0)}</span>`
                                 }
                             </div>
                             <div>
-                                <div class="font-bold">${team.team.name}</div>
-                                <div class="text-sm text-gray-400">${team.username}</div>
+                                <div class="font-bold">${teamName}</div>
+                                <div class="text-sm text-gray-400">${username}</div>
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
@@ -456,10 +493,10 @@
                             ${ratingBadge}
                         </div>
                     </div>
-                    ${team.rating ? `
+                    ${rating ? `
                         <div class="mt-3 pt-3 border-t border-gray-700">
                             <div class="text-sm text-gray-400">Comments:</div>
-                            <div class="text-sm truncate">${team.ratingComments || 'No comments'}</div>
+                            <div class="text-sm truncate">${ratingComments || 'No comments'}</div>
                         </div>
                     ` : ''}
                 `;
@@ -471,8 +508,8 @@
         }
         
         function updateStats() {
-            const submitted = teams.filter(t => t.playing11Submitted).length;
-            const rated = teams.filter(t => t.rating !== null).length;
+            const submitted = teams.filter(t => t.playing11Submitted || t.submitted).length;
+            const rated = teams.filter(t => t.rating !== null && t.rating !== undefined).length;
             const pending = teams.length - rated;
             
             totalTeams.textContent = teams.length;
@@ -485,20 +522,30 @@
             currentTeamIndex = index;
             const team = teams[index];
             
+            // ✅ FIXED: Handle both team formats
+            const teamName = team.team?.name || team.teamName || team.name || 'Unknown Team';
+            const currentRatingValue = team.rating || 0;
+            const ratingComments = team.ratingComments || '';
+            
             // Update rating panel
             ratingPanel.classList.remove('hidden');
-            document.getElementById('currentTeamName').textContent = team.team.name;
-            document.getElementById('currentRating').textContent = team.rating ? `${team.rating}/10` : '-';
-            document.getElementById('ratingComments').value = team.ratingComments || '';
+            document.getElementById('currentTeamName').textContent = teamName;
+            document.getElementById('currentRating').textContent = currentRatingValue ? `${currentRatingValue}/10` : '-';
+            document.getElementById('ratingComments').value = ratingComments;
             
             // Update team stats
-            document.getElementById('teamSquadSize').textContent = team.squadLimits.total || '0';
-            document.getElementById('teamBudget').textContent = `₹${team.budget || 0} Cr`;
-            document.getElementById('teamOverseas').textContent = team.squadLimits.overseas || '0';
-            document.getElementById('teamIndian').textContent = team.squadLimits.indian || '0';
+            const squadSize = team.squadLimits?.total || team.totalPlayers || 0;
+            const budget = team.budget || team.remainingBudget || 0;
+            const overseas = team.squadLimits?.overseas || team.overseasCount || 0;
+            const indian = team.squadLimits?.indian || squadSize - overseas || 0;
+            
+            document.getElementById('teamSquadSize').textContent = squadSize;
+            document.getElementById('teamBudget').textContent = `₹${budget.toFixed(2)} Cr`;
+            document.getElementById('teamOverseas').textContent = overseas;
+            document.getElementById('teamIndian').textContent = indian;
             
             // Generate stars
-            generateStars(team.rating || 0);
+            generateStars(currentRatingValue);
             
             // Also open modal with detailed view
             openTeamModal(index);
@@ -533,10 +580,11 @@
             
             const team = teams[currentTeamIndex];
             const comments = document.getElementById('ratingComments').value.trim();
+            const username = team.username || team.user;
             
             socket.emit('rateTeam', {
                 roomCode: currentRoomCode,
-                username: team.username,
+                username: username,
                 rating: currentRating,
                 comments: comments,
                 sessionId: currentSessionId
@@ -548,27 +596,46 @@
             const modal = document.getElementById('teamModal');
             const modalContent = document.getElementById('teamModalContent');
             
+            // ✅ FIXED: Handle both team formats
+            const teamName = team.team?.name || team.teamName || team.name || 'Unknown Team';
+            const username = team.username || team.user || 'Unknown User';
+            const teamColor = team.team?.color || '#666666';
+            const teamLogo = team.team?.logo || null;
+            
+            // Get playing 11 data
+            const playing11 = team.playing11 || [];
+            const impactPlayers = team.impactPlayers || [];
+            const captain = team.captain || {};
+            
             // Build playing 11 table
-            const playing11Table = team.playing11.length > 0 ? `
+            const playing11Table = playing11.length > 0 ? `
                 <div class="mb-6">
-                    <h4 class="text-xl font-bold text-green-400 mb-3">🏏 Playing 11</h4>
+                    <h4 class="text-xl font-bold text-green-400 mb-3 flex items-center gap-2">
+                        <span>🏏</span>
+                        Playing 11 
+                        ${captain.name ? `<span class="text-sm text-yellow-400">(Captain: ${captain.name})</span>` : ''}
+                    </h4>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="bg-gray-800/50">
+                                    <th class="p-3 text-left">#</th>
                                     <th class="p-3 text-left">Player</th>
                                     <th class="p-3 text-left">Role</th>
-                                    <th class="p-3 text-left">Price</th>
                                     <th class="p-3 text-left">Overseas</th>
+                                    <th class="p-3 text-left">Captain</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${team.playing11.map(player => `
+                                ${playing11.map((player, idx) => `
                                     <tr class="border-b border-gray-700/50 hover:bg-gray-800/30">
-                                        <td class="p-3">${player.name}</td>
+                                        <td class="p-3 font-bold ${player.isCaptain ? 'text-yellow-400' : ''}">
+                                            ${player.slotPosition || idx + 1}
+                                        </td>
+                                        <td class="p-3 ${player.isCaptain ? 'font-bold text-yellow-400' : ''}">${player.name}</td>
                                         <td class="p-3">${player.role || 'Player'}</td>
-                                        <td class="p-3 text-yellow-400 font-semibold">₹${player.price || 0} Cr</td>
-                                        <td class="p-3">${player.isOverseas ? 'Yes 🌍' : 'No 🇮🇳'}</td>
+                                        <td class="p-3">${player.isOverseas ? 'Yes ✈️' : 'No 🇮🇳'}</td>
+                                        <td class="p-3">${player.isCaptain ? '⭐ Captain' : ''}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -578,24 +645,26 @@
             ` : '<p class="text-gray-400 mb-6">No playing 11 submitted yet.</p>';
             
             // Build impact players table
-            const impactTable = team.impactPlayers.length > 0 ? `
+            const impactTable = impactPlayers.length > 0 ? `
                 <div class="mb-6">
                     <h4 class="text-xl font-bold text-blue-400 mb-3">⚡ Impact Players</h4>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="bg-gray-800/50">
+                                    <th class="p-3 text-left">#</th>
                                     <th class="p-3 text-left">Player</th>
                                     <th class="p-3 text-left">Role</th>
-                                    <th class="p-3 text-left">Price</th>
+                                    <th class="p-3 text-left">Overseas</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${team.impactPlayers.map(player => `
+                                ${impactPlayers.map((player, idx) => `
                                     <tr class="border-b border-gray-700/50 hover:bg-gray-800/30">
+                                        <td class="p-3 font-bold">${idx + 1}</td>
                                         <td class="p-3">${player.name}</td>
                                         <td class="p-3">${player.role || 'Player'}</td>
-                                        <td class="p-3 text-yellow-400 font-semibold">₹${player.price || 0} Cr</td>
+                                        <td class="p-3">${player.isOverseas ? 'Yes ✈️' : 'No 🇮🇳'}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -605,32 +674,46 @@
             ` : '<p class="text-gray-400 mb-6">No impact players selected.</p>';
             
             // Build squad summary
+            const squadSize = team.squadLimits?.total || team.totalPlayers || 0;
+            const budget = team.budget || team.remainingBudget || 0;
+            const overseas = team.squadLimits?.overseas || team.overseasCount || 0;
+            const indian = team.squadLimits?.indian || squadSize - overseas || 0;
+            
             const squadSummary = `
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     <div class="bg-gray-800/30 p-3 rounded-lg">
                         <div class="text-sm text-gray-400">Total Players</div>
-                        <div class="text-xl font-bold">${team.squadLimits.total || 0}</div>
+                        <div class="text-xl font-bold">${squadSize}</div>
                     </div>
                     <div class="bg-gray-800/30 p-3 rounded-lg">
                         <div class="text-sm text-gray-400">Remaining Budget</div>
-                        <div class="text-xl font-bold text-green-400">₹${team.budget || 0} Cr</div>
+                        <div class="text-xl font-bold text-green-400">₹${budget.toFixed(2)} Cr</div>
                     </div>
                     <div class="bg-gray-800/30 p-3 rounded-lg">
-                        <div class="text-sm text-gray-400">Retained Players</div>
-                        <div class="text-xl font-bold">${team.retainedPlayers.length || 0}</div>
+                        <div class="text-sm text-gray-400">Overseas Players</div>
+                        <div class="text-xl font-bold text-blue-400">${overseas}</div>
                     </div>
                     <div class="bg-gray-800/30 p-3 rounded-lg">
-                        <div class="text-sm text-gray-400">Auction Buys</div>
-                        <div class="text-xl font-bold">${team.auctionPlayers.length || 0}</div>
+                        <div class="text-sm text-gray-400">Indian Players</div>
+                        <div class="text-xl font-bold">${indian}</div>
                     </div>
                 </div>
             `;
             
             modalContent.innerHTML = `
                 <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h3 class="text-2xl font-bold text-yellow-400">${team.team.name}</h3>
-                        <div class="text-gray-400">${team.username}</div>
+                    <div class="flex items-center space-x-4">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center" 
+                             style="background: ${teamColor}20; border: 2px solid ${teamColor}">
+                            ${teamLogo ? 
+                                `<img src="${teamLogo}" alt="${teamName}" class="w-12 h-12 rounded-full">` :
+                                `<span class="text-2xl font-bold" style="color: ${teamColor}">${teamName.charAt(0)}</span>`
+                            }
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-yellow-400">${teamName}</h3>
+                            <div class="text-gray-400">${username}</div>
+                        </div>
                     </div>
                     <button onclick="closeModal()" class="text-2xl hover:text-yellow-400">✕</button>
                 </div>
@@ -671,13 +754,14 @@
         
         function closeModal() {
             document.getElementById('teamModal').classList.add('hidden');
+            document.getElementById('alertModal').classList.add('hidden');
         }
         
         function updateRankingPreview() {
             const rankingPreview = document.getElementById('rankingPreview');
-            const ratedTeams = teams.filter(t => t.rating !== null);
+            const ratedTeamsList = teams.filter(t => t.rating !== null && t.rating !== undefined);
             
-            if (ratedTeams.length === 0) {
+            if (ratedTeamsList.length === 0) {
                 rankingPreview.innerHTML = `
                     <div class="text-center py-4">
                         <p class="text-gray-400">Rate teams to see ranking</p>
@@ -687,9 +771,13 @@
             }
             
             // Sort by rating
-            const sortedTeams = [...ratedTeams].sort((a, b) => b.rating - a.rating);
+            const sortedTeams = [...ratedTeamsList].sort((a, b) => b.rating - a.rating);
             
             rankingPreview.innerHTML = sortedTeams.map((team, index) => {
+                // ✅ FIXED: Handle both team formats
+                const teamName = team.team?.name || team.teamName || team.name || 'Unknown Team';
+                const username = team.username || team.user || '';
+                
                 let medalClass = '';
                 if (index === 0) medalClass = 'gold-shine';
                 else if (index === 1) medalClass = 'silver-shine';
@@ -702,8 +790,8 @@
                                 ${index + 1}
                             </div>
                             <div>
-                                <div class="font-semibold">${team.team.name}</div>
-                                <div class="text-xs text-gray-400">${team.username}</div>
+                                <div class="font-semibold">${teamName}</div>
+                                <div class="text-xs text-gray-400">${username}</div>
                             </div>
                         </div>
                         <div class="text-xl font-bold text-yellow-400">${team.rating}/10</div>
@@ -713,7 +801,7 @@
         }
         
         function checkAllRated() {
-            const allRated = teams.length > 0 && teams.every(t => t.rating !== null);
+            const allRated = teams.length > 0 && teams.every(t => t.rating !== null && t.rating !== undefined);
             
             if (allRated) {
                 allRatedNotice.classList.remove('hidden');
@@ -725,7 +813,7 @@
         }
         
         function publishResults() {
-            if (!confirm('Publish final results to all users?')) return;
+            if (!confirm('Publish final results to all users? This will show the podium ranking.')) return;
             
             socket.emit('publishResults', {
                 roomCode: currentRoomCode,
@@ -750,11 +838,6 @@
             document.getElementById('modalTitle').textContent = title;
             document.getElementById('modalMessage').textContent = message;
             modal.classList.remove('hidden');
-        }
-        
-        function closeModal() {
-            document.getElementById('teamModal').classList.add('hidden');
-            document.getElementById('alertModal').classList.add('hidden');
         }
         
         function updateConnectionStatus(status, color) {
