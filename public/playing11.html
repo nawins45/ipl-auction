@@ -1394,6 +1394,18 @@ window.retryLoadSquadData = retryLoadSquadData;
         });
 
         function submitPlaying11WithPositions(playing11Data, impactPlayersData) {
+            console.log('🚀 Starting submission process...');
+            
+            if (!currentRoomCode) {
+                showAlert('Error', 'Room code not found. Please refresh the page.', '❌');
+                return;
+            }
+            
+            if (!socket || !socket.connected) {
+                showAlert('Connection Error', 'Not connected to server. Please check your connection.', '❌');
+                return;
+            }
+            
             // Prepare complete submission data with positions
             const submissionData = {
                 roomCode: currentRoomCode,
@@ -1407,13 +1419,21 @@ window.retryLoadSquadData = retryLoadSquadData;
             };
             
             console.log('📤 Submitting Playing 11 with positions:', {
-                playing11: playing11Data.map(p => ({name: p.name, position: p.slotPosition, captain: p.isCaptain, overseas: p.isOverseas})),
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                team: userTeam?.name,
+                playing11: playing11Data.map(p => ({name: p.name, position: p.slotPosition, captain: p.isCaptain})),
                 impact: impactPlayersData.length,
                 captain: window.selectedCaptain.name
             });
             
-            // Send to server
+            // Send to server - try both event names
+            console.log('📤 Emitting submitPlaying11 event...');
             socket.emit('submitPlaying11', submissionData);
+            
+            // Also try the other event name as backup
+            console.log('📤 Also emitting playing11Submitted event...');
+            socket.emit('playing11Submitted', submissionData);
             
             // Update UI
             submitPlaying11Btn.disabled = true;
@@ -1426,6 +1446,15 @@ window.retryLoadSquadData = retryLoadSquadData;
             
             // Store in localStorage as backup
             localStorage.setItem('lastPlaying11Submission', JSON.stringify(submissionData));
+            
+            // Set timeout to re-enable button if no response
+            setTimeout(() => {
+                if (submitPlaying11Btn.disabled && submitPlaying11Btn.innerHTML.includes('Submitting')) {
+                    showAlert('Timeout', 'Submission taking too long. Please try again.', '⏳');
+                    submitPlaying11Btn.disabled = false;
+                    submitPlaying11Btn.innerHTML = '✅ Submit Playing 11';
+                }
+            }, 10000);
         }
         
         // ========== DISPLAY FUNCTIONS ==========
@@ -1480,7 +1509,7 @@ window.retryLoadSquadData = retryLoadSquadData;
             socket.on('connect', () => {
                 console.log('✅ Connected to server');
                 
-                // Join the playing11 room
+                // Join the playing11 room - FIXED: Don't join validation room, just join the main room
                 socket.emit('joinPlaying11', {
                     roomCode: currentRoomCode,
                     username: currentUsername,
@@ -1493,6 +1522,7 @@ window.retryLoadSquadData = retryLoadSquadData;
                 showAlert('Connection Error', 'Cannot connect to server. Please refresh.', '❌');
             });
             
+            // ✅ FIXED: Listen for room joined confirmation
             socket.on('playing11Joined', (data) => {
                 console.log('✅ Joined playing11 room:', data);
                 
@@ -1533,6 +1563,7 @@ window.retryLoadSquadData = retryLoadSquadData;
                 showAlert('Squad Loaded', `Your squad of ${allPlayers.length} players is ready!`, '✅');
             });
             
+            // ✅ FIXED: Listen for both possible success events
             socket.on('playing11SubmittedSuccess', (data) => {
                 console.log('✅ Playing 11 submitted successfully:', data);
                 
@@ -1569,13 +1600,38 @@ window.retryLoadSquadData = retryLoadSquadData;
                 });
             });
 
+            // ✅ FIXED: Also listen for generic success event
+            socket.on('submissionSuccess', (data) => {
+                console.log('✅ Submission successful:', data);
+                showAlert('Success', 'Playing 11 submitted successfully!', '✅');
+                
+                // Update UI
+                submitPlaying11Btn.innerHTML = '✅ Submitted Successfully!';
+                submitPlaying11Btn.disabled = true;
+                showSuccessModal();
+            });
+
             socket.on('playing11Error', (data) => {
                 console.error('❌ Playing 11 submission error:', data);
-                showAlert('Submission Error', data.message, '❌');
+                showAlert('Submission Error', data.message || 'Submission failed', '❌');
                 
                 // Re-enable submit button
                 submitPlaying11Btn.disabled = false;
                 submitPlaying11Btn.innerHTML = '✅ Submit Playing 11';
+            });
+            
+            socket.on('roomNotFound', (data) => {
+                console.error('❌ Room not found:', data);
+                showAlert('Room Error', 'Cannot submit: Room not found. Make sure auctioneer is in validation page.', '❌');
+                
+                // Re-enable submit button
+                submitPlaying11Btn.disabled = false;
+                submitPlaying11Btn.innerHTML = '✅ Submit Playing 11';
+            });
+            
+            socket.on('error', (data) => {
+                console.error('❌ General error:', data);
+                showAlert('Error', data.message || 'An error occurred', '❌');
             });
             
             socket.on('teamRated', (data) => {
@@ -1583,14 +1639,14 @@ window.retryLoadSquadData = retryLoadSquadData;
                 showAlert('Team Rated', `Your team has been rated: ${data.rating}/10`, '⭐');
             });
             
-            socket.on('error', (data) => {
-                console.error('❌ Error:', data);
-                showAlert('Error', data.message, '❌');
-            });
-            
             socket.on('disconnect', () => {
                 console.log('🔌 Disconnected from server');
                 showAlert('Disconnected', 'Lost connection to server. Attempting to reconnect...', '⚠️');
+            });
+            
+            // ✅ Add this for debugging: log all socket events
+            socket.onAny((eventName, ...args) => {
+                console.log(`🔍 Socket event received: ${eventName}`, args);
             });
         }
 
