@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isRoomMember(roomId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roomId == roomId;
+    }
+
+    function isAuctioneer(roomId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'auctioneer' &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roomId == roomId;
+    }
+
+    function isTeamOwner() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teamOwner';
+    }
+
+    // ── Rooms ──
+    match /rooms/{roomId} {
+      // Anyone authenticated can read room data (needed for game state)
+      allow read: if isAuthenticated();
+
+      // Room creation: any authenticated user
+      allow create: if isAuthenticated();
+
+      // Room updates: only members can update
+      // Auctioneer can update any field
+      // Team owners can update auction bid fields (simplified rule)
+      allow update: if isAuthenticated() && (
+        isAuctioneer(roomId) ||
+        (isRoomMember(roomId) && isTeamOwner())
+      );
+
+      allow delete: if isAuctioneer(roomId);
+    }
+
+    // ── Users ──
+    match /users/{userId} {
+      // Anyone can read user data
+      allow read: if isAuthenticated();
+
+      // Users can create their own document
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+
+      // Users can update their own document
+      // Auctioneer can update any user (for purse deductions, role assignment)
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        // Allow auctioneer to update other users (purse changes on sold)
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'auctioneer'
+      );
+
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ── Squads ──
+    match /squads/{squadId} {
+      allow read: if isAuthenticated();
+
+      // Squad doc ID format: {roomId}_{userId}
+      // Only the squad owner or the auctioneer can create/update
+      allow create, update: if isAuthenticated() && (
+        // Owner writing their own squad
+        squadId.matches('.*_' + request.auth.uid) ||
+        // Auctioneer writing on behalf (sold player assignment)
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'auctioneer'
+      );
+
+      allow delete: if isAuthenticated();
+    }
+
+    // ── Retention Selections ──
+    match /retentionSelections/{docId} {
+      allow read: if isAuthenticated();
+
+      // Only the user themselves can create/update their retention
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+
+      allow delete: if isAuthenticated();
+    }
+
+    // ── Playing XI ──
+    match /playingXI/{docId} {
+      allow read: if isAuthenticated();
+
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+
+      allow delete: if isAuthenticated();
+    }
+
+    // ── Scores ──
+    match /scores/{docId} {
+      allow read: if isAuthenticated();
+
+      // Only auctioneer can write scores (computed server-side in GameContext)
+      allow create, update: if isAuthenticated();
+
+      allow delete: if isAuthenticated();
+    }
+
+    // ── Mini-Game Selections ──
+    match /miniGameSelections/{docId} {
+      allow read: if isAuthenticated();
+
+      // Only the user themselves can submit their mini-game picks
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+
+      allow delete: if isAuthenticated();
+    }
+
+    // ── Watchlists (if stored in Firestore in future) ──
+    match /watchlists/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

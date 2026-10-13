@@ -1,0 +1,18 @@
+{
+  "name": "IPL Auction Game",
+  "short_name": "IPL Auction",
+  "description": "Real-time multiplayer IPL auction simulation",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#080514",
+  "theme_color": "#080514",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
